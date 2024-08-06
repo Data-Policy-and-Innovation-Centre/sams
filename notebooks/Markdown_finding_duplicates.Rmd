@@ -60,6 +60,8 @@ Investigating each of the above variable suggests that the dataset covers placem
 offer_year_table = table(format(Cuttack_ITI_Placement$offer_date,"%Y"))
 offer_year_df = data.frame(Year = 2018:2024, Frequency=offer_year_table)
 names(offer_year_df)
+
+# create bar chart of offers by year
 ggplot(offer_year_df, aes(x = Year, y = Frequency.Freq)) +
   geom_bar(stat="identity", fill="skyblue",  color = "black") +
   scale_x_continuous(breaks = seq(min(offer_year_df$Year), max(offer_year_df$Year), by = 1)) +
@@ -76,7 +78,67 @@ ggplot(offer_year_df, aes(x = Year, y = Frequency.Freq)) +
   geom_text(aes(label = Frequency.Freq), vjust = -0.5, size = 4)  # Add text labels on top of bars
 ```
 
+## Descriptive Graphs
 
+# Stacked bar chart for offer_year×domain_name 
+```{r}
+# Calculate frequency of domain and offer_year
+freq_df_domain <- Cuttack_ITI_Placement %>%
+  group_by(offer_year, domain_name) %>%
+  summarise(Frequency = n()) %>%
+  ungroup()
+
+# Create the stacked bar chart
+ggplot(freq_df_domain, aes(x = as.factor(offer_year), y = Frequency, fill = domain_name)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count of Offers by Year and Domain",
+    x = "Year",
+    y = "Count",
+    fill = "Domain"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+    ylim(0, 500) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+  geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))  # Add text labels inside bars
+
+```
+
+# Stacked bar chart for offer_year×gender 
+```{r}
+# Calculate frequency of domain and offer_year
+freq_df_gender <- Cuttack_ITI_Placement %>%
+  group_by(offer_year, gender) %>%
+  summarise(Frequency = n()) %>%
+  ungroup()
+
+# Create the stacked bar chart
+ggplot(freq_df_gender, aes(x = as.factor(offer_year), y = Frequency, fill = gender)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count of Offers by Year and Gender",
+    x = "Year",
+    y = "Count",
+    fill = "Gender"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+    ylim(0, 500) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+  geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))  # Add text labels inside bars
+
+```
 
 ## Find the number of duplicates by different dimensions
 There are duplicate observations by 'name' which needs to be compared with identifiers such as 'dob' and 'primary_contact_number'
