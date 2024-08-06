@@ -223,7 +223,7 @@ print(expanded_duplicates_in_name_number_dob)
 ```
 
 
-# 
+## Tabulating highest qualification 
 
 The below table states the frequency of highest_qualification for all entries by their categories. Likely highest_qualification states their highest academic qualification excluding their ITI certification, although one entry in this variable is "ITI". Whether this qualification is at the time of data entry or when their admitted into the ITI is unclear. 
 
@@ -231,4 +231,27 @@ The below table states the frequency of highest_qualification for all entries by
 table(Cuttack_ITI_Placement$highest_qualification)
 ```
 
+## Calculating Age and Diagnosing variable 'dob'
+Generate age variable which measures age (in years) from individual's date of birth with reference to December 31, 2024. 
+Note that for 201 observations "age" is less than 14 years, which is due to misreporting of date of birth in the data set. Further, there 377 missing values for variable 'dob'.
+
+```{r}
+# Display the number of missing values in 'dob'
+print("The number of missing values in variable 'dob' are ")
+sum(is.na(Cuttack_ITI_Placement$dob))
+
+# Reference date as December 31, 2024
+reference_date = as.Date("2024-12-31")
+
+# Calculate Age in years
+Cuttack_ITI_Placement$age <- floor(as.numeric(difftime(reference_date, Cuttack_ITI_Placement$dob, units = "days")) / 365.25)
+
+# Create new variable 'is_under_14'
+Cuttack_ITI_Placement$is_under_14 <- Cuttack_ITI_Placement$age < 14
+
+# Count how many individuals age is under 14 years
+print("The number of entries with age below 14 years are ")
+sum(Cuttack_ITI_Placement$is_under_14, na.rm = TRUE)
+
+```
 
