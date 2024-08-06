@@ -1,0 +1,172 @@
+---
+title: "Markdown_Find_Duplicates"
+output: html_document
+date: "2024-08-01"
+---
+Load Sheet1 of data file called "Odisha placement data 09-07-2024.xlsx", which contains the individual placement data of ITI, Cuttack, and store it in Cuttack_ITI_Placement
+```{r setup}
+library(knitr)
+library(tidyverse)
+
+if (requireNamespace("rstudioapi", quietly = TRUE)) {
+  script_path <- rstudioapi::getActiveDocumentContext()$path
+  script_dir <- dirname(dirname(script_path))
+  print(script_dir)
+} else {
+  print("rstudioapi package is not available.")
+}
+
+```
+
+
+
+
+```{r}
+Cuttack_ITI_Placement <- read_excel("C:/Users/amita/Box/3. Sudakshya/Data/Raw/Odisha placement data 09-07-2024.xlsx", 
+    sheet = "Sheet1")
+```
+
+
+## Convert all names to lowercase and remove extra spaces in between names
+```{r}
+# lowercase all observations in 'name' variable
+Cuttack_ITI_Placement <- Cuttack_ITI_Placement %>%
+  mutate(name = tolower(name))
+
+# remove extra spaces between the first, middle and last name. 
+Cuttack_ITI_Placement$name = gsub("\\s+"," ",Cuttack_ITI_Placement$name)
+
+```
+
+## Convert offer_date from char in excel number format to date format
+
+```{r}
+# Convert char to num
+Cuttack_ITI_Placement$offer_date = as.numeric(Cuttack_ITI_Placement$offer_date)
+# convert excel num date to "date" 
+Cuttack_ITI_Placement$offer_date = as.Date(Cuttack_ITI_Placement$offer_date, origin = "1899-12-30")
+
+```
+## A brief explanation about the placement process
+Students and graduates of the institute can access placement opportunities at the institute. Hence you will find entries who graduated 5-6 years back, getting placed now. The person can sit for placement whenever there's an opportunity. Say a company wants to recruit 17 fitters, anyone who has done the trade or are in their last year of training can apply. Each time they get placed they get entered into the system/database. One person can sit for placement as many time as they want, there is no limit. The ones who are placed through the central placement cell (CPC) are also recorded however there is no demarcation in the database - it can be checked from the few years of placement data we have from the CPC.  
+
+## Identifying the period coverage of the dataset
+This dataset contains five variables which are either year or date. 'dob', 'start_date', 'end_date' & 'offer_date' are date variables while 'passing_year' simply mentions the year that they passed from ITI Cuttack.  
+Investigating each of the above variable suggests that the dataset covers placements records from 2018 to 2023 with 9 entries from 2024. 
+'passing_year' ranges from 2012 to 2024 with 265 missing values. 
+
+```{r}
+# tabulate 'offer_date' by the year of the date only
+offer_year_table = table(format(Cuttack_ITI_Placement$offer_date,"%Y"))
+offer_year_df = data.frame(Year = 2018:2024, Frequency=offer_year_table)
+names(offer_year_df)
+ggplot(offer_year_df, aes(x = Year, y = Frequency.Freq)) +
+  geom_bar(stat="identity", fill="skyblue",  color = "black") +
+  scale_x_continuous(breaks = seq(min(offer_year_df$Year), max(offer_year_df$Year), by = 1)) +
+  labs(title = "Historical Placement", x = "Year", y = "Number of Offers", caption = "Number of placements measured by aggregating the number of entries with that year in their offer_date") +
+  ylim(0, 500) +
+  theme_minimal(base_size = 15) +  # Base text size
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    plot.caption = element_text(size = 10)  # Increase bottom margin
+  ) +
+  geom_text(aes(label = Frequency.Freq), vjust = -0.5, size = 4)  # Add text labels on top of bars
+```
+
+
+
+## Find the number of duplicates by different dimensions
+There are duplicate observations by 'name' which needs to be compared with identifiers such as 'dob' and 'primary_contact_number'
+Comparing 'name' with 'primary_contact_number' is much more robust than 'name' with 'dob', as two different persons may have the same name and same date-of-birth. However, it is unlikely for two different persons to be associated with the same phone number. 
+One limitation of associating 'name' and 'primary_contact_number' is that a person may give one 'primary_contact_number' when placed but when getting placed again after some time, their 'primary_contact_number' may have changed due to a change in their phone number. In that case, the 'name'& 'dob' association may help overcome this limitation but it has to be handled with caution.  
+
+
+# For entries with phone numbers
+
+We find out the duplicates entries for the ones with phone number. 
+```{r}
+# Make a subset of entries with a primary_contact_number
+subset_phone_number <- Cuttack_ITI_Placement %>%
+  filter(!is.na(primary_contact_number))
+
+# A subset for duplicates within name in the subsetted data
+duplicates_in_name <- subset_phone_number %>%
+  group_by(name) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+# A subset for duplicates in name & contact_number in the subsetted data
+duplicates_in_name_number <- duplicates_in_name %>%
+  group_by(name, primary_contact_number) %>%
+  filter(n() > 1) %>%
+  summarise(count = n(),
+            passing_years = list(passing_year),
+            employer = list(employer_name),
+            date_of_offer = list(offer_date),
+            join = list(joined)) %>%
+  ungroup()
+expanded_duplicates_in_name_number <- duplicates_in_name_number %>%
+  unnest_wider(passing_years, names_sep = "_") %>%
+  unnest_wider(employer, names_sep = "_") %>%
+  unnest_wider(join, names_sep = "_") %>%
+  unnest_wider(date_of_offer, names_sep = "_")
+print(expanded_duplicates_in_name_number)
+
+
+
+```
+# For entries with dob
+
+We find out the duplicates entries for the ones with dob (date of birth).
+This method is not as robust as finding duplicates with phone numbers since there is a possibility that two same names with the same dob may be two different people. 
+
+```{r}
+# Make a subset of entries with a dob
+subset_dob <- Cuttack_ITI_Placement %>%
+  filter(!is.na(dob))
+
+# A subset for duplicates within name in the subsetted data
+duplicates_in_name_dob <- subset_dob %>%
+  group_by(name) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+# A subset for duplicates in name & dob in the subsetted data
+duplicates_in_name_number_dob <- duplicates_in_name_dob %>%
+  group_by(name, dob) %>%
+  filter(n() > 1) %>%
+  summarise(count = n(),
+            phone_number = list(primary_contact_number),
+            passing_years = list(passing_year),
+            employer = list(employer_name),
+            date_of_offer = list(offer_date)) %>%
+  ungroup()
+expanded_duplicates_in_name_number_dob <- duplicates_in_name_number_dob %>%
+  unnest_wider(phone_number, names_sep = "_") %>%
+  unnest_wider(passing_years, names_sep = "_") %>%
+  unnest_wider(employer, names_sep = "_") %>%
+  unnest_wider(date_of_offer, names_sep = "_")
+print(expanded_duplicates_in_name_number_dob)
+
+```
+
+
+#For entries without phone numbers
+
+```{r}
+
+```
+
+
+# 
+
+The below table states the frequency of highest_qualification for all entries by their categories. Likely highest_qualification states their highest academic qualification excluding their ITI certification, although one entry in this variable is "ITI". Whether this qualification is at the time of data entry or when their admitted into the ITI is unclear. 
+
+```{r}
+table(Cuttack_ITI_Placement$highest_qualification)
+```
+
+
