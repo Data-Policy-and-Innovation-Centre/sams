@@ -31,11 +31,34 @@ def zip_folder(folder_path, output_zip):
                 zipf.write(file_path, os.path.relpath(file_path, folder_path))
     print(f"Folder {folder_path} has been zipped to {output_zip}")
 
+def check_file_exists(client, folder_id, file_name):
+    """Check if a file with the given name exists in the specified folder."""
+    folder = client.folder(folder_id).get()
+    items = folder.get_items()
+    for item in items:
+        if item.name == file_name and item.type == 'file':
+            return item
+    return None
+
 def upload_file_to_box(client, folder_id, file_path):
     """Upload a file to Box."""
-    with open(file_path, 'rb') as file_stream:
-        client.folder(folder_id).upload_stream(file_stream, os.path.basename(file_path))
-    print(f"Uploaded {file_path} to Box")
+    file_name = os.path.basename(file_path)
+    try:
+        # Check if a file with the same name exists
+        existing_file = check_file_exists(client, folder_id, file_name)
+        if existing_file:
+            print(f"File '{file_name}' already exists. Overwriting the file.")
+            # Overwrite the existing file
+            with open(file_path, 'rb') as file_stream:
+                existing_file.update_contents(file_stream)
+            print(f"Overwritten file '{existing_file.name}' with ID {existing_file.id}")
+        else:
+            # Upload the new file
+            with open(file_path, 'rb') as file_stream:
+                uploaded_file = client.folder(folder_id).upload_stream(file_stream, file_name)
+            print(f"Uploaded new file '{uploaded_file.name}' with ID {uploaded_file.id}")
+    except BoxAPIException as e:
+        print(f"An error occurred: {e}")
 
 def main():
     folder_id = '279109297300'  # Replace with your Box folder ID
