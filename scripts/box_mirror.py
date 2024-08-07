@@ -40,6 +40,14 @@ def check_file_exists(client, folder_id, file_name):
             return item
     return None
 
+def delete_file(client, file_id):
+    """Delete the file with the given ID."""
+    try:
+        client.file(file_id).delete()
+        print(f"Deleted file with ID {file_id}")
+    except BoxException as e:
+        print(f"An error occurred while deleting the file: {e}")
+
 def upload_file_to_box(client, folder_id, file_path):
     """Upload a file to Box."""
     file_name = os.path.basename(file_path)
@@ -47,19 +55,17 @@ def upload_file_to_box(client, folder_id, file_path):
         # Check if a file with the same name exists
         existing_file = check_file_exists(client, folder_id, file_name)
         if existing_file:
-            print(f"File '{file_name}' already exists. Overwriting the file.")
-            # Overwrite the existing file
-            with open(file_path, 'rb') as file_stream:
-                existing_file.update_contents(file_stream)
-            print(f"Overwritten file '{existing_file.name}' with ID {existing_file.id}")
-        else:
-            # Upload the new file
-            with open(file_path, 'rb') as file_stream:
-                uploaded_file = client.folder(folder_id).upload_stream(file_stream, file_name)
-            print(f"Uploaded new file '{uploaded_file.name}' with ID {uploaded_file.id}")
-    except BoxAPIException as e:
+            print(f"File '{file_name}' already exists. Deleting the file.")
+            # Delete the existing file
+            delete_file(client, existing_file.id)
+        
+        # Upload the new file
+        with open(file_path, 'rb') as file_stream:
+            uploaded_file = client.folder(folder_id).upload_stream(file_stream, file_name)
+        print(f"Uploaded new file '{uploaded_file.name}' with ID {uploaded_file.id}")
+    except BoxException as e:
         print(f"An error occurred: {e}")
-
+        
 def main():
     folder_id = '279109297300'  # Replace with your Box folder ID
     local_folder_path = get_parent_directory()  # Folder to zip and upload
