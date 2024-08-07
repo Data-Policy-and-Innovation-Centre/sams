@@ -2,4 +2,7 @@ data/*
 docs/*
 !*.keep
 *.swp
+notebooks/*.html
 notebooks/.Rhistory
+/notebooks/Markdown_finding_duplicates_files
+references/*
