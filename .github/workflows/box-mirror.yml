@@ -1,0 +1,29 @@
+name: Update Box Mirror
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-box:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install boxsdk
+
+    - name: Run update script
+      env:
+        BOX_CLIENT_ID: ${{ secrets.BOX_CLIENT_ID }}
+        BOX_CLIENT_SECRET: ${{ secrets.BOX_CLIENT_SECRET }}
+        BOX_DEVELOPER_TOKEN: ${{ secrets.BOX_DEVELOPER_TOKEN }}
+      run: python scripts/box_mirror.py  # Update this line with your script path
