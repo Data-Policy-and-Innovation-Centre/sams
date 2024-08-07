@@ -40,7 +40,7 @@ def upload_file_to_box(client, folder_id, file_path):
 def main():
     folder_id = '279109297300'  # Replace with your Box folder ID
     local_folder_path = get_parent_directory()  # Folder to zip and upload
-    zip_file_path = os.path.join(get_script_directory(), 'folder_archive.zip')  # Output ZIP file path
+    zip_file_path = os.path.join(get_script_directory(), 'skills_project.zip')  # Output ZIP file path
 
     # Create ZIP file
     zip_folder(local_folder_path, zip_file_path)
