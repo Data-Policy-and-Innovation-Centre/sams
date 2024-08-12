@@ -3,6 +3,7 @@ docs/*
 !*.keep
 !data/raw/*.keep
 *.swp
+*.json
 notebooks/*.html
 notebooks/.Rhistory
 /notebooks/Markdown_finding_duplicates_files
