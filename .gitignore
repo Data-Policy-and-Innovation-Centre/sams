@@ -1,6 +1,7 @@
 data/*
 docs/*
 !*.keep
+!data/raw/*.keep
 *.swp
 notebooks/*.html
 notebooks/.Rhistory

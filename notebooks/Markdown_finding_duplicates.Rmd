@@ -7,6 +7,7 @@ Load Sheet1 of data file called "Odisha placement data 09-07-2024.xlsx", which c
 ```{r setup}
 library(knitr)
 library(tidyverse)
+library(readxl)
 
 if (requireNamespace("rstudioapi", quietly = TRUE)) {
   script_path <- rstudioapi::getActiveDocumentContext()$path
@@ -16,14 +17,18 @@ if (requireNamespace("rstudioapi", quietly = TRUE)) {
   print("rstudioapi package is not available.")
 }
 
+
+
 ```
 
 
 
 
 ```{r}
-Cuttack_ITI_Placement <- read_excel("C:/Users/amita/Box/3. Sudakshya/Data/Raw/Odisha placement data 09-07-2024.xlsx", 
+Cuttack_ITI_Placement <- read_excel(paste0(script_dir,"/data/raw/placements/ITI_cuttack/Odisha placement data 09-07-2024.xlsx"), 
     sheet = "Sheet1")
+
+
 ```
 
 
