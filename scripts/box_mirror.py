@@ -1,14 +1,15 @@
-from boxsdk import Client, OAuth2
+from boxsdk import Client, JWTAUth
 import os
 import zipfile
 
-def authenticate_box():
-    auth = OAuth2(
-        client_id=os.environ['BOX_CLIENT_ID'],
-        client_secret=os.environ['BOX_CLIENT_SECRET'],
-        access_token=os.environ['BOX_DEVELOPER_TOKEN']
-    )
+def authenticate_box(config_path):
+    # Authenticate using JWT
+    auth = JWTAuth.from_settings_file(config_path)
     client = Client(auth)
+
+    # Make API calls
+    user = client.user().get()
+    print(f"Authenticated as: {user.name}")
     return client
 
 def get_script_directory():
@@ -67,7 +68,7 @@ def upload_file_to_box(client, folder_id, file_path):
         print(f"An error occurred: {e}")
         
 def main():
-    folder_id = '279109297300'  # Replace with your Box folder ID
+    folder_id = '279109297300'  
     local_folder_path = get_parent_directory()  # Folder to zip and upload
     zip_file_path = os.path.join(get_script_directory(), 'skills_project.zip')  # Output ZIP file path
 
