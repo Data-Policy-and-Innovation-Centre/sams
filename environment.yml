@@ -1,0 +1,25 @@
+name: skills
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - black
+  - flake8
+  - isort
+  - pip
+  - typer
+  - loguru
+  - tqdm
+  - ipython
+  - jupyterlab
+  - matplotlib
+  - notebook
+  - numpy
+  - sqlalchemy
+  - pandas
+  - scikit-learn
+  - boxsdk
+  - pip:
+    - python-dotenv
+    - mkdocs
+    - -e git+https://github.com/Data-Policy-and-Innovation-Centre/samsapi-sdk.git@main#egg=samsapi-sdk
