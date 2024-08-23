@@ -16,10 +16,10 @@ dependencies:
   - notebook
   - numpy
   - sqlalchemy
+  - schedule
   - pandas
   - scikit-learn
   - boxsdk
   - pip:
     - python-dotenv
     - mkdocs
-    - git+https://github.com/Data-Policy-and-Innovation-Centre/samsapi-sdk.git@main#egg=samsapi
