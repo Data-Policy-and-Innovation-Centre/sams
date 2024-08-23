@@ -22,4 +22,4 @@ dependencies:
   - pip:
     - python-dotenv
     - mkdocs
-    - git+https://github.com/Data-Policy-and-Innovation-Centre/samsapi-sdk.git@main#egg=samsapi-sdk
+    - git+https://github.com/Data-Policy-and-Innovation-Centre/samsapi-sdk.git@main#egg=samsapi
