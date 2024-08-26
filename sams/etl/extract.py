@@ -4,8 +4,8 @@ from requests import HTTPError
 import os
 import json
 from loguru import logger
-from config import API_AUTH, RAW_DATA_DIR, ERRMAX, STUDENT, INSTITUTE, SOF, LOGS
-from datetime import datetime
+from config import API_AUTH, RAW_DATA_DIR, ERRMAX, STUDENT, INSTITUTE, SOF, LOGS, NUM_TOTAL_RECORDS
+from util import is_valid_date
 from tqdm import tqdm
 import pprint
 import pandas as pd
@@ -140,15 +140,25 @@ class SamsDataDownloader:
     def download_all_student_data(self) -> list:
         """Downloads student data from SAMS API for all modules and years."""
 
+        for handler_id in list(logger._core.handlers.keys()):
+            logger.remove(handler_id)
+        fid = logger.add(os.path.join(LOGS, "data_download.log"), mode='w',format="{time} {level} {message}", level="INFO")
+
         student_data = []
-        for module, metadata in STUDENT.items():
-            for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
-                if module == "PDIS":
-                    student_data.extend(self.fetch_students_pdis(year))
-                else:
-                    student_data.extend(self.fetch_students_iti_diploma(year, module, 1))
-                    student_data.extend(self.fetch_students_iti_diploma(year, module, 5))
-        
+        with tqdm(total=NUM_TOTAL_RECORDS, desc="Downloading student data") as pbar:
+            for module, metadata in STUDENT.items():
+                for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
+                    if module == "PDIS":
+                        data = self.fetch_students_pdis(year)
+                        student_data.extend(data)
+                    else:
+                        data = self.fetch_students_iti_diploma(year, module, 1)
+                        data.extend(self.fetch_students_iti_diploma(year, module, 5))
+                        student_data.extend(data)
+                    pbar.update(len(data))
+
+        logger.remove(fid)
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
         self.validate_student_data(student_data)
 
         return student_data
@@ -190,8 +200,11 @@ class SamsDataDownloader:
             logger.error("No data to validate")
             return
         
-        logger.info("\n\n\nBeginning validation of student data...\n\n\n")
-        logger.remove(1)
+        # Remove all handlers
+        for handler_id in list(logger._core.handlers.keys()):
+            logger.remove(handler_id)
+
+        # Add new logger for validation
         log_file_id = logger.add(os.path.join(LOGS, "data_stream_validation.log"), mode='w',format="{time} {level} {message}", level="INFO")
 
         # Check if the record has the required keys
@@ -203,80 +216,64 @@ class SamsDataDownloader:
                              "GC","PH","ES","Sports","NationalCadetCorps","PMCare","Orphan","IncomeBarcode","TFW","EWS","BOC","BOCRegdNo", "CourseName","CoursePeriod",
                              "BeautyCultureType","ReportedInstitute","ReportedBranchORTrade","InstituteDistrict","TypeofInstitute","Phase","Year","AdmissionStatus","EnrollmentStatus"]
         count_missing = {key: 0 for key in required_keys}
-        
-        # Iterate over the records and check for errors
-        for i, record in enumerate(data, start=1):
 
-            if not all(key in record for key in required_keys):
-                logger.error(f"Record {i} is missing required keys")
-                logger.debug(f"Record {i} has extra keys: {set(record.keys()) - set(required_keys)}")
-                continue
+        # Total number of records
+        total = len(data)
 
-            # Validate the barcode
-            if record['Barcode'] in ["NA", None, "-", "--"]:
-                logger.error(f"Record {i} has invalid barcode")
-                count_missing['Barcode'] += 1
+        with tqdm(total=total, desc="Validating data") as pbar:
+            # Iterate over the records and check for errors
+            for i, record in enumerate(data, start=1):
 
-            # Validate the date of birth
-            if not is_valid_date(record["DOB"]):
-                logger.info(f"DOB is {record['DOB']} with format ")
-                logger.error(f"Record {i} with barcode {record['Barcode']} has invalid date of birth")
-                count_missing['DOB'] += 1
-            
-            # Validate the gender
-            if record["Gender"] not in ["Male", "Female", "Other"]: 
-                logger.error(f"Record {i} with barcode {record['Barcode']} has invalid gender")
-                count_missing['Gender'] += 1
+                if not all(key in record for key in required_keys):
+                    logger.error(f"Record {i} is missing required keys")
+                    logger.debug(f"Record {i} has extra keys: {set(record.keys()) - set(required_keys)}")
+                    continue
 
-            # Validate others for missing values
-            for key in [k for k in required_keys if k not in ["Barcode", "DOB", "Gender"]]:
-                if record[key] in ["NA", None, "-", "--"]:
-                    logger.error(f"Record {i} with barcode {record['Barcode']} has missing value for {key}")
-                    count_missing[key] += 1
+                # Validate the barcode
+                if record['Barcode'] in ["NA", None, "-", "--"]:
+                    logger.error(f"Record {i} has invalid barcode")
+                    count_missing['Barcode'] += 1
+
+                # Validate the date of birth
+                if not is_valid_date(record["DOB"]):
+                    logger.info(f"DOB is {record['DOB']} with format ")
+                    logger.error(f"Record {i} with barcode {record['Barcode']} has invalid date of birth")
+                    count_missing['DOB'] += 1
+                
+                # Validate the gender
+                if record["Gender"] not in ["Male", "Female", "Other"]: 
+                    logger.error(f"Record {i} with barcode {record['Barcode']} has invalid gender")
+                    count_missing['Gender'] += 1
+
+                # Validate others for missing values
+                for key in [k for k in required_keys if k not in ["Barcode", "DOB", "Gender"]]:
+                    if record[key] in ["NA", None, "-", "--"]:
+                        logger.error(f"Record {i} with barcode {record['Barcode']} has missing value for {key}")
+                        count_missing[key] += 1
+                
+                # Update the progress bar
+                pbar.update(1)
         
         # Log information on missing values
-        total = len(data)
         summary_file_id = logger.add(os.path.join(LOGS, "data_stream_summary.log"), mode='w',format="{time} {level} {message}", level="INFO")
         logger.info(f"\n\n\nTotal records: {total}")
         logger.info(f"Missing values: {pprint.pformat(count_missing)}\n\n\n")
-        logger.info(f"Missing values percentage: {pprint.pformat({key: value/total for key, value in count_missing.items()})}\n\n\n")
+        logger.info(f"Missing values percentage: {pprint.pformat({key: 100*value/total for key, value in count_missing.items()})}\n\n\n")
+        
 
         # Close logger
-        logger.remove(log_file_id)
         logger.remove(summary_file_id)
-        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
-        logger.info("\n\nValidation complete...")    
+        logger.remove(log_file_id)
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True) 
 
-from datetime import datetime
-
-def is_valid_date(date_string):
-    formats = [
-        "%Y-%m-%d",          # Format 1: 2024-08-26
-        "%d-%m-%Y",          # Format 2: 26-08-2024
-        "%m/%d/%Y",          # Format 3: 08/26/2024
-        "%d %b %Y",          # Format 4: 26 Aug 2024
-        "%B %d, %Y",         # Format 5: August 26, 2024
-        "%Y-%m-%d %H:%M:%S", # Format 6: 2024-08-26 15:30:00
-        # Add more formats as needed
-    ]
-    
-    for fmt in formats:
-        try:
-            parsed_date = datetime.strptime(date_string, fmt)
-            return True, parsed_date  # Date is valid, return the parsed date
-        except ValueError:
-            continue  # Try the next format
-    
-    return False, None  # No formats matched, date is invalid           
+       
     
 def main():
     downloader = SamsDataDownloader()
-    pdis_data = downloader.fetch_students_pdis(2022)
-    downloader.validate_student_data(pdis_data)
     student_data = downloader.download_all_student_data()
-    #file_path = os.path.join(RAW_DATA_DIR, "student_data.xlsx")
-    #logger.info(f"Saving student data to {file_path}")
-    #pd.DataFrame(student_data).to_excel(file_path, index=False)
+    file_path = os.path.join(RAW_DATA_DIR, "student_data.xlsx")
+    logger.info(f"Saving student data to {file_path}")
+    pd.DataFrame(student_data).to_excel(file_path, index=False)
 
 
 
