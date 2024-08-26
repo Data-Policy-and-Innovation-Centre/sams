@@ -3,6 +3,8 @@ import json
 from .auth import Auth
 from .endpoints import Endpoints
 from .exceptions import APIError
+from config import API_AUTH
+from loguru import logger
 
 class SAMSClient:
     def __init__(self, config_path):
@@ -14,6 +16,7 @@ class SAMSClient:
         
 
     def get_student_data(self, module, academic_year, source_of_fund=None,page_number=None):
+        logger.info(f"Getting SAMS student module: {module}, year: {academic_year}, SOF: {source_of_fund}, page: {page_number}")
         url = self.endpoints.get_student_data()
         headers = self.auth.get_auth_header()
         
@@ -26,6 +29,7 @@ class SAMSClient:
         return self._handle_response(response)
 
     def get_institute_data(self, module, academic_year):
+        logger.info(f"Getting SAMS institute module: {module}, year: {academic_year}")
         url = self.endpoints.get_institute_data()
         headers = self.auth.get_auth_header()
         params = {"Module": module, "AcademicYear": academic_year}
@@ -44,12 +48,12 @@ class SAMSClient:
             response.raise_for_status()
 
 def main():
-    client = SAMSClient('credentials.json')
+    client = SAMSClient(API_AUTH)
 
     # Fetch student data
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022)
-    iti_data = client.get_student_data(module="ITI", academic_year=2022, source_of_fund=1, page_number=1)
-    diploma_data = client.get_student_data(module="Diploma", academic_year=2022, source_of_fund=1, page_number=1)
+    #iti_data = client.get_student_data(module="ITI", academic_year=2022, source_of_fund=1, page_number=1)
+    #diploma_data = client.get_student_data(module="Diploma", academic_year=2022, source_of_fund=1, page_number=1)
     #print(pdis_data)
     #print(iti_data)
     #print(diploma_data)
