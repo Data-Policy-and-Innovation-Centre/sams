@@ -16,6 +16,7 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
+LOGS = PROJ_ROOT / "logs"
 
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
@@ -57,7 +58,6 @@ SOF = {
 try:
     from tqdm import tqdm
 
-    logger.remove(0)
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
 except ModuleNotFoundError:
     logger.warning("Module tqdm not found")

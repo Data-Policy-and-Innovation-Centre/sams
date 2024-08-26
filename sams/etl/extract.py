@@ -1,10 +1,14 @@
 from api.client import SAMSClient
 from api.exceptions import APIError
+from requests import HTTPError
 import os
 import json
 from loguru import logger
-from config import API_AUTH, ERRMAX, STUDENT, INSTITUTE
-import datetime
+from config import API_AUTH, RAW_DATA_DIR, ERRMAX, STUDENT, INSTITUTE, SOF, LOGS
+from datetime import datetime
+from tqdm import tqdm
+import pprint
+import pandas as pd
 
 class SamsDataDownloader:
     def __init__(self):
@@ -43,24 +47,37 @@ class SamsDataDownloader:
         data = []
         
         # Continue fetching data until there is no more data
+        logger.info(f"Fetching all pages for {SOF['tostring'][source_of_fund]} {module} student data for applications in {academic_year}... ")
         while True:
             # Try to fetch a page of data
             try:
                 page_data = self.api_client.get_student_data(academic_year=academic_year, 
                     source_of_fund=source_of_fund, module=module, page_number=page)
-            # If there is an API error, log the error and attempt again
+           
+            # If there is an API or HTTP error, log the error and attempt again
             except APIError as e:
                 if errcount >= ERRMAX:
-                    logger.critical("Too many API errors. Exiting.")
-                    exit(1)
+                    logger.critical("Too many API errors. Exiting loop")
+                    break
                 logger.error(e)
                 logger.warning(f"Attempting to continue with page {page}.")
                 errcount +=1
-                continue 
+                continue
+            except HTTPError as h:
+                if errcount >= ERRMAX:
+                    logger.critical("Too many HTTP errors. Exiting loop")
+                    break
+                logger.error(h)
+                logger.warning(f"Attempting to continue with page {page}.")
+                errcount +=1
+                continue
             
             # If there is no more data, log the total page count and total records
             if not page_data:
-                logger.info(f"\nAll pages downloaded\n. Total page count: {page-1}\n. Total records: {len(data)}\n\n\n\n")
+                try:
+                    logger.info(f"\nAll pages downloaded\n. Total page count: {page-1}\n. Total fields: {len(data[0])}\n. Total records: {len(data)}\n\n\n\n")
+                except IndexError:
+                    logger.warning(f"\nNo data was downloaded!!\n. Total page count: {page-1}\n. Total records: {len(data)}\n\n\n\n")
                 break
             
             # Add the data to the list
@@ -71,7 +88,7 @@ class SamsDataDownloader:
             
             # Increment the page number
             page += 1
-        
+
         # Return the list of data
         return data
     
@@ -85,18 +102,81 @@ class SamsDataDownloader:
         Returns:
             list: A list of dictionaries, where each dictionary represents a student.
         """
+
         if academic_year < STUDENT['PDIS']['yearmin'] or academic_year > STUDENT['PDIS']['yearmax']:
             logger.warning(f"Data from Academic year {academic_year} is not available for PDIS. It must be between {STUDENT['PDIS']['yearmin']} and {STUDENT['PDIS']['yearmax']}. ")
             academic_year = min(STUDENT['PDIS']['yearmax'], max(STUDENT['PDIS']['yearmin'], academic_year))
+            logger.warning(f"Adjusting year to {academic_year} for {module}. ")
 
-        data = self.api_client.get_student_data(module="PDIS", academic_year=academic_year)
-        logger.info(f"PDIS data fetched\n. Total records: {len(data)}\n\n\n\n")
+        errcount = 0
+        logger.info(f"Fetching all pages for PDIS student data for applications in {academic_year}... ")
+        while True:
+            try:
+                data = self.api_client.get_student_data(module="PDIS", academic_year=academic_year)
+                if data:
+                    logger.info(f"\nPDIS data fetched\n. Total fields: {len(data[0])}\n. Total records: {len(data)}\n\n\n\n")
+                    break
+            except APIError as e:
+                logger.error(e)
+                if errcount >= ERRMAX:
+                    logger.critical("Too many API errors. Exiting loop.")
+                    break
+                
+                logger.warning("Attempting again")
+                errcount += 1
+                continue
+            except HTTPError as h:
+                logger.error(h)
+                if errcount >= ERRMAX:
+                    logger.critical("Too many HTTP errors. Exiting loop.")
+                    break
 
-    def download_student_data(self, programs):
+                logger.warning("Attempting again")
+                errcount += 1
+                continue
+        
+        return data
+
+    def download_all_student_data(self) -> list:
+        """Downloads student data from SAMS API for all modules and years."""
+
+        student_data = []
+        for module, metadata in STUDENT.items():
+            for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
+                if module == "PDIS":
+                    student_data.extend(self.fetch_students_pdis(year))
+                else:
+                    student_data.extend(self.fetch_students_iti_diploma(year, module, 1))
+                    student_data.extend(self.fetch_students_iti_diploma(year, module, 5))
+        
+        self.validate_student_data(student_data)
+
+        return student_data
+
+    def download_all_institute_data(self) -> list:
         pass
 
-    def download_institute_data(self, programs, years):
-        pass
+    
+    # def download_missing_student_data(self, db: Session) -> list:
+    #     """Downloads student data that is not already in the database for all modules and years."""
+
+    #     student_data = []
+    #     for module, metadata in STUDENT.items():
+    #         for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
+    #             if module == "PDIS":
+    #                 existing = db.query(Student).filter_by(module=module, year=year).all()
+    #                 if not existing:
+    #                     student_data.extend(self.fetch_students_pdis(year))
+    #             else:
+    #                 existing_1 = db.query(Student).filter_by(module=module, year=year, source_of_fund=1).all()
+    #                 existing_5 = db.query(Student).filter_by(module=module, year=year, source_of_fund=5).all()
+    #                 if not existing_1:
+    #                     student_data.extend(self.fetch_students_iti_diploma(year, module, 1))
+    #                 if not existing_5:
+    #                     student_data.extend(self.fetch_students_iti_diploma(year, module, 5))
+        
+    #     self.validate_student_data(student_data)
+    #     return student_data
     
     def validate_student_data(self, data: list) -> None:
         """
@@ -110,38 +190,95 @@ class SamsDataDownloader:
             logger.error("No data to validate")
             return
         
+        logger.info("\n\n\nBeginning validation of student data...\n\n\n")
+        logger.remove(1)
+        log_file_id = logger.add(os.path.join(LOGS, "data_stream_validation.log"), mode='w',format="{time} {level} {message}", level="INFO")
+
+        # Check if the record has the required keys
+        required_keys = ["Barcode", "StudentName", "Gender", "DOB", "ReligionName", "Nationality", "AnnualIncome", "Address", "State", "District", "Block",
+                             "PINCode", "SocialCategory", "Domicile", "S_DomicileCategory", "OutsideOdishaApplicantStateName",
+                             "OdiaApplicantLivingOutsideOdishaStateName","ResidenceBarcodeNumber", "TengthExamSchoolAddress","EighthExamSchoolAddress",
+                             "HighestQualification","HighestQualificationExamBoard","HighestQualificationBoardExamName", "ExaminationType","YearofPassing",
+                             "RollNo","TotalMarks","SecuredMarks","Percentage","CompartmentalStatus","CompartmentalFailMark", "SubjectWiseMarks","hadTwoYearFullTimeWorkExpAfterTength",
+                             "GC","PH","ES","Sports","NationalCadetCorps","PMCare","Orphan","IncomeBarcode","TFW","EWS","BOC","BOCRegdNo", "CourseName","CoursePeriod",
+                             "BeautyCultureType","ReportedInstitute","ReportedBranchORTrade","InstituteDistrict","TypeofInstitute","Phase","Year","AdmissionStatus","EnrollmentStatus"]
+        count_missing = {key: 0 for key in required_keys}
+        
         # Iterate over the records and check for errors
         for i, record in enumerate(data, start=1):
-            # Check if the record has the required keys
-            required_keys = ["name", "primary_contact_number", "dob", "passing_year", "employer_name", "offer_date", "joined"]
+
             if not all(key in record for key in required_keys):
                 logger.error(f"Record {i} is missing required keys")
+                logger.debug(f"Record {i} has extra keys: {set(record.keys()) - set(required_keys)}")
                 continue
-            
+
+            # Validate the barcode
+            if record['Barcode'] in ["NA", None, "-", "--"]:
+                logger.error(f"Record {i} has invalid barcode")
+                count_missing['Barcode'] += 1
+
             # Validate the date of birth
-            try:
-                datetime.strptime(record["dob"], "%d-%m-%Y")
-            except ValueError:
-                logger.error(f"Record {i} has invalid date of birth")
-                continue
+            if not is_valid_date(record["DOB"]):
+                logger.info(f"DOB is {record['DOB']} with format ")
+                logger.error(f"Record {i} with barcode {record['Barcode']} has invalid date of birth")
+                count_missing['DOB'] += 1
             
-            # Validate the offer date
-            try:
-                datetime.strptime(record["offer_date"], "%d-%m-%Y")
-            except ValueError:
-                logger.error(f"Record {i} has invalid offer date")
-                continue
-            
-            # Validate the passing year
-            try:
-                int(record["passing_year"])
-            except ValueError:
-                logger.error(f"Record {i} has invalid passing year")
-                continue
+            # Validate the gender
+            if record["Gender"] not in ["Male", "Female", "Other"]: 
+                logger.error(f"Record {i} with barcode {record['Barcode']} has invalid gender")
+                count_missing['Gender'] += 1
+
+            # Validate others for missing values
+            for key in [k for k in required_keys if k not in ["Barcode", "DOB", "Gender"]]:
+                if record[key] in ["NA", None, "-", "--"]:
+                    logger.error(f"Record {i} with barcode {record['Barcode']} has missing value for {key}")
+                    count_missing[key] += 1
+        
+        # Log information on missing values
+        total = len(data)
+        summary_file_id = logger.add(os.path.join(LOGS, "data_stream_summary.log"), mode='w',format="{time} {level} {message}", level="INFO")
+        logger.info(f"\n\n\nTotal records: {total}")
+        logger.info(f"Missing values: {pprint.pformat(count_missing)}\n\n\n")
+        logger.info(f"Missing values percentage: {pprint.pformat({key: value/total for key, value in count_missing.items()})}\n\n\n")
+
+        # Close logger
+        logger.remove(log_file_id)
+        logger.remove(summary_file_id)
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+        logger.info("\n\nValidation complete...")    
+
+from datetime import datetime
+
+def is_valid_date(date_string):
+    formats = [
+        "%Y-%m-%d",          # Format 1: 2024-08-26
+        "%d-%m-%Y",          # Format 2: 26-08-2024
+        "%m/%d/%Y",          # Format 3: 08/26/2024
+        "%d %b %Y",          # Format 4: 26 Aug 2024
+        "%B %d, %Y",         # Format 5: August 26, 2024
+        "%Y-%m-%d %H:%M:%S", # Format 6: 2024-08-26 15:30:00
+        # Add more formats as needed
+    ]
+    
+    for fmt in formats:
+        try:
+            parsed_date = datetime.strptime(date_string, fmt)
+            return True, parsed_date  # Date is valid, return the parsed date
+        except ValueError:
+            continue  # Try the next format
+    
+    return False, None  # No formats matched, date is invalid           
     
 def main():
     downloader = SamsDataDownloader()
-    iti_data = downloader.fetch_students_iti_diploma(2012, "ITI", 1)
+    pdis_data = downloader.fetch_students_pdis(2022)
+    downloader.validate_student_data(pdis_data)
+    student_data = downloader.download_all_student_data()
+    #file_path = os.path.join(RAW_DATA_DIR, "student_data.xlsx")
+    #logger.info(f"Saving student data to {file_path}")
+    #pd.DataFrame(student_data).to_excel(file_path, index=False)
+
+
 
 if __name__ == '__main__':
     main()
