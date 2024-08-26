@@ -39,7 +39,11 @@ class SAMSClient:
 
     def _handle_response(self, response):
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            if 'success' in data and not data['success']:
+                raise APIError(data['message'])
+            
+            return data
         elif response.status_code == 400:
             raise APIError("Bad Request: Some inputs are missing.")
         elif response.status_code == 500:
@@ -51,16 +55,13 @@ def main():
     client = SAMSClient(API_AUTH)
 
     # Fetch student data
-    #pdis_data = client.get_student_data(module="PDIS", academic_year=2022)
-    #iti_data = client.get_student_data(module="ITI", academic_year=2022, source_of_fund=1, page_number=1)
-    #diploma_data = client.get_student_data(module="Diploma", academic_year=2022, source_of_fund=1, page_number=1)
-    #print(pdis_data)
-    #print(iti_data)
-    #print(diploma_data)
+    pdis_data = client.get_student_data(module="PDIS", academic_year=2022)
+    iti_data = client.get_student_data(module="ITI", academic_year=2022, source_of_fund=1, page_number=5)
+    diploma_data = client.get_student_data(module="Diploma", academic_year=2022, source_of_fund=1, page_number=1)
 
     # Fetch institute data
-    institute_data = client.get_institute_data(module="PDIS", academic_year=2021)
-    print(institute_data)
+    institute_data = client.get_institute_data(module="PDIS", academic_year=2022)
+
     
 
 if __name__ == '__main__':
