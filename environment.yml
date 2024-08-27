@@ -23,3 +23,4 @@ dependencies:
   - pip:
     - python-dotenv
     - mkdocs
+    - openpyxl
