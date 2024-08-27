@@ -1,10 +1,12 @@
 import requests
+import time
 
 class Auth:
     def __init__(self, username, password):
         self.username = username
         self.password = password
         self.token = None
+        self.last_token_refresh = None
 
     def get_token(self):
         url = "https://api.samsodisha.gov.in/api/getDPICtoken"
@@ -13,13 +15,11 @@ class Auth:
 
         if response.status_code == 200:
             self.token = response.json().get("Token_No")
+            self.last_token_refresh = time.time()
         else:
             raise Exception("Authentication failed")
 
-    def refresh_token(self):
-        self.get_token()
-
     def get_auth_header(self):
-        if not self.token:
+        if not self.last_token_refresh or time.time() - self.last_token_refresh > 1800:
             self.get_token()
         return {"Authorization": f"Bearer {self.token}"}
