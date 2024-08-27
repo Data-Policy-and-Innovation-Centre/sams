@@ -269,6 +269,9 @@ class SamsDataDownloader:
        
     
 def main():
+    if not Path(API_AUTH).exists():
+        logger.critical(f"ERROR: {API_AUTH} not found. This file is required for API authentication.")
+        exit(1)
     downloader = SamsDataDownloader()
     student_data = downloader.download_all_student_data()
     file_path = os.path.join(RAW_DATA_DIR, "student_data.xlsx")

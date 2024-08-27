@@ -29,9 +29,6 @@ for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTER
 
 # Auth
 API_AUTH = os.path.join(PROJ_ROOT, "credentials.json")
-if not Path(API_AUTH).exists():
-    logger.critical(f"ERROR: {API_AUTH} not found. This file is required for API authentication.")
-    exit(1)
 
 # Error constants
 ERRMAX = 10
