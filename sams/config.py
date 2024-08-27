@@ -52,7 +52,7 @@ SOF = {
     "toint":{"Govt":1,"Pvt":5}
 }
 
-NUM_TOTAL_RECORDS = 597147 # Change as needed
+NUM_TOTAL_RECORDS = 663679 # Change as needed
 
 try:
     from tqdm import tqdm
