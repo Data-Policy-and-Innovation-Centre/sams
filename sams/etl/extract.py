@@ -1,13 +1,14 @@
-from api.client import SAMSClient
-from api.exceptions import APIError
+from sams.api.client import SAMSClient
+from sams.api.exceptions import APIError
 from requests import HTTPError
 import os
 from pathlib import Path
 import json
 from collections import Counter
 from loguru import logger
-from config import API_AUTH, RAW_DATA_DIR, ERRMAX, STUDENT, INSTITUTE, SOF, LOGS, NUM_TOTAL_RECORDS
-from util import is_valid_date
+from sams.config import API_AUTH, RAW_DATA_DIR, ERRMAX, STUDENT, \
+INSTITUTE, SOF, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
+from sams.util import is_valid_date
 from tqdm import tqdm
 import pprint
 import pandas as pd
@@ -146,6 +147,71 @@ class SamsDataDownloader:
 
         # Return the list of students
         return students
+    
+    def fetch_institutes(self, module: str, academic_year: int) -> list:
+        """
+        Fetches institute data from the SAMS API for the given academic year and module.
+
+        Args:
+            module (str): The module for which to fetch the data.
+            academic_year (int): The academic year for which to fetch the data.
+
+        Returns:
+            list: A list of dictionaries, where each dictionary represents an institute.
+        """
+
+        # Check if module is valid
+        if module not in ["ITI", "Diploma", "PDIS"]:
+            logger.error(f"Module {module} is not supported in this method. It must be 'ITI', 'PDIS' or 'Diploma'. ")   
+            raise ValueError("Module must be either 'ITI', 'PDIS' or 'Diploma'. ")
+        
+        # Check if years are within acceptable bounds
+        if academic_year < INSTITUTE[module]['yearmin'] or academic_year > INSTITUTE[module]['yearmax']:
+            logger.warning(f"Data from Academic year {academic_year} is not available for {module}. It must be between {STUDENT[module]['yearmin']} and {STUDENT[module]['yearmax']}. ")
+            academic_year = min(INSTITUTE[module]['yearmax'], max(INSTITUTE[module]['yearmin'], academic_year))
+            logger.warning(f"Adjusting year to {academic_year} for {module}. ")
+
+        # Initialize the error count
+        error_count = 0
+
+        # Log the start of the fetching process
+        logger.info(f"Fetching {module} institute data for academic year {academic_year}...")
+
+        institutes = []
+
+        # Continue fetching data until there is no more data
+        while True:
+            # Try to fetch a page of data
+            try:
+                # Get the institute data from the SAMS API
+                page_data = self.api_client.get_institute_data(module=module, academic_year=academic_year)
+
+                # If there is data, add it to the list of institutes
+                if page_data:
+                    institutes.extend(page_data)
+                # If there is no data, log a warning and break the loop
+                else:
+                    logger.warning(f"No data was fetched for academic year {academic_year} and module {module}.")
+                    break
+            # If there is an API or HTTP error, log the error and attempt again
+            except (APIError, HTTPError) as e:
+                error_count += 1
+                if error_count >= ERRMAX:
+                    logger.critical("Too many errors. Exiting loop.")
+                    break
+                logger.warning(f"Attempting again. Error: {e}")
+                continue
+
+            # If there is no more data, log the field count and total records
+            logger.info(f"\n{module} institute data fetched\n. Total fields: {len(institutes[0])}\n. Total records: {len(institutes)}\n\n\n\n")
+            break
+        
+        # Add metadata to institutes
+        for institute in institutes:
+            institute['academic_year'] = academic_year
+            institute['module'] = module
+        # Return the list of institutes
+        return institutes
 
     def download_all_student_data(self) -> list:
         """
@@ -168,7 +234,7 @@ class SamsDataDownloader:
         futures = []
         
         # Progress bar for downloading student data
-        with tqdm(total=NUM_TOTAL_RECORDS, desc="Downloading student data") as pbar:
+        with tqdm(total=NUM_TOTAL_STUDENT_RECORDS, desc="Downloading student data") as pbar:
             for module, metadata in STUDENT.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
                     if module == "PDIS":
@@ -197,8 +263,47 @@ class SamsDataDownloader:
         return student_data
 
     def download_all_institute_data(self) -> list:
-        pass
+        """
+        Downloads institute data from SAMS API for all modules and years.
 
+        Returns:
+            list: A list of dictionaries, where each dictionary represents an institute.
+        """
+        # Remove all existing log handlers
+        for handler_id in list(logger._core.handlers.keys()):
+            logger.remove(handler_id)
+        
+        # Add a new log handler for downloading institute data
+        log_file_id = logger.add(
+            os.path.join(LOGS, "institute_download.log"), mode='w',
+            format="{time} {level} {message}", level="INFO"
+        )
+
+        institute_data = []
+        futures = []
+        
+        # Progress bar for downloading institute data
+        with tqdm(total=NUM_TOTAL_INSTITUTE_RECORDS, desc="Downloading institute data") as pbar:
+            for module, metadata in INSTITUTE.items():
+                for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
+                    future = self.executor.submit(self.fetch_institutes, module, year)
+                    futures.append(future)
+
+            for future in as_completed(futures):
+                data = future.result()
+                institute_data.extend(data)
+                pbar.update(len(data))
+
+        # Remove the log handler for downloading institute data
+        logger.remove(log_file_id)
+
+        # Add a new log handler for validation
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+
+        # Validate the fetched institute data
+        #self.validate_institute_data(institute_data)
+
+        return institute_data
     
     # def download_missing_student_data(self, db: Session) -> list:
     #     """Downloads student data that is not already in the database for all modules and years."""
@@ -220,8 +325,13 @@ class SamsDataDownloader:
         
     #     self.validate_student_data(student_data)
     #     return student_data
-    
+
     def validate_student_data(self, data: list) -> None:
+
+        # Document missing values
+        self._validate_student_missing_values(data)
+    
+    def _validate_student_missing_values(self, data: list) -> None:
         # Remove all handlers
         for handler_id in list(logger._core.handlers.keys()):
             logger.remove(handler_id)
@@ -264,7 +374,7 @@ class SamsDataDownloader:
 
             return count_missing
 
-        with tqdm(total=total, desc="Validating data") as pbar:
+        with tqdm(total=total, desc="Validating data types and checking missing values...") as pbar:
             futures = []
             for i in range(0, total, chunk_size):
                 chunk = data[i:min(i+chunk_size,total)]
@@ -278,12 +388,10 @@ class SamsDataDownloader:
                 pbar.update(chunk_size)
 
         # Log information on missing values
-        summary_file_id = logger.add(os.path.join(LOGS, "data_stream_summary.log"), mode='w', format="{time} {level} {message}", level="INFO")
+        summary_file_id = logger.add(os.path.join(LOGS, "student_data_missing_values.log"), mode='w', format="{time} {level} {message}", level="INFO")
         logger.info(f"\n\n\nTotal records: {total}")
         logger.info(f"Missing values: {dict(count_missing)}\n\n\n")
         logger.info(f"Missing values percentage: {dict((key, 100*value/total) for key, value in count_missing.items())}\n\n\n")
-
-        # Close loggers
         logger.remove(summary_file_id)
         logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
        
