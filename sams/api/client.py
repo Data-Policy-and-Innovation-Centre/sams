@@ -1,9 +1,9 @@
 import requests
 import json
-from .auth import Auth
-from .endpoints import Endpoints
-from .exceptions import APIError
-from config import API_AUTH, SOF
+from sams.api.auth import Auth
+from sams.api.endpoints import Endpoints
+from sams.api.exceptions import APIError
+from sams.config import API_AUTH, SOF
 from loguru import logger
 
 class SAMSClient:
@@ -32,8 +32,17 @@ class SAMSClient:
         self.auth = Auth(cred['username'], cred['password'])
         self.endpoints = Endpoints()
         
+    def refresh(self):
+        """
+        Refreshes the authentication token by calling the `get_token` method of the `Auth` class.
 
-    def get_student_data(self, module: str, academic_year: int, source_of_fund: int = None, page_number: int = None) -> dict:
+        This method is called internally by other methods of the `SAMSClient` class to ensure that the authentication token is always up-to-date before making API requests.
+
+        This method does not return anything.
+        """
+        self.auth.get_token()
+
+    def get_student_data(self, module: str, academic_year: int, source_of_fund: int = None, page_number: int = None) -> list:
         """
         Fetches student data from SAMS API for the given academic year,
         module and source of fund.
@@ -45,7 +54,7 @@ class SAMSClient:
             page_number (int, optional): The page number for which to fetch the data.
 
         Returns:
-            dict: The JSON response from the SAMS API.
+            list: List of dictionaries contained in the 'Data' field of the JSON response from the SAMS API.
         """
         if module in ["ITI", "Diploma"]:
             source_of_fund = source_of_fund or 1
@@ -70,10 +79,17 @@ class SAMSClient:
             params["SourceOfFund"] = source_of_fund
             params["PageNumber"] = page_number
 
-        response = requests.get(url, headers=headers, json=params)
+        try:
+            response = requests.get(url, headers=headers, json=params)
+        except requests.ConnectTimeout as e:
+            logger.error(f"Connection timeout: {e}")
+            logger.info("Resetting connection...")
+            self.refresh()
+            response = requests.get(url, headers=headers, json=params)
+        
         return self._handle_response(response)
 
-    def get_institute_data(self, module, academic_year):
+    def get_institute_data(self, module: str, academic_year: int) -> list:
         """
         Fetches institute data from SAMS API for the given academic year
         and module.
@@ -83,7 +99,7 @@ class SAMSClient:
             academic_year (int): The academic year for which to fetch the data.
 
         Returns:
-            dict: The JSON response from the SAMS API.
+            list: List of dictionaries contained in the 'Data' field of the JSON response from the SAMS API.
         """
         if module not in ["PDIS","ITI","Diploma"]:
             raise ValueError(f"Module {module} not supported.")
@@ -93,7 +109,14 @@ class SAMSClient:
         headers = self.auth.get_auth_header()
         params = {"Module": module, "AcademicYear": academic_year}
 
-        response = requests.get(url, headers=headers, json=params)
+        try:
+            response = requests.get(url, headers=headers, json=params)
+        except requests.ConnectTimeout as e:
+            logger.error(f"Connection timeout: {e}")
+            logger.info("Resetting connection...")
+            self.refresh()
+            response = requests.get(url, headers=headers, json=params)
+        
         return self._handle_response(response)
 
     def _handle_response(self, response: requests.Response) -> list:
@@ -112,6 +135,7 @@ class SAMSClient:
         """
         if response.status_code == 200:
             data = response.json()
+            
             # Check if the API returned a success message
             if 'success' in data and not data['success']:
                 raise APIError(data['message'])
@@ -136,8 +160,8 @@ def main():
 
     # Fetch institute data
     institute_data = client.get_institute_data(module="PDIS", academic_year=2022)
-    print(institute_data[0])
-    print(iti_data[0])
+    print(institute_data)
+    #print(iti_data)
 
     
 
