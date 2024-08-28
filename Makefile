@@ -33,7 +33,8 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type f -name '*.log' -exec rm -f {} +
-
+	find . -type f -name '*.db' -exec rm -f {} +
+	find . -type f -name '*.db-journal' -exec rm -f {} +
 # Build dataset
 
 
