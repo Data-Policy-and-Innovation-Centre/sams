@@ -9,16 +9,18 @@ Base = declarative_base()
 class Student(Base):
     __tablename__ = 'students'
     barcode = Column(String, primary_key=True)
-    course_type = Column(String)
     year = Column(Integer)
-    source_of_fund = Column(Integer)
+    course_type = Column(String)
+    type = Column(String)
     # Add other columns as needed
 
 class Institute(Base):
     __tablename__ = 'institutes'
     sams_code = Column(Integer, primary_key=True)
+    year = Column(Integer, primary_key=True)
+    module = Column(String)
     name = Column(String)
-    address = Column(String)
+    type = Column(String)
     # Add other columns as needed
 
 class SamsDataLoader:
@@ -57,7 +59,7 @@ class SamsDataLoader:
                 barcode=data['Barcode'],
                 course_type=data['CourseName'],
                 year=data['Year'],
-                source_of_fund=data['TypeofInstitute'],  # Assuming a default value
+                type=data['TypeofInstitute'],  # Assuming a default value
                 # Add other columns as needed
             )
             session.add(student)
@@ -73,8 +75,12 @@ class SamsDataLoader:
         try:
             institute = Institute(
                 sams_code=data['SAMSCode'],
-                name=data['Name'],
-                address=data['Address'],
+                year=int(data['academic_year']),
+                module=data['module'],
+                name=data['InstituteName'],
+                type=data['TypeofInstitute']
+                
+                
                 # Add other columns as needed
             )
             session.add(institute)
