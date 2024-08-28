@@ -1,35 +1,35 @@
-from tqdm import tqdm
-import pandas as pd
+import os
 from loguru import logger
-from etl.extract import SamsDataDownloader
-from etl.load import SamsDataLoader
-from config import RAW_DATA_DIR
+from sams.etl.extract import SamsDataDownloader
+from sams.etl.load import SamsDataLoader
+from sams.config import RAW_DATA_DIR
 
 class SAMSDataOrchestrator:
-    def __init__(self, db_url):
+    def __init__(self, db_url=f"sqlite:///{RAW_DATA_DIR}/sams.db"):
         self.downloader = SamsDataDownloader()
         self.loader = SamsDataLoader(db_url)
        
-
-    def process_student_data(self):
-        logger.info("Data processing started")
+    def process_data(self):
+        logger.info("Processing student data...")
         student_data = self.downloader.download_all_student_data()
         self.loader.load_student_data(student_data)
+
+        logger.info("Processing institute data...")
+        institute_data = self.downloader.download_all_institute_data()
+        self.loader.load_institute_data(institute_data)
         logger.info("Data processing completed")
 
-    def process_institute_data(self):
-        pass
-
     def close(self):
-        self.executor.shutdown()
         self.loader.close()
 
 def main():
     db_url = f"sqlite:///{RAW_DATA_DIR}/sams.db"
+    logger.debug(os.path.exists(db_url))
+
     orchestrator = SAMSDataOrchestrator(db_url)
     
     try:
-        orchestrator.process_student_data()
+        orchestrator.process_data()
     finally:
         orchestrator.close()
 
