@@ -1,0 +1,124 @@
+---
+title: "SAMS Student Data Diagnostics"
+output: html_document
+date: "2024-08-29"
+---
+This document provides a diagnostics of SAMS data - API access - CSM. 
+
+
+# Load the data set
+```{r}
+sams_student_data <- read_csv("C:/Users/Admin/Box/Amitav/Skills/student_data.csv")
+
+
+```
+
+
+# Check for Duplicates in id variables
+```{r}
+# Check for the non-unique Barcode × Year. Generates a column which is a count of duplicates
+df_duplicates_barcode <- sams_student_data %>%
+  group_by(Barcode,Year) %>%
+  summarize(num_duplicates = n())
+
+ 
+#filtered_sams = sams_student_data %>% filter(Barcode %in% duplicate_barcodes$Barcode)
+#view(filtered_sams)
+#remove(sams_student_data)
+#print(df_duplicates_barcode$Barcode>1)
+
+#duplicate_barcodes <- df_duplicates_barcode %>%
+ # filter(num_duplicates > 1) %>%   # Filter rows where col1 is greater than 1
+  #select(Barcode)           # Select only col1
+
+```
+
+# Check if all the institutes in 2024 (ITI, Diploma and PDIS) are present in the dataset
+This should be done after the admission cycle has ended to check if the "college participation" figures for 2024 on SAMS website matches with the SAMS dataset. 
+```{r}
+## For ITIs
+missing_itis = setdiff(gsub(" ", "", iti_list_2024_25$Institute_Name), gsub(" ", "", sams_student_data$ReportedInstitute))
+
+print("Number of ITIs missing from SAMS")
+print(missing_itis)
+
+remove(d_list,e_list)
+## For Diploma
+
+## For PDIS
+
+```
+
+# Year-wise count
+```{r}
+# Calculate frequency of Gender and Year for all institutes
+freq_df_gender <- sams_student_data %>%
+  group_by(Year, Gender) %>%
+  summarise(Frequency = n()) %>%
+  mutate(Percentage = Frequency / sum(Frequency) * 100) %>%
+  ungroup()
+
+# Create the stacked bar chart
+ggplot(freq_df_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count SAMS Reported by Year and Gender",
+    x = "Year",
+    y = "Count",
+    fill = "Gender"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  #  ylim(0, 500) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+    geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))
+
+  #geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+  #          vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))  # Add text labels inside bars
+
+# filter Gov institutes only
+sams_student_Gov_data = sams_student_data %>% filter(sams_student_data$TypeofInstitute == "Govt.")
+
+# Calculate frequency for Gov. institutes only
+freq_df_gov_gender <- sams_student_Gov_data %>%
+  group_by(Year, Gender) %>%
+  summarise(Frequency = n()) %>%
+  mutate(Percentage = Frequency / sum(Frequency) * 100) %>%
+  ungroup()
+
+# Create the Gov only stacked bar chart
+ggplot(freq_df_gov_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count SAMS Reported by Year and Gender in Gov Institutes only",
+    x = "Year",
+    y = "Count",
+    fill = "Gender"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  #  ylim(0, 500) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+  geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))
+
+
+# Difference between data count and SAMS website 
+# -294 (2023-24)
+# -3246 (2022-23)
+# -13029 (2021-22)
+# (2020-21)
+
+```
+
+
+
