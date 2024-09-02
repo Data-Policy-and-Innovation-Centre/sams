@@ -120,5 +120,15 @@ ggplot(freq_df_gov_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender
 
 ```
 
+# Count of Institutes - ITI, Poly & PDIS by Year
+```{r}
+# 
+unique_institues = sams_student_data %>%
+  filter(Year == "2022") %>%  # Change "ITI" to "Diploma" or "PDIS" as needed
+  summarise(Unique_Count = n_distinct(ReportedInstitute))
+
+print(unique_institues)
+
+```
 
 
