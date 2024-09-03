@@ -6,20 +6,36 @@ date: "2024-08-29"
 This document provides a diagnostics of SAMS data - API access - CSM. 
 
 
-# Load the data set
-```{r}
-sams_student_data <- read_csv("C:/Users/Admin/Box/Amitav/Skills/student_data.csv")
 
+# Import the .parquest datafile
+```{r}
+install.packages("arrow")
+library(arrow)
+
+# Replace 'your_file.parquet' with the path to your Parquet file
+df <- read_parquet("C:/Users/Admin/Box/Amitav/Skills/student_data.parquet")
+
+table(df$module)
 
 ```
+
 
 
 # Check for Duplicates in id variables
 ```{r}
 # Check for the non-unique Barcode × Year. Generates a column which is a count of duplicates
-df_duplicates_barcode <- sams_student_data %>%
-  group_by(Barcode,Year) %>%
+df_duplicates_barcode <- df %>%
+  group_by(Barcode,ReportedInstitute) %>%
   summarize(num_duplicates = n())
+
+duplicate_barcodes <- df_duplicates_barcode %>%
+ filter(num_duplicates > 1) %>%   # Filter rows where num_duplicates are greater than 1
+ select(Barcode)           # Select only those Barcodes
+
+
+barcode_dupli_list = df %>% filter(Barcode %in% duplicate_barcodes$Barcode)
+
+write.xlsx(barcode_dupli_list, "barcode_duplicates_df.xlsx")
 
  
 #filtered_sams = sams_student_data %>% filter(Barcode %in% duplicate_barcodes$Barcode)
@@ -48,6 +64,8 @@ remove(d_list,e_list)
 ## For PDIS
 
 ```
+
+
 
 # Year-wise count
 ```{r}
@@ -121,14 +139,383 @@ ggplot(freq_df_gov_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender
 ```
 
 # Count of Institutes - ITI, Poly & PDIS by Year
+
+
 ```{r}
 # 
-unique_institues = sams_student_data %>%
-  filter(Year == "2022") %>%  # Change "ITI" to "Diploma" or "PDIS" as needed
+unique_institues = df %>%
+  filter(Year == "2024" & module =="ITI") %>%  # Change "ITI" to "Diploma" or "PDIS" as needed
   summarise(Unique_Count = n_distinct(ReportedInstitute))
 
 print(unique_institues)
 
 ```
+
+# "Percentage" validation exercise
+```{r}
+# Convert SecuredMarks and TotalMarks to numeric
+df <- df %>%
+  mutate(
+    SecuredMarks = as.numeric(as.character(SecuredMarks)),
+    TotalMarks = as.numeric(as.character(TotalMarks)),
+    Percentage = as.numeric(as.character(Percentage))
+  )
+
+# Calculate the expected percentage
+df <- df %>%
+  mutate(expected_percentage = (SecuredMarks/TotalMarks) * 100)
+
+# Compare the expected percentage with the actual percentage
+df <- df %>%
+  mutate(is_correct = round(expected_percentage, 2) == round(Percentage, 2))
+
+# Count the number of correct rows
+num_correct <- sum(df$is_correct, na.rm = TRUE)
+
+selected_columns = df %>%
+  filter(is_correct == FALSE) %>%
+  select(Percentage,expected_percentage)
+
+hist(selected_columns$Percentage)
+hist(selected_columns$expected_percentage)
+
+print(paste("Number of correct rows:", num_correct))
+```
+
+
+
+
+## Visualizations 
+
+# "Percentage" Distribution Visuals
+```{r}
+library(ggplot2)
+
+# Subset to module 
+df_ITI = df %>% filter(df$module == "ITI")
+df_Diploma = df %>% filter(df$module == "Diploma")
+df_PDIS = df %>% filter(df$module == "PDIS")
+
+
+# Custom function to create the histogram
+plot_percentage_histogram <- function(data, percentage_col) {
+  # Create histogram
+  p <- ggplot(data, aes_string(x = percentage_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5, 
+      fill = "#2E86C1", 
+      color = "#1B4F72", 
+      alpha = 0.7
+    ) +
+    labs(
+      title = paste("Distribution of", percentage_col, "Scores"),
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      color = "#CB4335", 
+      fill = "#F5B7B1", 
+      alpha = 0.3,
+      adjust = 1
+    )
+  
+  return(p)
+}
+
+
+# Plot percentage for ITI
+histogram1 <- plot_percentage_histogram(df_ITI, "expected_percentage")
+print(histogram1)
+
+# Plot percentage for Diploma
+histogram2 <- plot_percentage_histogram(df_Diploma, "expected_percentage")
+print(histogram2)
+
+# Plot percentage for Diploma
+histogram3 <- plot_percentage_histogram(df_PDIS, "expected_percentage")
+print(histogram3)
+
+```
+
+# Marks Percentage Histograms by Gender
+
+Who are the ones applying and getting in ITI, Polytechnics and PDIS? The minimum marks percentage to apply for ITIs is 33% in 10th or 8th Grade (minimum passing marks) depending on the trade. To apply for Diploma through Fresh entry in Engineering or Beauty Culture courses, one has to pass 10th grade at 33%. For Diploma courses in Hotel Management & Catering Technology, Modern Office Management, and Pharmacy, applicant should be a 10+2 pass in science/commerce/arts. 
+For Lateral Entry to Engineering course, one has to Pass in +2 Science or +2 Vocational in an Engineering Trade/ ITI Pass from 2 years ITI in Engineering Trade or COE Trade with pass in 10th. 
+
+```{r}
+plot_overlapping_histograms <- function(data, percentage_col, module_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = module_col, color = module_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5,  # Adjust binwidth as needed
+      position = "identity",  # Overlap histograms
+      alpha = 0.5,  # Transparency of histograms
+      color = "black"
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.5  # Transparency of density line
+    ) +
+    labs(
+      title = "Distribution of Percentage Scores by Module",
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'Gender'
+bar_plot <- plot_overlapping_histograms(df, "expected_percentage", "module")
+print(bar_plot)
+
+
+```
+We can see from the above histogram, ITI applicants have a more right skew compared to Diploma applicants in their percentage marks. ITI applicants generally tend to be academically weaker students. However, it is not clear whether the reported percentage marks for Diploma applicants is 10th, 12th or ITI.
+Now, let's compare the marks distribution between private and government institutes. 
+
+# Private Vs Government - Percentage Marks
+
+```{r}
+plot_pvt_gov_overlapping_histograms <- function(data, percentage_col, type_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = type_col, color = type_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5,  # Adjust binwidth as needed
+      position = "identity",  # Overlap histograms
+      alpha = 0.5,  # Transparency of histograms
+      color = "black"
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.5  # Transparency of density line
+    ) +
+    labs(
+      title = "Distribution of Percentage Scores by Institute Type",
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'TypeofInstitute'
+bar_ITItype_plot <- plot_pvt_gov_overlapping_histograms(df_ITI, "expected_percentage", "TypeofInstitute")
+print(bar_ITItype_plot)
+
+bar_Diplomatype_plot <- plot_pvt_gov_overlapping_histograms(df_Diploma, "expected_percentage", "TypeofInstitute")
+print(bar_Diplomatype_plot)
+
+
+
+```
+From the above graphs, applicants in Gov institutes tend to have higher percentage marks than private institutes across ITI and Diploma courses. 
+
+
+# Gender wise - Percentage Marks
+
+```{r}
+# Exclude Transgender from dataset
+excl_trans_df_ITI = df_ITI %>% filter(Gender != "Transgender")
+excl_trans_df_Diploma = df_Diploma %>% filter(Gender != "Transgender")
+
+plot_gender_overlapping_histograms <- function(data, percentage_col, gender_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = gender_col, color = gender_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5,  # Adjust binwidth as needed
+      position = "identity",  # Overlap histograms
+      alpha = 0.5,  # Transparency of histograms
+      color = "black"
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.5  # Transparency of density line
+    ) +
+    labs(
+      title = "Distribution of Percentage Scores by Institute Type",
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'TypeofInstitute'
+bar_ITItype_plot <- plot_pvt_gov_overlapping_histograms(excl_trans_df_ITI, "expected_percentage", "Gender")
+print(bar_ITItype_plot)
+
+bar_Diplomatype_plot <- plot_pvt_gov_overlapping_histograms(excl_trans_df_Diploma, "expected_percentage", "Gender")
+print(bar_Diplomatype_plot)
+
+
+
+```
+There is very minimal disparity between two genders in ITIs, however the disparity is relatively higher in Diploma with Male being more skewed to the left than Female. 
+
+# Percentage Time Trends
+
+```{r}
+
+# Custom function to create a bar plot of the mean percentage score by year
+plot_mean_percentage_by_year <- function(data, year_col, percentage_col) {
+  
+  # Calculate the arithmetic mean of percentage_score by year
+  mean_data <- data %>%
+    group_by_at(year_col) %>%
+    summarise(mean_percentage = mean(.data[[percentage_col]], na.rm = TRUE))
+  
+  # Create the bar plot
+  p <- ggplot(mean_data, aes_string(x = year_col, y = "mean_percentage")) +
+    geom_bar(stat = "identity", fill = "#3498DB", color = "#1F78B4", alpha = 0.8) +
+    labs(
+      title = paste("Mean Percentage Score by Year"),
+      x = "Year",
+      y = "Mean Percentage Score"
+    ) +
+    ylim(0,100) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9"),
+      axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for better readability
+    ) +
+    geom_text(aes(label = round(mean_percentage, 2)), vjust = -0.5, size = 4)
+  
+  return(p)
+}
+
+# Example usage
+# Assuming your dataset is named 'data' and has columns 'Year' and 'percentage_score'
+bar_ITI_time_plot <- plot_mean_percentage_by_year(df_ITI, "Year", "expected_percentage")
+print(bar_ITI_time_plot)
+
+bar_Diploma_time_plot <- plot_mean_percentage_by_year(df_Diploma, "Year", "expected_percentage")
+print(bar_Diploma_time_plot)
+
+bar_PDIS_time_plot <- plot_mean_percentage_by_year(df_PDIS, "Year", "expected_percentage")
+print(bar_PDIS_time_plot)
+
+```
+# Percentage Time Trends by Gender
+
+```{r}
+
+plot_mean_percentage_by_year_gender <- function(data, year_col, percentage_col, gender_col) {
+# Calculate the arithmetic mean of percentage_score by year and gender
+  mean_data <- data %>%
+    group_by_at(c(year_col, gender_col)) %>%
+    summarise(mean_percentage = mean(.data[[percentage_col]], na.rm = TRUE), .groups = 'drop')
+  
+ # Create the bar plot
+  p <- ggplot(mean_data, aes_string(x = year_col, y = "mean_percentage", fill = gender_col)) +
+    geom_bar(stat = "identity", position = position_dodge(), color = "#1F78B4", alpha = 0.8) +
+    labs(
+      title = "Mean Percentage Score by Year and Gender",
+      x = "Year",
+      y = "Mean Percentage Score"
+    ) +
+    scale_fill_manual(values = c("Male" = "#3498DB", "Female" = "#E74C3C")) +
+    theme_minimal() +
+    ylim(0,100) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9"),
+      axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for better readability
+    ) +
+    geom_text(aes(label = round(mean_percentage, 2)), position = position_dodge(width = 0.9), vjust = -0.5, size = 3)
+  
+  return(p)
+}
+
+# Example usage
+# Assuming your dataset is named 'data' and has columns 'year', 'percentage_score', and 'gender'
+bar_plot_ITI <- plot_mean_percentage_by_year_gender(df_ITI, "Year", "expected_percentage","Gender")
+print(bar_plot_ITI)
+
+bar_plot_Diploma <- plot_mean_percentage_by_year_gender(df_Diploma, "Year", "expected_percentage","Gender")
+print(bar_plot_Diploma)
+
+bar_plot_PDIS <- plot_mean_percentage_by_year_gender(df_PDIS, "Year", "expected_percentage","Gender")
+print(bar_plot_PDIS)
+
+```
+
+
 
 
