@@ -15,8 +15,6 @@ library(arrow)
 # Replace 'your_file.parquet' with the path to your Parquet file
 df <- read_parquet("C:/Users/Admin/Box/Amitav/Skills/student_data.parquet")
 
-table(df$module)
-
 ```
 
 
@@ -25,7 +23,7 @@ table(df$module)
 ```{r}
 # Check for the non-unique Barcode × Year. Generates a column which is a count of duplicates
 df_duplicates_barcode <- df %>%
-  group_by(Barcode,ReportedInstitute) %>%
+  group_by(Barcode) %>%
   summarize(num_duplicates = n())
 
 duplicate_barcodes <- df_duplicates_barcode %>%
@@ -34,6 +32,7 @@ duplicate_barcodes <- df_duplicates_barcode %>%
 
 
 barcode_dupli_list = df %>% filter(Barcode %in% duplicate_barcodes$Barcode)
+view(barcode_dupli_list)
 
 write.xlsx(barcode_dupli_list, "barcode_duplicates_df.xlsx")
 
@@ -468,6 +467,7 @@ bar_PDIS_time_plot <- plot_mean_percentage_by_year(df_PDIS, "Year", "expected_pe
 print(bar_PDIS_time_plot)
 
 ```
+
 # Percentage Time Trends by Gender
 
 ```{r}
@@ -515,6 +515,472 @@ bar_plot_PDIS <- plot_mean_percentage_by_year_gender(df_PDIS, "Year", "expected_
 print(bar_plot_PDIS)
 
 ```
+
+
+
+
+# Income Male vs Female
+```{r}
+
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = AnnualIncome, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 2) +
+  labs(
+    title = "Percentage Distribution of Income by Gender",
+    x = "Annual Household Income (Rs.)",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+
+
+```
+
+# Religion Male vs Female
+
+```{r}
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, ReligionName) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = ReligionName, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 2) +
+  labs(
+    title = "Percentage Distribution of Income by Gender",
+    x = "Religion",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+```
+
+# Social Category by Gender
+```{r}
+
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = SocialCategory, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Social Category Distribution by Gender",
+    x = "Social Category",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+```
+
+# Highest Qualification by Gender (Column needs cleaning)
+```{r}
+
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, HighestQualification) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = HighestQualification, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Highest Qualification Distribution by Gender",
+    x = "Highest Qualification",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+# Course Period by Gender
+```{r}
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, CoursePeriod) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = CoursePeriod, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Highest Qualification Distribution by Gender",
+    x = "Highest Qualification",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+# Migration Analysis for ____
+```{r}
+# Count the number of students by their home district and institute district
+district_flow <- df_Diploma %>%
+  group_by(District, InstituteDistrict) %>%
+  summarise(student_count = n(), .groups = 'drop')
+
+
+# Filter to include only students who study outside their home district
+students_outside_home <- district_flow %>%
+  filter(District != InstituteDistrict)
+
+# Summarize the number of incoming students for each institute district
+incoming_students <- students_outside_home %>%
+  group_by(InstituteDistrict) %>%
+  summarise(total_incoming_students = sum(student_count), .groups = 'drop') %>%
+  arrange(desc(total_incoming_students))
+
+# View the top institute districts by incoming students
+top_institute_districts <- incoming_students %>%
+  top_n(5, wt = total_incoming_students)  # Adjust the number to view more or fewer top districts
+
+print(top_institute_districts)
+
+# Bar plot to visualize the top institute districts
+ggplot(top_institute_districts, aes(x = reorder(InstituteDistrict, -total_incoming_students), y = total_incoming_students)) +
+  geom_bar(stat = "identity", fill = "#3498DB", alpha = 0.8) +
+  labs(
+    title = "Top Institute Districts by Incoming Students",
+    x = "Institute District",
+    y = "Total Incoming Students"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+```
+
+```{r}
+district_percentage <- df_Diploma %>%
+  group_by(District) %>%
+  summarise(
+    total_students = n(),
+    students_outside = sum(District != InstituteDistrict),
+    percentage_outside = (students_outside / total_students) * 100,
+    .groups = 'drop'
+  )
+
+library(ggplot2)
+
+ggplot(district_percentage, aes(x = reorder(District, percentage_outside), y = percentage_outside)) +
+  geom_bar(stat = "identity", fill = "#3498DB", alpha = 0.8) +
+  labs(
+    title = "Percentage of Students Studying Outside Their Home District",
+    x = "Home District",
+    y = "Percentage of Students"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  ) +
+  coord_flip()
+
+```
+
+
+# Net Migration Bar Chart
+```{r}
+df_female_Diploma = df_Diploma %>% filter(Gender == "Female")
+# Calculate outgoing students (students leaving their home district)
+outgoing_students <- df_female_Diploma %>%
+  filter(District != InstituteDistrict) %>%
+  group_by(District) %>%
+  summarise(total_outgoing = n(), .groups = 'drop')
+
+# Calculate incoming students (students entering the district from another district)
+incoming_students <- df_female_Diploma %>%
+  filter(District != InstituteDistrict) %>%
+  group_by(InstituteDistrict) %>%
+  summarise(total_incoming = n(), .groups = 'drop')
+
+# Combine outgoing and incoming data
+net_migration <- outgoing_students %>%
+  full_join(incoming_students, by = c("District" = "InstituteDistrict")) %>%
+  mutate(
+    total_outgoing = replace_na(total_outgoing, 0),
+    total_incoming = replace_na(total_incoming, 0),
+    net_outmigration = total_outgoing - total_incoming
+  )
+
+
+library(ggpubr)
+
+# Prepare the data for plotting
+net_migration <- net_migration %>%
+  mutate(migration_status = if_else(net_outmigration > 0, "Positive", "Negative"))
+
+# Create the horizontal bar chart
+ggbarplot(net_migration, x = "District", y = "net_outmigration",
+          fill = "migration_status",  # Color bars based on migration status
+          color = "white",            # Set bar border colors to white
+          palette = c("Positive" = "yellow", "Negative" = "blue"),  # Define custom colors
+          sort.val = "desc",          # Sort values in descending order
+          sort.by.groups = FALSE,     # Don't sort inside each group
+          x.text.angle = 90,          # Rotate x-axis labels
+          ylab = "Net Outmigration",
+          legend.title = "Migration Status",
+          rotate = TRUE,              # Rotate the plot to make it horizontal
+          ggtheme = theme_minimal()
+          )
+
+```
+
+
+## Spatial Visualizations 
+
+```{r}
+## Student - Institute District Match
+# Pvt. vs Gov.
+
+table(sams_student_data$State)
+filtered_sams_student = sams_student_data %>% filter(State == "Others")
+
+
+```
+
+
+# Check the big 5-10 ITIs by enrollement (by trade also) - boys/girls 
+
+```{r}
+
+# Step 1: Filter the data for the year 2023 and calculate counts
+df_summary <- df_ITI %>%
+  filter(Year == 2023) %>%
+  group_by(Gender, ReportedInstitute) %>%
+  summarise(student_count = n(), .groups = 'drop')
+
+# Step 2: Select the top 10 institutes with the highest student counts
+top_10_institutes <- df_summary %>%
+  group_by(ReportedInstitute) %>%
+  summarise(total_count = sum(student_count)) %>%
+  slice_max(total_count, n = 10) %>%
+  inner_join(df_summary, by = "ReportedInstitute")
+
+# Step 3: Create the horizontal bar chart
+ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y = student_count, fill = Gender)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Number of Students by Gender in 2023 (Top 10 Institutes)",
+    x = "Reported Institute",
+    y = "Number of Students",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+
+# Maps
+
+```{r}
+
+```
+
+
+# Reference Code for Map
+```{r}
+# Install necessary packages if not already installed
+# install.packages(c("sf", "tidyverse", "tmap"))
+
+
+library(sf)
+library(tmap)
+
+# Step 1: Load the shapefile of Odisha districts
+# Replace with the actual path to your shapefile
+odisha_districts <- st_read("C:/Users/Admin/Downloads/odisha.kml")
+
+# Step 3: Count the number of ITIs in each district
+iti_count <- iti_list_2024_25 %>%
+  group_by(District_Name) %>%
+  summarise(num_itis = n())
+
+iti_count = iti_count %>% mutate(District_Name = toupper(District_Name))
+
+iti_count <- iti_count %>%
+  mutate(District_Name = case_when(
+    District_Name == "ANGUL" ~ "ANUGUL",
+    District_Name == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    District_Name == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    District_Name == "JAJPUR" ~ "JAJAPUR",
+    District_Name == "KENDRAPARA" ~ "KENDRAPARHA",
+    District_Name == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    District_Name == "KHURDA" ~ "KHORDHA",
+    District_Name == "NAWARANGPUR" ~"NABARANGAPUR",
+    District_Name == "NUAPADA" ~"NUAPARHA",
+    District_Name == "RAYAGADA" ~"RAYAGARHA",
+    District_Name == "SONEPUR" ~"SUBARNAPUR",
+    District_Name == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ District_Name  # Keep other district names unchanged
+  ))
+
+
+# Step 4: Merge the ITI count data with the Odisha districts shapefile
+odisha_districts <- odisha_districts %>%
+  left_join(iti_count, by = c("Name" = "District_Name"))
+
+breaks = c(1,10,20,30,40,51)
+# Step 5: Visualize the map
+# Plotting with tmap
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("num_itis", 
+              title = "Number of ITIs", 
+              palette = "Blues", 
+              breaks = breaks,
+              n = 5) +
+  tm_layout(main.title = "Number of ITIs in Each District of Odisha",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+## For NVCT
+odisha_iti_seats_all$ITI.Count = as.numeric(odisha_iti_seats_all$ITI.Count)
+
+odisha_iti_seats_all = odisha_iti_seats_all %>% mutate(State.District = toupper(State.District))
+
+odisha_districts <- odisha_districts %>%
+  left_join(odisha_iti_seats_all, by = c("Name" = "State.District"))
+
+# change count of ITIs in SUBARNAPUR to 2 and trade.count to 7
+odisha_districts[28, "ITI.Count"] <- 2
+odisha_districts[28, "Trade.Count"] = 7
+
+odisha_districts = odisha_districts[-29,]
+odisha_districts$ITI.Count = as.numeric(odisha_districts$ITI.Count)
+
+odisha_iti_seats_all <- odisha_iti_seats_all %>%
+  mutate(State.District = case_when(
+    State.District == "BARGARH" ~ "BARAGARH",
+    State.District == "BALANGIR" ~ "BOLANGIR (BALANGIR)",
+    State.District == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    State.District == "JAGATSINGHAPUR" ~ "JAGATSINGHPUR",
+    State.District == "KENDRAPARA" ~ "KENDRAPARHA",
+    State.District == "KENDUJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    State.District == "KHORDHA" ~ "KHORDHA",
+    State.District == "NABARANGPUR" ~"NABARANGAPUR",
+    State.District == "NUAPADA" ~"NUAPARHA",
+    State.District == "RAYAGADA" ~"RAYAGARHA",
+    State.District == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ State.District  # Keep other district names unchanged
+  ))
+
+# Visualize NCVT figures
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("ITI.Count", 
+              title = "Number of ITIs", 
+              palette = "Blues", 
+              breaks = breaks,
+              n = 5) +
+  tm_layout(main.title = "Number of ITIs in Each District of Odisha",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+
+# Difference between SAMS and NCVT
+odisha_districts$diff_trade_count = odisha_districts$ITI.Count - odisha_districts$num_itis
+
+# Visualize the difference
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("diff_trade_count", 
+              title = "Difference in ITIs", 
+              palette = "Blues", 
+              style = "quantile",
+              n = 5) +
+  tm_layout(main.title = "Difference in Number of ITIs SAMS and NCVT",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+# breaks for seat utilization
+breaks_utilization = c(68.0,80,85.0,90.0,95.0,100.0)
+
+# Visualize Seat utilization of "Previous Year" i.e. 2021
+tmap_mode("view")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("Seat.Utilization.Previous", 
+              title = "Seat Utilization (%)", 
+              palette = "Blues", 
+              breaks = breaks_utilization,
+              popup.vars = c("Seat Utilization Rate" = "Seat.Utilization.Previous"),
+              n = 5) +
+  tm_layout(main.title = "Seat Utilization Rate in ITIs",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+```
+
+
 
 
 
