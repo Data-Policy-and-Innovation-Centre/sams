@@ -568,7 +568,7 @@ ggplot(df_ITI_summary, aes(x = ReligionName, y = percentage, fill = Gender)) +
             position = position_dodge(width = 0.9), 
             vjust = -0.5, size = 2) +
   labs(
-    title = "Percentage Distribution of Income by Gender",
+    title = "Percentage Distribution of Religion by Gender",
     x = "Religion",
     y = "Percentage",
     fill = "Gender"
@@ -658,8 +658,8 @@ ggplot(df_ITI_summary, aes(x = CoursePeriod, y = percentage, fill = Gender)) +
             position = position_dodge(width = 0.9), 
             vjust = -0.5, size = 3) +
   labs(
-    title = "Highest Qualification Distribution by Gender",
-    x = "Highest Qualification",
+    title = "Course Period Distribution by Gender",
+    x = "Course Period",
     y = "Percentage",
     fill = "Gender"
   ) +
@@ -804,7 +804,7 @@ filtered_sams_student = sams_student_data %>% filter(State == "Others")
 ```
 
 
-# Check the big 5-10 ITIs by enrollement (by trade also) - boys/girls 
+# Check the big 5-10 ITIs by enrollment (by trade also) - boys/girls 
 
 ```{r}
 
@@ -836,7 +836,93 @@ ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y =
     plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
     axis.title = element_text(size = 12)
   )
+
+## Top 10 institutes by girl students
+# Step 1: Filter the data for the year 2023 and female students only
+df_female_2023 <- df_ITI %>%
+  filter(Year == 2023 & Gender == "Female")
+
+# Step 2: Group by ReportedInstitute and summarize the count of female students
+df_summary_female <- df_female_2023 %>%
+  group_by(ReportedInstitute) %>%
+  summarise(female_student_count = n(), .groups = 'drop')
+
+# Step 3: Select the top 10 institutes with the highest female student counts
+top_10_institutes_female <- df_summary_female %>%
+  slice_max(female_student_count, n = 10)
+
+# Step 4: Create the horizontal bar chart
+ggplot(top_10_institutes_female, aes(x = reorder(ReportedInstitute, female_student_count), y = female_student_count, fill = ReportedInstitute)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Number of Female Students by Institute in 2023 (Top 10 Institutes)",
+    x = "Reported Institute",
+    y = "Number of Female Students"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  )
+
 ```
+The districts in which the 10 institutes (total students) are situated are - 
+Ganjam, Cuttack, Balasore, Khurda, Mayurbhanj and Keonjhar (East Odisha);
+Sundergarh & Sambalpur (West Odisha).  
+
+The districts in which the 10 institutes (total female students) are situated are - 
+Ganjam, Cuttack, Balasore, Khurda, and Keonjhar (East Odisha);
+Sundergarh, Sambalpur, Koraput (West Odisha).  
+Angul (Central)
+
+
+# Core Trades
+```{r}
+# print list of trades in ITI
+unique(df_ITI$ReportedBranchORTrade)
+
+# "Core trades" identified by ChatGPT
+core_trades <- c(
+  "Electrician (NSQF)",
+  "Fitter (NSQF)",
+  "Mechanic (Motor Vehicle) (NSQF)",
+  "Welder (NSQF)",
+  "Electronics Mechanic (NSQF)",
+  "Mechanic Diesel (NSQF)",
+  "Turner (NSQF)",
+  "Machinist (NSQF)",
+  "Refrigeration & Air Conditioning Technician (NSQF)",
+  "Information Technology (NSQF)"
+)
+
+filtered_data <- df_ITI %>%
+  filter(ReportedBranchORTrade %in% core_trades)
+
+# Calculate gender ratio by year and trade
+gender_ratio <- filtered_data %>%
+  group_by(Year, ReportedBranchORTrade, Gender) %>%
+  summarise(Count = n()) %>%
+  spread(key = Gender, value = Count, fill = 0)
+
+gender_ratio$GenderRatio = gender_ratio$Female/gender_ratio$Male*100
+
+ggplot(gender_ratio, aes(x = Year, y = GenderRatio, color = ReportedBranchORTrade, group = ReportedBranchORTrade)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Gender Ratio (Male/Female) Over Time by Trade in %",
+    x = "Year",
+    y = "Gender Ratio (%)",
+    color = "Trade"
+  ) +
+  theme_minimal() +
+  scale_color_manual(values = rainbow(length(core_trades))) 
+
+
+
+```
+
 
 
 
