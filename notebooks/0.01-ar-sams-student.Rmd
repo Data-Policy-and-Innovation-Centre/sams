@@ -877,8 +877,150 @@ Ganjam, Cuttack, Balasore, Khurda, and Keonjhar (East Odisha);
 Sundergarh, Sambalpur, Koraput (West Odisha).  
 Angul (Central)
 
+# Female Percentage in all Institutes over time
+```{r}
+# Step 1: Filter for government institutes
+df_ITI_gov <- df_ITI %>%
+  filter(TypeofInstitute == "Govt.")
 
-# Core Trades
+# Step 2: Summarize the data (total students, female students, and female percentage) over time
+df_summary_gov <- df_ITI_gov %>%
+  filter(Year != "2024") %>%
+  group_by(ReportedInstitute, Year) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_percentage = (female_students / total_students) * 100,
+    .groups = 'drop'
+  )
+
+# Get the female_percentage for institutes in 2023
+df_2023 <- df_summary_gov %>%
+  filter(Year == 2023) %>%
+  select(ReportedInstitute, female_percentage)
+
+# Categorize institutes based on their 2023 female_percentage
+df_2023 <- df_2023 %>%
+  mutate(
+    female_30_category_2023 = ifelse(female_percentage >= 30, "30% or more", "Below 30%"),
+    female_sub_category_2023 = case_when(
+      female_percentage > 0 & female_percentage <= 20 ~ "Between 0 to 20",
+      female_percentage > 20 & female_percentage <= 30 ~ "Between 20 to 30",
+      female_percentage > 30 & female_percentage <= 40 ~ "Between 30 to 40",
+      female_percentage > 40 & female_percentage <= 50 ~ "Between 40 to 50",
+      female_percentage > 50 ~ "Between 50 to 60"
+    )
+  )
+  
+
+
+
+# Step 4: Join this categorization back to the main summary dataframe
+df_summary_gov <- df_summary_gov %>%
+  left_join(df_2023 %>% select(ReportedInstitute, female_category_2023, female_sub_category_2023), by = "ReportedInstitute")
+
+
+# Filter data for the specific year
+df_sum_gov_2023 <- df_summary_gov %>%
+  filter(Year == 2023)
+
+# Bar Plot
+ggplot(df_sum_gov_2023, aes(x = reorder(ReportedInstitute, female_percentage), y = female_percentage, fill = female_sub_category_2023)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Flip coordinates to make it horizontal
+  labs(
+    title = "Female Percentage by Institute for 2023",
+    x = "Institute",
+    y = "Female Percentage",
+    fill = "Female Percentage Category"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+# Bar Plot
+df_count_2023 <- df_2023 %>%
+  group_by(female_sub_category_2023) %>%
+  summarise(count = n(), .groups = 'drop')
+ggplot(df_count_2023, aes(x = female_sub_category_2023, y=count )) +
+  geom_bar(stat="identity", fill="skyblue",  color = "black") +
+  labs(title = "Distribution of Institutes by Female Percentage Category for 2023", x = "Female Percentage", y = "Number of ITIs", fill="Female Percentage Category") +
+  ylim(0,35)
+  theme_minimal(base_size = 15) +  # Base text size
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    plot.caption = element_text(size = 10)  # Increase bottom margin
+  ) +
+  geom_text(aes(label = count), vjust = -0.5, size = 4)  # Add text labels on top of bars
+
+  
+
+ggplot(data=df_summary_gov, aes(x=Year, y=female_percentage, group = ReportedInstitute, 
+                                            colour = female_category_2023)) + 
+  geom_line() +
+  labs(y= "Female (%)", x = "Year") + 
+  ggtitle("Percentage of Female Over Years in Top Institutes") + 
+  geom_point()
+ 
+
+
+
+
+```
+
+
+
+# Female Percentage in Top 5 Institutes (in 2023) over time
+```{r}
+
+# Step 1: Filter for government institutes
+df_ITI_gov <- df_ITI %>%
+  filter(TypeofInstitute == "Govt.")
+
+# Step 2: Summarize the data (total students, female students, and female percentage) over time
+df_summary_gov <- df_ITI_gov %>%
+  filter(Year != "2024") %>%
+  group_by(ReportedInstitute, Year) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_percentage = (female_students / total_students) * 100,
+    .groups = 'drop'
+  )
+
+# Step 3: Select the top 5 government institutes in 2023
+top_5_institutes_2023 <- df_summary_gov %>%
+  filter(Year == 2023) %>%
+  slice_max(total_students, n = 5) %>%
+  pull(ReportedInstitute)  # Extract the names of the top 5 institutes in 2023
+
+# Step 4: Filter the original summary for only the top 5 institutes (over time)
+df_top_5_summary <- df_summary_gov %>%
+  filter(ReportedInstitute %in% top_5_institutes_2023)
+
+ggplot(data=df_top_5_summary, aes(x=Year, y=female_percentage, group = ReportedInstitute, 
+                                            colour = ReportedInstitute)) + 
+  geom_line() +
+  labs(y= "Female (%)", x = "Year") + 
+  ggtitle("Percentage of Female Over Years in Top Institutes") + 
+  geom_point()
+ 
+
+
+
+
+```
+
+
+
+# Core Trades (identified by ChatGPT)
 ```{r}
 # print list of trades in ITI
 unique(df_ITI$ReportedBranchORTrade)
@@ -893,8 +1035,8 @@ core_trades <- c(
   "Mechanic Diesel (NSQF)",
   "Turner (NSQF)",
   "Machinist (NSQF)",
-  "Refrigeration & Air Conditioning Technician (NSQF)",
-  "Information Technology (NSQF)"
+  "Refrigeration & Air Conditioning Technician(NSQF)",
+  "Information Technology(NSQF)"
 )
 
 filtered_data <- df_ITI %>%
@@ -904,21 +1046,56 @@ filtered_data <- df_ITI %>%
 gender_ratio <- filtered_data %>%
   group_by(Year, ReportedBranchORTrade, Gender) %>%
   summarise(Count = n()) %>%
-  spread(key = Gender, value = Count, fill = 0)
+  spread(key = Gender, value = Count, fill = 0) %>%
+  mutate(Total = Male + Female, PercentFemale = (Female / Total) * 100)
 
-gender_ratio$GenderRatio = gender_ratio$Female/gender_ratio$Male*100
 
-ggplot(gender_ratio, aes(x = Year, y = GenderRatio, color = ReportedBranchORTrade, group = ReportedBranchORTrade)) +
-  geom_line(size = 1) +
+# Create the sophisticated plot
+ggplot(gender_ratio, aes(x = Year, y = PercentFemale, color = ReportedBranchORTrade, group = ReportedBranchORTrade)) +
+  geom_line(aes(linetype = ReportedBranchORTrade), size = 1) +
+  geom_point(size = 3, shape = 21, fill = "white") +
   labs(
-    title = "Gender Ratio (Male/Female) Over Time by Trade in %",
+    title = "Percentage of Female Over Time by Core Trades",
+    subtitle = "Gender distribution in core trades in Odisha ITIs (Female %)",
     x = "Year",
-    y = "Gender Ratio (%)",
-    color = "Trade"
+    y = "Female (%)",
+    color = "Trade",
+    linetype = "Trade"
   ) +
-  theme_minimal() +
-  scale_color_manual(values = rainbow(length(core_trades))) 
+  # Set color palette using RColorBrewer
+  scale_color_brewer(palette = "Set1") +
+  
+  # Customize the theme for a more sophisticated look
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5, margin = margin(b = 10)),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    legend.position = "bottom",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
 
+
+```
+
+
+# Top Trades by various dimensions 
+```{r}
+
+gender_ratio <- df_ITI %>%
+  group_by(Year, ReportedBranchORTrade, Gender) %>%
+  summarise(Count = n()) %>%
+  spread(key = Gender, value = Count, fill = 0) %>%
+  mutate(Total = Male + Female, PercentFemale = (Female / Total) * 100) # Calculate ratio as Male/Female
+view(gender_ratio)
+
+gender_ratio_excl_2024 = gender_ratio %>% filter(Year != "2024")
+view(gender_ratio_excl_2024)
 
 
 ```
