@@ -870,15 +870,43 @@ filtered_sams_student = sams_student_data %>% filter(State == "Others")
 # Step 1: Filter the data for the year 2023 and calculate counts
 df_summary <- df_ITI %>%
   filter(Year == 2023) %>%
-  group_by(Gender, ReportedInstitute) %>%
+  group_by(Gender, ReportedInstitute,TypeofInstitute) %>%
   summarise(student_count = n(), .groups = 'drop')
 
 # Step 2: Select the top 10 institutes with the highest student counts
-top_10_institutes <- df_summary %>%
+df_summary <- df_summary %>%
   group_by(ReportedInstitute) %>%
   summarise(total_count = sum(student_count)) %>%
-  slice_max(total_count, n = 10) %>%
   inner_join(df_summary, by = "ReportedInstitute")
+
+top_students_ITI = df_summary %>%
+  select(ReportedInstitute, total_count, TypeofInstitute) %>%
+  distinct()
+view(top_students_ITI)
+  
+top_students_ITI_gov = top_students_ITI %>%
+  filter(TypeofInstitute =="Govt.")
+  select(ReportedInstitute, total_count)
+
+top_students_ITI_pvt = top_students_ITI %>%
+  filter(TypeofInstitute =="Pvt.")
+  select(ReportedInstitute, total_count)
+  
+top_female_ITI = df_summary %>% 
+  filter(TypeofInstitute =="Female") %>%
+  select(ReportedInstitute, student_count, TypeofInstitute) %>%
+  distinct()
+
+top_female_ITI_gov = top_female_ITI %>% 
+   filter(TypeofInstitute =="Govt.")
+  select(ReportedInstitute, student_count)
+
+top_female_ITI_pvt = top_female_ITI %>%
+   filter(TypeofInstitute =="Pvt.")
+  select(ReportedInstitute, student_count)
+
+ts_   
+  
 
 # Step 3: Create the horizontal bar chart
 ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y = student_count, fill = Gender)) +
@@ -1338,7 +1366,7 @@ student_count_PDIS = df_PDIS %>%
 view(student_count_PDIS)
 
 
-
+df_ITI
 
 # Intake by District
 
