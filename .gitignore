@@ -1,4 +1,5 @@
 data/*
+output/*
 docs/*
 !*.keep
 !data/raw/*.keep

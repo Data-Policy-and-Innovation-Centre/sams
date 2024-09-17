@@ -616,7 +616,6 @@ ggplot(df_ITI_summary, aes(x = ReligionName, y = percentage, fill = Gender)) +
 
 # Social Category by Gender
 ```{r}
-table(df_ITI_pvt$TypeofInstitute,df_ITI_pvt$module)
 # Calculate total counts for each gender
 df_ITI_summary <- df_ITI_gov %>%
   group_by(Gender, SocialCategory) %>%
@@ -648,6 +647,7 @@ df_ITI_summary <- df_ITI_pvt %>%
   summarise(count = n(), .groups = 'drop') %>%
   group_by(Gender) %>%
   mutate(percentage = count / sum(count) * 100)
+view(df_ITI_summary)
 
 ggplot(df_ITI_summary, aes(x = SocialCategory, y = percentage, fill = Gender)) +
   geom_bar(stat = "identity", position = "dodge", color = "white") +
@@ -863,6 +863,69 @@ filtered_sams_student = sams_student_data %>% filter(State == "Others")
 ```
 
 
+# Number of ITIs and Total Students in it by Gender
+```{r}
+# Create file path
+file_path = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\ITI_descriptives.xlsx"
+# Create a new workbook
+wb_ITI_proof <- createWorkbook()
+
+# For count of ITI refer code line which contains variable - Count_ITI
+addWorksheet(wb_ITI_proof, "Count of ITIs by Year")
+writeData(wb_ITI_proof, "Count of ITIs by Year", count_ITI)
+
+# Number of Students in ITIs
+count_females_ITI <- df_ITI %>%
+  filter(Year != 2024) %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Female_Students = sum(Gender == "Female"),
+    Male_Students = sum(Gender == "Male"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+view(count_females_ITI)
+
+addWorksheet(wb_ITI_proof, "Students in ITIs by Year")
+writeData(wb_ITI_proof, "Students in ITIs by Year", count_females_ITI)
+
+# Number of Students in Gov ITIs
+count_females_ITI_gov <- df_ITI %>%
+  filter(Year != 2024) %>%
+  filter(TypeofInstitute=="Govt.") %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Male_Students = sum(Gender == "Male"),
+    Female_Students = sum(Gender == "Female"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Students in Gov ITIs by Year")
+writeData(wb_ITI_proof, "Students in Gov ITIs by Year", count_females_ITI_gov)
+
+# Number of Students in Pvt ITIs
+count_females_ITI_pvt <- df_ITI %>%
+  filter(Year != 2024) %>%
+  filter(TypeofInstitute=="Pvt.") %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Male_Students = sum(Gender == "Male"),
+    Female_Students = sum(Gender == "Female"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Students in Pvt ITIs by Year")
+writeData(wb_ITI_proof, "Students in Pvt ITIs by Year", count_females_ITI_pvt)
+
+
+```
+
+
 # Check the big 5-10 ITIs by enrollment (by trade also) - boys/girls 
 
 ```{r}
@@ -881,32 +944,107 @@ df_summary <- df_summary %>%
 
 top_students_ITI = df_summary %>%
   select(ReportedInstitute, total_count, TypeofInstitute) %>%
-  distinct()
-view(top_students_ITI)
-  
+  distinct() %>% 
+  arrange(desc(total_count))
+
 top_students_ITI_gov = top_students_ITI %>%
-  filter(TypeofInstitute =="Govt.")
-  select(ReportedInstitute, total_count)
+  filter(TypeofInstitute =="Govt.") %>%
+  select(ReportedInstitute, total_count) %>%
+  arrange(desc(total_count))
 
 top_students_ITI_pvt = top_students_ITI %>%
-  filter(TypeofInstitute =="Pvt.")
-  select(ReportedInstitute, total_count)
+  filter(TypeofInstitute =="Pvt.") %>%
+  select(ReportedInstitute, total_count) %>%
+  arrange(desc(total_count))
   
 top_female_ITI = df_summary %>% 
-  filter(TypeofInstitute =="Female") %>%
+  filter(Gender =="Female") %>%
   select(ReportedInstitute, student_count, TypeofInstitute) %>%
-  distinct()
+  distinct() %>%
+  arrange(desc(student_count))
 
 top_female_ITI_gov = top_female_ITI %>% 
-   filter(TypeofInstitute =="Govt.")
-  select(ReportedInstitute, student_count)
+  filter(TypeofInstitute =="Govt.") %>%
+  select(ReportedInstitute, student_count) %>%
+  arrange(desc(student_count))
 
 top_female_ITI_pvt = top_female_ITI %>%
-   filter(TypeofInstitute =="Pvt.")
-  select(ReportedInstitute, student_count)
+  filter(TypeofInstitute =="Pvt.") %>%
+  select(ReportedInstitute, student_count) %>%
+  arrange(desc(student_count))
 
-ts_   
+
+# Slice the first 10 and export
+top_10_students_ITI = top_students_ITI %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top ITIs by Students")
+writeData(wb_ITI_proof, "Top ITIs by Students", top_10_students_ITI)
+
+top_10_students_ITI_gov = top_students_ITI_gov %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Gov ITIs by Students")
+writeData(wb_ITI_proof, "Top Gov ITIs by Students", top_10_students_ITI_gov)
+
+
+top_10_students_ITI_pvt = top_students_ITI_pvt %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Pvt ITIs by Students")
+writeData(wb_ITI_proof, "Top Pvt ITIs by Students", top_10_students_ITI_pvt)
+
+
+top_10_female_ITI = top_female_ITI %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top ITIs by Female Students")
+writeData(wb_ITI_proof, "Top ITIs by Female Students", top_10_female_ITI)
+
+top_10_female_ITI_gov = top_female_ITI_gov %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Gov ITIs by Female Students")
+writeData(wb_ITI_proof, "Top Gov ITIs by Female Students", top_10_female_ITI_gov)
+
+top_10_female_ITI_pvt = top_female_ITI_pvt %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Pvt ITIs by Female Students")
+writeData(wb_ITI_proof, "Top Pvt ITIs by Female Students", top_10_female_ITI_pvt)
+
+
+# Identify the top 5 institutes by number of female students in 2023
+#top_5_institutes <- top_female_ITI_gov %>%
+#  arrange(desc(student_count)) %>%
+#  slice(1:5) %>%
+#  pull(ReportedInstitute)
+
+#ts_top_5_female_ITI_gov <- df_summary_gov %>%
+#  filter(ReportedInstitute %in% top_5_institutes)   
+
+## Calculate female share for aggregate in Gov ITI only
+#aggregated_data <- df_ITI_gov %>%
+  group_by(Year) %>%
+  summarise(
+    Female_Students = sum(Gender == "Female"),
+    Total_Students = n(),
+    Aggregate_Female_Percent = sum(Female_Students) / sum(Total_Students) * 100
+  ) %>%
+  ungroup()
+view(aggregated_data)
+
   
+# Save the workbook to the specified directory
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+
 
 # Step 3: Create the horizontal bar chart
 ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y = student_count, fill = Gender)) +
@@ -963,6 +1101,173 @@ The districts in which the 10 institutes (total female students) are situated ar
 Ganjam, Cuttack, Balasore, Khurda, and Keonjhar (East Odisha);
 Sundergarh, Sambalpur, Koraput (West Odisha).  
 Angul (Central)
+
+# Social Group & Income Group Make up in ITIs 2023
+```{r}
+## Social Group
+# All ITIs
+ITI_soc_grp = df_ITI_2023 %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group ITIs")
+writeData(wb_ITI_proof, "Social Group ITIs", ITI_soc_grp)
+
+
+# All Public ITIs
+ITI_pub_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Govt.") %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group Gov ITIs")
+writeData(wb_ITI_proof, "Social Group Gov ITIs", ITI_pub_soc_grp)
+
+# All Pvt ITIs
+ITI_pvt_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group Pvt ITIs")
+writeData(wb_ITI_proof, "Social Group Pvt ITIs", ITI_pvt_soc_grp)
+
+# Gender-wise within Public
+ITI_pub_gender_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Govt.") %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Soc Grp Gender-Wise Gov ITIs")
+writeData(wb_ITI_proof, "Soc Grp Gender-Wise Gov ITIs", ITI_pub_gender_soc_grp)
+
+# Gender-wise within Pvt
+ITI_pvt_gender_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Soc Grp Gender-Wise Pvt ITIs")
+writeData(wb_ITI_proof, "Soc Grp Gender-Wise Pvt ITIs", ITI_pvt_gender_soc_grp)
+
+# Save the workbook to the specified directory
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+## Income Group
+
+# All ITIs
+ITI_income_grp = df_ITI_2023 %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp = ITI_income_grp %>%
+  bind_rows(
+    ITI_income_grp %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group ITIs")
+writeData(wb_ITI_proof, "Income Group ITIs", ITI_income_grp)
+
+
+# All Public ITIs
+ITI_income_grp_gov = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Govt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp_gov = ITI_income_grp_gov %>%
+  bind_rows(
+    ITI_income_grp_gov %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group Gov ITIs")
+writeData(wb_ITI_proof, "Income Group Gov ITIs", ITI_income_grp_gov)
+
+
+# All Pvt ITIs
+ITI_income_grp_pvt = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Pvt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp_pvt = ITI_income_grp_pvt %>%
+  bind_rows(
+    ITI_income_grp_pvt %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group Pvt ITIs")
+writeData(wb_ITI_proof, "Income Group Pvt ITIs", ITI_income_grp_gov)
+
+
+# Gender-wise within Public
+ITI_income_grp_gender_pub = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Govt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome, Gender) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp_gender_pub = ITI_income_grp_gender_pub %>% 
+  group_by(Gender) %>%
+  bind_rows(
+    ITI_income_grp_gender_pub %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(count, sum, na.rm = FALSE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  ungroup()
+  group_by(AnnualIncome, Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+
+view(ITI_income_grp_gender_pub)
+addWorksheet(wb_ITI_proof, "Income Group Gender-Wise Gov ITIs")
+writeData(wb_ITI_proof, "Income Group Gender-Wise Gov ITIs", ITI_income_grp_gov)
+
+
+# Gender-wise within Pvt
+ITI_pvt_gender_soc_grp
+
+
+```
+
+
 
 # Female Percentage in all Institutes over time
 ```{r}
