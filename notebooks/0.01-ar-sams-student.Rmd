@@ -1021,16 +1021,18 @@ writeData(wb_ITI_proof, "Top Pvt ITIs by Female Students", top_10_female_ITI_pvt
 
 
 # Identify the top 5 institutes by number of female students in 2023
-#top_5_institutes <- top_female_ITI_gov %>%
-#  arrange(desc(student_count)) %>%
-#  slice(1:5) %>%
-#  pull(ReportedInstitute)
+top_5_institutes <- top_female_ITI_gov %>%
+  arrange(desc(student_count)) %>%
+  slice(1:5) %>%
+  pull(ReportedInstitute)
 
-#ts_top_5_female_ITI_gov <- df_summary_gov %>%
-#  filter(ReportedInstitute %in% top_5_institutes)   
+ts_top_5_female_ITI_gov <- df_summary_gov %>%
+  filter(ReportedInstitute %in% top_5_institutes)   
+view(ts_top_5_female_ITI_gov)
 
 ## Calculate female share for aggregate in Gov ITI only
-#aggregated_data <- df_ITI_gov %>%
+aggregated_data <- df_ITI_gov %>%
+  filter(Year != 2024) %>%
   group_by(Year) %>%
   summarise(
     Female_Students = sum(Gender == "Female"),
@@ -1038,6 +1040,29 @@ writeData(wb_ITI_proof, "Top Pvt ITIs by Female Students", top_10_female_ITI_pvt
     Aggregate_Female_Percent = sum(Female_Students) / sum(Total_Students) * 100
   ) %>%
   ungroup()
+view(aggregated_data)
+
+ts_top_5_female_ITI_gov$Year = as.numeric(ts_top_5_female_ITI_gov$Year)
+aggregated_data$Year = as.numeric(aggregated_data$Year)
+
+# Plot the number of female students over time for the top 5 institutes
+ggplot(ts_top_5_female_ITI_gov, aes(x = Year, y = female_students, color = ReportedInstitute, group = ReportedInstitute )) +
+  geom_line() +
+  labs(title = "Number of Female Students Over Time",
+       x = "Year",
+       y = "Number of Female Students") +
+  scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
+  ylim(0,800) 
+
+# Plot the female share over time for the top 5 institutes and aggregate share
+ggplot() +
+  geom_line(data = ts_top_5_female_ITI_gov, aes(x = Year, y = female_percentage, color = ReportedInstitute, group = ReportedInstitute)) +
+  geom_line(data = aggregated_data, aes(x = Year, y = Aggregate_Female_Percent), linetype = "dotted", color = "black", size = 1) +
+  labs(title = "Female Share of Total Students Over Time",
+       x = "Year",
+       y = "Female Share") +
+  scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
+  ylim(0,50)
 view(aggregated_data)
 
   
@@ -1230,7 +1255,7 @@ ITI_income_grp_pvt = ITI_income_grp_pvt %>%
   mutate(Percentage = round(Percentage, 1))
 
 addWorksheet(wb_ITI_proof, "Income Group Pvt ITIs")
-writeData(wb_ITI_proof, "Income Group Pvt ITIs", ITI_income_grp_gov)
+writeData(wb_ITI_proof, "Income Group Pvt ITIs", ITI_income_grp_pvt)
 
 
 # Gender-wise within Public
@@ -1239,31 +1264,58 @@ ITI_income_grp_gender_pub = df_ITI_2023 %>%
   select(AnnualIncome,Gender,TypeofInstitute) %>%
   group_by(AnnualIncome, Gender) %>%
   summarise(count = n(), .groups = 'drop') 
-ITI_income_grp_gender_pub = ITI_income_grp_gender_pub %>% 
+
+new_group = ITI_income_grp_gender_pub %>%
+  filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
   group_by(Gender) %>%
-  bind_rows(
-    ITI_income_grp_gender_pub %>%
-      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
-      summarise(across(count, sum, na.rm = FALSE)) %>%
-      mutate(AnnualIncome = "2,50,000 and Above")
+  summarise(
+    count = sum(count)
   ) %>%
+  mutate(AnnualIncome = "2,50,000 and Above") # Assign new group name
+
+ITI_income_grp_gender_pub <- bind_rows(ITI_income_grp_gender_pub, new_group)
+
+ITI_income_grp_gender_pub = ITI_income_grp_gender_pub %>% 
   filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
-  ungroup()
-  group_by(AnnualIncome, Gender) %>%
+  group_by(Gender) %>%
   mutate(Percentage = count / sum(count) * 100) %>%
   mutate(Percentage = round(Percentage, 1)) %>%
   mutate(count = NULL) %>%
   spread(key = Gender, value = Percentage)
 
-
-view(ITI_income_grp_gender_pub)
-addWorksheet(wb_ITI_proof, "Income Group Gender-Wise Gov ITIs")
-writeData(wb_ITI_proof, "Income Group Gender-Wise Gov ITIs", ITI_income_grp_gov)
+addWorksheet(wb_ITI_proof, "Income Grp Gender-Wise Gov ITIs")
+writeData(wb_ITI_proof, "Income Grp Gender-Wise Gov ITIs", ITI_income_grp_gender_pub)
 
 
 # Gender-wise within Pvt
-ITI_pvt_gender_soc_grp
+ITI_income_grp_gender_pvt = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Pvt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome, Gender) %>%
+  summarise(count = n(), .groups = 'drop') 
 
+new_group = ITI_income_grp_gender_pvt %>%
+  filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+  group_by(Gender) %>%
+  summarise(
+    count = sum(count)
+  ) %>%
+  mutate(AnnualIncome = "2,50,000 and Above") # Assign new group name
+
+ITI_income_grp_gender_pvt <- bind_rows(ITI_income_grp_gender_pvt, new_group)
+
+ITI_income_grp_gender_pvt = ITI_income_grp_gender_pvt %>% 
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Income Grp Gender-Wise Pvt ITIs")
+writeData(wb_ITI_proof, "Income Grp Gender-Wise Pvt ITIs", ITI_income_grp_gender_pvt)
+
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
 
 ```
 
