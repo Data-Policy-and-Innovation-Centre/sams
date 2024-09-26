@@ -1,74 +1,74 @@
-from sqlalchemy import create_engine, Column, Integer, String, JSON 
+from sqlalchemy import create_engine, Column, Integer, String, JSON, Enum, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
+import pandas as pd
 from tqdm import tqdm
+import time
+from loguru import logger
+from sams.config import ERRMAX, RAW_DATA_DIR
+from sams.etl.extract import SamsDataDownloader
 
 Base = declarative_base()
 
-class Student(Base):
-    __tablename__ = 'students'
-    barcode = Column(String, primary_key=True)
-    year = Column(Integer)
-    course_type = Column(String)
-    type = Column(String)
-    # Add other columns as needed
-
 class Institute(Base):
     __tablename__ = 'institutes'
-    sams_code = Column(Integer, primary_key=True)
-    year = Column(Integer, primary_key=True)
-    module = Column(String)
+
+    # Primary columns
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sams_code = Column(Integer,nullable=False)
+    year = Column(Integer, nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
     name = Column(String)
-    type = Column(String)
-    # Add other columns as needed
+    funding_source = Column(Enum("Govt.", "Pvt."))
+
+    # Nested columns
+    strength = Column(JSON)
+    cutoff = Column(JSON)
+
+    # Polymorphic identity for inheritance
+    __mapper_args__ = {
+        'polymorphic_on': module
+    }
+
+class ITI(Institute):
+    __tablename__ = 'itis'
+    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+    trade = Column(String)  # Trade is specific to non-PDIS
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'ITI',
+    }
+
+class Diploma(Institute):
+    __tablename__ = 'diplomas'
+    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+    trade = Column(String)  # Trade is specific to non-PDIS
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'Diploma',
+    }
+
+class PDIS(Institute):
+    __tablename__ = 'pdis'
+    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'PDIS',
+    }
+
 
 class SamsDataLoader:
     def __init__(self, db_url):
-        self.engine = create_engine(db_url)
+        self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
-        self.executor = ThreadPoolExecutor(max_workers=10)
-
-    def load_student_data(self, student_data):
-        futures = []
-        with tqdm(total=len(student_data), desc="Loading student data") as pbar:
-            for data in student_data:
-                future = self.executor.submit(self._add_student, data)
-                futures.append(future)
-
-            for future in as_completed(futures):
-                future.result()
-                pbar.update(1)
 
     def load_institute_data(self, institute_data):
-        futures = []
         with tqdm(total=len(institute_data), desc="Loading institute data") as pbar:
             for data in institute_data:
-                future = self.executor.submit(self._add_institute, data)
-                futures.append(future)
-
-            for future in as_completed(futures):
-                future.result()
+                self._add_institute(data)
                 pbar.update(1)
-
-    def _add_student(self, data):
-        session = self.Session()
-        try:
-            student = Student(
-                barcode=data['Barcode'],
-                course_type=data['CourseName'],
-                year=data['Year'],
-                type=data['TypeofInstitute'],  # Assuming a default value
-                # Add other columns as needed
-            )
-            session.add(student)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Error adding student: {e}")
-        finally:
-            session.close()
 
     def _add_institute(self, data):
         session = self.Session()
@@ -78,18 +78,62 @@ class SamsDataLoader:
                 year=int(data['academic_year']),
                 module=data['module'],
                 name=data['InstituteName'],
-                type=data['TypeofInstitute']
-                
+                funding_source=data['TypeofInstitute'] ,         
                 
                 # Add other columns as needed
+                strength=data['strength'],
+                cutoff=data['cuttoff']
             )
             session.add(institute)
             session.commit()
         except Exception as e:
-            session.rollback()
-            print(f"Error adding institute: {e}")
+            if 'database is locked' in str(e):
+                time.sleep(1)
+            else:
+                session.rollback()
+                print(f"Error adding institute: {e}")
         finally:
             session.close()
 
     def close(self):
         self.executor.shutdown()
+
+class SamsDataLoaderPandas(SamsDataLoader):
+    def __init__(self, db_url):
+        super().__init__(db_url)
+
+    def load_data(self, data: pd.DataFrame, table_name: str) -> None:
+        """
+        Loads data from a pandas dataframe into a table in the database.
+
+        Args:
+            data (pd.DataFrame): The data to load into the database.
+            table_name (str): The name of the table to load the data into.
+
+        Returns:
+            None
+        """
+        num_retries = 0
+
+        while num_retries < ERRMAX:
+            try:
+                data.to_sql(table_name, con=self.engine, if_exists='append', index=False)
+                break
+            except IntegrityError as e:
+                logger.error(f"Error loading data into {table_name}: {e}")
+                break
+            except (DatabaseError, OperationalError) as e:
+                logger.error(f"Error loading data into {table_name}: {e}")
+                logger.info(f"Retrying ({num_retries+1}/{ERRMAX})...")
+                num_retries += 1
+                time.sleep(1)
+            
+def main():
+    loader = SamsDataLoaderPandas(f'sqlite:///{RAW_DATA_DIR}/sams.db')
+    downloader = SamsDataDownloader()
+    institute_data = downloader.fetch_institutes('ITI', 2022)
+    loader.load_institute_data(institute_data)
+
+if __name__ == "__main__":
+    main()
+    

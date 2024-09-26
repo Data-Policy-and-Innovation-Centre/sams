@@ -43,9 +43,24 @@ clean:
 
 # Build dataset
 dataset:
-	@echo "Running script.py with PYTHONPATH=$(PYTHONPATH)"
+	@echo "Running build_datasets.py with PYTHONPATH=$(PYTHONPATH)"
 	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)build_dataset.py
+
+# Tests
+tests:
+	@echo "Running tests..."
+	pytest tests/
+
+test_extract:
+	
+	@echo "Running test on extraction routine..."
+	pytest tests/test_extract.py
+
+test_client:
+	
+	@echo "Running tests on API client..."
+	pytest tests/test_client.py
 	
 
-.PHONY: create_env update_env remove_env clean dataset
+.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client
 

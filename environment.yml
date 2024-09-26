@@ -18,9 +18,12 @@ dependencies:
   - sqlalchemy
   - schedule
   - pandas
+  - polars
   - scikit-learn
   - boxsdk
   - pip:
     - python-dotenv
     - mkdocs
+    - polars[all]
     - openpyxl
+    - pytest

@@ -9,15 +9,18 @@ class SAMSDataOrchestrator:
         self.downloader = SamsDataDownloader()
         self.loader = SamsDataLoader(db_url)
        
-    def process_data(self):
-        logger.info("Processing student data...")
-        student_data = self.downloader.download_all_student_data()
-        self.loader.load_student_data(student_data)
-
-        logger.info("Processing institute data...")
-        institute_data = self.downloader.download_all_institute_data()
-        self.loader.load_institute_data(institute_data)
-        logger.info("Data processing completed")
+    def process_data(self, student=True, institute=True):
+        if student:
+            logger.info("Processing student data...")
+            student_data = self.downloader.download_all_student_data()
+            self.loader.load_student_data(student_data)
+            logger.info("Data processing completed")
+        
+        if institute:
+            logger.info("Processing institute data...")
+            institute_data = self.downloader.download_all_institute_data()
+            self.loader.load_institute_data(institute_data)
+            logger.info("Data processing completed")
 
     def close(self):
         self.loader.close()

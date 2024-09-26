@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 import os
+import json
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -30,7 +31,7 @@ for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTER
 API_AUTH = os.path.join(PROJ_ROOT, "credentials.json")
 
 # Error constants
-ERRMAX = 10
+ERRMAX = 3
 
 # Metadata
 STUDENT = {
@@ -47,13 +48,15 @@ INSTITUTE = {
 }
 
 SOF = {
-    "tostring": {1:"Govt", 5:"Pvt"},
+    "tostring": {1:"Govt", 5:"Pvt",None:"N/A"},
     "toint":{"Govt":1,"Pvt":5}
 }
 
-NUM_TOTAL_STUDENT_RECORDS = 663679 # Change as needed
+counts = json.load(open(os.path.join(LOGS, "total_records.json")))
 
-NUM_TOTAL_INSTITUTE_RECORDS = 9382 # Change as needed
+NUM_TOTAL_STUDENT_RECORDS = counts['students']
+
+NUM_TOTAL_INSTITUTE_RECORDS = counts['institutes']
 
 try:
     from tqdm import tqdm
