@@ -1052,18 +1052,35 @@ ggplot(ts_top_5_female_ITI_gov, aes(x = Year, y = female_students, color = Repor
        x = "Year",
        y = "Number of Female Students") +
   scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
-  ylim(0,800) 
+  ylim(0,800) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
 
 # Plot the female share over time for the top 5 institutes and aggregate share
 ggplot() +
   geom_line(data = ts_top_5_female_ITI_gov, aes(x = Year, y = female_percentage, color = ReportedInstitute, group = ReportedInstitute)) +
-  geom_line(data = aggregated_data, aes(x = Year, y = Aggregate_Female_Percent), linetype = "dotted", color = "black", size = 1) +
-  labs(title = "Female Share of Total Students Over Time",
-       x = "Year",
-       y = "Female Share") +
+   geom_line(data = aggregated_data, 
+            aes(x = Year, y = Aggregate_Female_Percent, linetype = "Aggregate Share"), 
+            color = "black", size = 1) +  # Using linetype aesthetic for legend entry
+  
+  scale_linetype_manual(values = c("Aggregate Share" = "dotted")) +  
+  labs(
+    title = "Female Share of Total Students Over Time",
+    x = "Year",
+    y = "Female Share",
+    color = "Reported Institute",  # Legend title for institutes
+    linetype = "Legend"  # Legend title for linetype
+  ) +
   scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
-  ylim(0,50)
-view(aggregated_data)
+  ylim(0,50) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
 
   
 # Save the workbook to the specified directory
@@ -1831,7 +1848,6 @@ ggplot() +
   
   # Vertical line for intervention year (2023)
 #  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
-  
   # Labels and theme
   ylim(0,40) +
   scale_x_continuous(name = "Year",
@@ -1848,9 +1864,8 @@ ggplot() +
                    axis.ticks.y = element_line(size = 0.6, colour = "black"),
                    axis.ticks.length = unit(5, "pt"))
 
-## Total female students 
-
-Dip_total_female = Dip_female_share %>%
+## Total female students
+ITI_total_female = ITI_female_share %>%
   group_by(Year, TypeofInstitute) %>%
   summarise(
     total_female = sum(female_students)
@@ -1859,71 +1874,89 @@ Dip_total_female = Dip_female_share %>%
 
 ggplot() +
   # Scatter points for mean female share by year (Govt. vs Pvt.)
-  geom_point(data = Dip_total_female, aes(x = Year, y = total_female, color = TypeofInstitute), 
+  geom_point(data = ITI_total_female, aes(x = Year, y = total_female, color = TypeofInstitute), 
              size = 2, shape = 17) +  # Change shape to distinguish mean points
   
   # Line for aggregate female share by year (Govt. vs Pvt.)
-  geom_line(data = Dip_total_female, aes(x = Year, y = total_female, color = TypeofInstitute, group = TypeofInstitute), 
+  geom_line(data = ITI_total_female, aes(x = Year, y = total_female, color = TypeofInstitute, group = TypeofInstitute), 
             size = 1) +
   
   # Vertical line for intervention year (2023)
-  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+#  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
   
   # Labels and theme
-  ylim(0,6000) +
+  ylim(0,8000) +
   scale_x_continuous(name = "Year",
     limits = c(2018, 2024),  # Set the x-axis range
     breaks = seq(2018, 2024, 1))  +
   labs(
-    title = "Total Female Students in Pvt. & Govt. Polytechnics",
+    title = "Total Female Students in Pvt. & Govt. ITIs",
     x = "Year",
     y = "Female Students",
-    color = "Type of Institute"
-  ) +
-  theme_minimal()
-
-## SC/ST Share of Female in ITIs
-# Filter for SC and ST students
-sc_st_ITI <- df_ITI %>%
-  filter(SocialCategory %in% c("Schedule Caste (SC)", "Schedule Tribe (ST)"))
-
-# Calculate the female share over time, separately for Pvt. and Govt.
-female_share_sc_st_ITI <- sc_st_ITI %>%
-  group_by(Year, TypeofInstitute) %>%
-  summarise(
-    total_students = n(),
-    female_students = sum(Gender == "Female"),
-    female_share = (female_students / total_students) * 100
-  ) %>%
-  ungroup()
-
-ggplot() +
-  # Scatter points for mean female share by year (Govt. vs Pvt.)
-  geom_point(data = female_share_sc_st_ITI, aes(x = Year, y = female_share, color = TypeofInstitute), 
-             size = 2, shape = 17) +  # Change shape to distinguish mean points
-  
-  # Line for aggregate female share by year (Govt. vs Pvt.)
-  geom_line(data = Dip_mean_female_share, aes(x = Year, y = aggr_female_share, color = TypeofInstitute, group = TypeofInstitute), 
-            size = 1) +
-  
-  # Vertical line for intervention year (2023)
-  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
-  
-  # Labels and theme
-  ylim(0,40) +
-  scale_x_continuous(name = "Year",
-    limits = c(2018, 2024),  # Set the x-axis range
-    breaks = seq(2018, 2024, 1))  +
-  labs(
-    title = "Aggregate Female Share (%) in Pvt. & Govt. Polytechnics",
-    x = "Year",
-    y = "Female Share (%)",
     color = "Type of Institute"
   ) +
   theme_minimal() +
   theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
                    axis.ticks.y = element_line(size = 0.6, colour = "black"),
                    axis.ticks.length = unit(5, "pt"))
+
+
+## Visualizing ITI Data from NCVT (National Council for Vocational Education and Training)
+
+# Import the data 
+NCVT_ITI_Share <- read_excel("C:/Users/Admin/Downloads/Pre-2017 Gov. ITI Figures.xlsx", 
+    sheet = "NCVT MIS", skip = 1, n_max = 11)
+NCVT_ITI_Share = NCVT_ITI_Share %>%
+  rename(
+    Year = ...1,
+    Gov_ITIs = `Total ITIs (Affiliated)...2`,
+    Gov_students = `Total Students...3`,
+    Gov_female_students = `Female Students...4`,
+    Gov_female_share = `Female Share...5`,
+    Pvt_ITIs = `Total ITIs (Affiliated)...8`,
+    Pvt_students = `Total Students...9`,
+    Pvt_female_students = `Female Students...10`,
+    Pvt_female_share = `Female Share...11`,
+  )
+NCVT_ITI_Share = NCVT_ITI_Share %>%
+  mutate(Gov_female_share = Gov_female_share*100,
+         Pvt_female_share = Pvt_female_share*100)
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = NCVT_ITI_Share, aes(x = Year, y = Gov_female_share, color = "Govt."), 
+             size = 2, shape = 17) +  
+  geom_point(data = NCVT_ITI_Share, aes(x = Year, y = Pvt_female_share, color = "Pvt."), 
+             size = 2, shape = 17) +
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = NCVT_ITI_Share, aes(x = Year, y = Gov_female_share, color = "Govt."), size = 1) +
+  geom_line(data = NCVT_ITI_Share, aes(x = Year, y = Pvt_female_share, color = "Pvt."), size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2017, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Set color for Govt and Pvt and create a legend
+  scale_color_manual(values = c("Govt." = "#FF6F61", "Pvt." = "#00C8C8")) +  
+  
+  # Labels and theme
+  ylim(0, 40) +
+  scale_x_continuous(name = "Year",
+                     limits = c(2014, 2022),  # Set the x-axis range
+                     breaks = seq(2014, 2022, 1))  +
+  labs(
+    title = "Aggregate Female Share (%) in Pvt. & Govt. ITIs (NCVT)",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Institute Type"  # Legend label
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+    axis.ticks.y = element_line(size = 0.6, colour = "black"),
+    axis.ticks.length = unit(5, "pt")
+  )
+
 
 
 
