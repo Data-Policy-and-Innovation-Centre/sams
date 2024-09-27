@@ -183,6 +183,7 @@ class SAMSClient:
         else:
             response.raise_for_status()
 
+
 def main():
     client = SAMSClient(API_AUTH)
 

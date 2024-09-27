@@ -169,6 +169,9 @@ class SamsDataDownloader:
                 logger.error(f"Retrying...({retries+1}/{ERRMAX})")
                 retries += 1
                 continue
+            except HTTPError as e:
+                logger.error(f"HTTP Error: {e}")
+                continue
 
         if not records and count:
             records = 0
@@ -400,14 +403,13 @@ def main():
 
     # Create a SamsDataDownloader instance
     downloader = SamsDataDownloader()
-    downloader.update_total_records()
-    data = downloader.fetch_students(2022, "ITI", 1)
-    logger.info(data)
-    student_data = downloader.download_all_student_data()
+    iti = downloader.fetch_students(2022, 'ITI', 1)
+    logger.info(len(iti))
+    #student_data = downloader.download_all_student_data()
     # institude_data = downloader.download_all_institute_data()
 
     # Write to parquet file
-    student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
+    #student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
 
     # # Write to json file
     # with open(os.path.join(RAW_DATA_DIR,'institute_data.json'), 'w', encoding='utf-8') as f:

@@ -57,7 +57,7 @@ try:
 except FileNotFoundError as f:
     counts = {
         'students':677000,
-        'institutes':30000
+        'institutes':18000
     }
 
 NUM_TOTAL_STUDENT_RECORDS = counts['students']

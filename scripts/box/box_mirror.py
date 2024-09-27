@@ -1,4 +1,4 @@
-from boxsdk import Client, JWTAUth
+from boxsdk import Client, JWTAuth
 import os
 import zipfile
 
@@ -46,7 +46,7 @@ def delete_file(client, file_id):
     try:
         client.file(file_id).delete()
         print(f"Deleted file with ID {file_id}")
-    except BoxException as e:
+    except Exception as e:
         print(f"An error occurred while deleting the file: {e}")
 
 def upload_file_to_box(client, folder_id, file_path):
@@ -64,7 +64,7 @@ def upload_file_to_box(client, folder_id, file_path):
         with open(file_path, 'rb') as file_stream:
             uploaded_file = client.folder(folder_id).upload_stream(file_stream, file_name)
         print(f"Uploaded new file '{uploaded_file.name}' with ID {uploaded_file.id}")
-    except BoxException as e:
+    except Exception as e:
         print(f"An error occurred: {e}")
         
 def main():
