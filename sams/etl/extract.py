@@ -1,6 +1,6 @@
 from sams.api.client import SAMSClient
 from sams.api.exceptions import APIError
-from requests import HTTPError
+from requests import HTTPError, ConnectionError
 import os
 from pathlib import Path
 import json
@@ -164,14 +164,12 @@ class SamsDataDownloader:
                 else:
                     records = self.api_client.get_institute_data(module=module, academic_year=academic_year, admission_type=admission_type, count = count)
                 break 
-            except APIError as e:
+            except (APIError, HTTPError, ConnectionError) as e:
                 logger.error(f"API Error: {e}")
                 logger.error(f"Retrying...({retries+1}/{ERRMAX})")
                 retries += 1
                 continue
-            except HTTPError as e:
-                logger.error(f"HTTP Error: {e}")
-                continue
+  
 
         if not records and count:
             records = 0
