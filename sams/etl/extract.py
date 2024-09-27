@@ -403,13 +403,11 @@ def main():
 
     # Create a SamsDataDownloader instance
     downloader = SamsDataDownloader()
-    iti = downloader.fetch_students(2022, 'ITI', 1)
-    logger.info(len(iti))
-    #student_data = downloader.download_all_student_data()
+    student_data = downloader.download_all_student_data()
     # institude_data = downloader.download_all_institute_data()
 
     # Write to parquet file
-    #student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
+    student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
 
     # # Write to json file
     # with open(os.path.join(RAW_DATA_DIR,'institute_data.json'), 'w', encoding='utf-8') as f:
