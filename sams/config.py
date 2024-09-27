@@ -52,7 +52,13 @@ SOF = {
     "toint":{"Govt":1,"Pvt":5}
 }
 
-counts = json.load(open(os.path.join(LOGS, "total_records.json")))
+try:
+    counts = json.load(open(os.path.join(LOGS, "total_records.json")))
+except FileNotFoundError as f:
+    counts = {
+        'students':677000,
+        'institutes':30000
+    }
 
 NUM_TOTAL_STUDENT_RECORDS = counts['students']
 
