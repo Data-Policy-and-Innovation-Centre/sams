@@ -73,7 +73,7 @@ class Student(Base):
 
     # Example of a unique constraint if needed
     __table_args__ = (
-        UniqueConstraint('barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status', name='uq_barcode_module_year'),
+        UniqueConstraint('barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status','phase','year', name='uq_barcode_module_year'),
     )
 
 class Institute(Base):
