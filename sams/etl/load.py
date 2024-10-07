@@ -73,7 +73,7 @@ class Student(Base):
 
     # Example of a unique constraint if needed
     __table_args__ = (
-        UniqueConstraint('barcode', 'module', 'academic_year', name='uq_barcode_module_year'),
+        UniqueConstraint('barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status', name='uq_barcode_module_year'),
     )
 
 class Institute(Base):
@@ -249,6 +249,7 @@ class SamsDataLoader:
             if 'UNIQUE constraint failed' in str(e):
                 session.rollback()
                 logger.warning(f"Skipping duplicate student: {data['Barcode']} - {data['module']} - {data['academic_year']}")
+                success = False
             else:
                 session.rollback()
                 logger.error(f"Error adding student: {e}")
