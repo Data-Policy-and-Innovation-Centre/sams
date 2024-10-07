@@ -8,6 +8,7 @@ import time
 from loguru import logger
 from sams.config import ERRMAX, RAW_DATA_DIR
 from sams.etl.extract import SamsDataDownloader
+from sams.etl.validate import check_null_values
 
 Base = declarative_base()
 
@@ -18,7 +19,7 @@ class Student(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     barcode = Column(String, nullable=False)
     student_name = Column(String, nullable=False)
-    gender = Column(String, nullable=False)
+    gender = Column(String, nullable=True)
     religion_name = Column(String, nullable=True)
     dob = Column(String, nullable=True)  # Date of Birth
     nationality = Column(String, nullable=True)
@@ -58,18 +59,18 @@ class Student(Base):
     reported_branch_or_trade = Column(String, nullable=True)
     institute_district = Column(String, nullable=True)
     typeof_institute = Column(String, nullable=True)
-    phase = Column(String, nullable=True)
-    year = Column(Integer, nullable=True)
-    admission_status = Column(String, nullable=True)
-    enrollment_status = Column(String, nullable=True)
-    applied_status = Column(String, nullable=True)
+    phase = Column(String, nullable=False)
+    year = Column(Integer, nullable=False)
+    admission_status = Column(String, nullable=False)
+    enrollment_status = Column(String, nullable=False)
+    applied_status = Column(String, nullable=False)
     date_of_application = Column(String, nullable=True)
     application_status = Column(String, nullable=True)
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
-    module = Column(String, nullable=True)
-    academic_year = Column(Integer, nullable=True)
+    module = Column(String, nullable=False)
+    academic_year = Column(Integer, nullable=False)
 
     # Example of a unique constraint if needed
     __table_args__ = (
@@ -165,6 +166,14 @@ class SamsDataLoader:
         """
         with tqdm(total=len(student_data), desc="Loading student data") as pbar:
             for data in student_data:
+                
+                # Check for nulls in variables within the uniqueness constraint of the table
+                nulls = check_null_values(data)
+                if nulls:
+                    logger.warning(f"Nulls in unique constraint for {data['Barcode']} - {data['module']} - {data['academic_year']}")
+                    continue
+                
+                # Try to add row to table
                 success = self._add_student(data)
                 if success:
                     pbar.update(1)
