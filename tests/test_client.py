@@ -6,18 +6,8 @@ from sams.api.exceptions import APIError
 import requests
 
 @pytest.fixture
-def mock_config():
-    return {
-        "username": "test_user",
-        "password": "test_password"
-    }
-
-@pytest.fixture
-def mock_client(tmp_path, mock_config):
-    config_file = tmp_path / "config.json"
-    with open(config_file, "w") as f:
-        json.dump(mock_config, f)
-    return SAMSClient(str(config_file))
+def mock_client():
+    return SAMSClient()
 
 @pytest.fixture
 def mock_response():
@@ -30,11 +20,6 @@ def mock_response():
         "Data": [{"id": i} for i in range(10)]
     }
     return mock_resp
-
-def test_init(mock_client):
-    assert mock_client.auth.username == "test_user"
-    assert mock_client.auth.password == "test_password"
-    assert mock_client.endpoints is not None
 
 @patch("requests.get")
 def test_get_student_data(mock_get, mock_client, mock_response):
