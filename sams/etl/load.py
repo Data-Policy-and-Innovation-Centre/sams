@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, JSON, Enum, ForeignKey, UniqueConstraint, DateTime, Float
+from sqlalchemy import create_engine, inspect, func, Column, Integer, String, JSON, Enum, ForeignKey, UniqueConstraint, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
@@ -73,7 +73,7 @@ class Student(Base):
 
     # Example of a unique constraint if needed
     __table_args__ = (
-        UniqueConstraint('barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status','phase','year', name='uq_barcode_module_year'),
+        UniqueConstraint('barcode', 'module', 'academic_year', 'applied_status','enrollment_status','admission_status', 'phase', 'year', name='uq_barcode_module_year'),
     )
 
 class Institute(Base):
@@ -165,7 +165,7 @@ class SamsDataLoader:
         """
         with tqdm(total=len(student_data), desc="Loading student data") as pbar:
             for data in student_data:
-                success =self._add_student(data)
+                success = self._add_student(data)
                 if success:
                     pbar.update(1)
 
@@ -243,13 +243,13 @@ class SamsDataLoader:
             session.add(student)
             session.commit()
 
+        except IntegrityError as e:
+            session.rollback()
+            logger.warning(f"Skipping duplicate student: {data['Barcode']} - {data['module']} - {data['academic_year']}")
+            success = False
         except Exception as e:
             if 'database is locked' in str(e):
                 time.sleep(1)
-            if 'UNIQUE constraint failed' in str(e):
-                session.rollback()
-                logger.warning(f"Skipping duplicate student: {data['Barcode']} - {data['module']} - {data['academic_year']}")
-                success = False
             else:
                 session.rollback()
                 logger.error(f"Error adding student: {e}")
@@ -317,13 +317,25 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 time.sleep(1)
             
 def main():
-    loader = SamsDataLoaderPandas(f'sqlite:///{RAW_DATA_DIR}/sams.db')
-    downloader = SamsDataDownloader()
-    student_data = downloader.fetch_students("ITI",2022,1)
-    for column in student_data.columns:
-        print(f"Column: {column}, Type: {student_data[column].dtype}")
+    engine = create_engine(f'sqlite:///{RAW_DATA_DIR}/sams.db')
 
-    print(student_data['MarkData'])
+    # Create an Inspector object
+    inspector = inspect(engine)
+
+    # Get a list of tables in the database
+    tables = inspector.get_table_names()
+    print(f"Tables: {tables}")
+
+    # Inspect the 'users' table for constraints
+    constraints = inspector.get_unique_constraints('students')
+    print(f"Unique Constraints on 'students': {constraints}")
+
+    df = pd.read_sql_table('students', con=engine)
+    df.drop(columns=['mark_data','id'], inplace=True)
+    print(df.duplicated().sum())
+    print(df.duplicated(subset=['barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status', 'phase', 'year'],keep=False).sum())
+    df.to_csv(f'{RAW_DATA_DIR}/students_tmp.csv', index=False)
+
 
 if __name__ == "__main__":
     main()
