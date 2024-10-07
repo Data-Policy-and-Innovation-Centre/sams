@@ -42,7 +42,7 @@ class SAMSClient:
         """
         self.auth.get_token()
 
-    def get_student_data(self, module: str, academic_year: int, source_of_fund: int = None, page_number: int = None, count: bool = False) -> list | int:
+    def get_student_data(self, module: str, academic_year: int, page_number: int = None, count: bool = False) -> list | int:
         """
         Fetches student data from SAMS API for the given academic year,
         module and source of fund.
@@ -50,7 +50,6 @@ class SAMSClient:
         Args:
             module (str): The module for which to fetch the data.
             academic_year (int): The academic year for which to fetch the data.
-            source_of_fund (int, optional): The source of fund for which to fetch the data.
             page_number (int, optional): The page number for which to fetch the data.
             count (bool, default False): If True, returns the total number of records.
 
@@ -60,13 +59,11 @@ class SAMSClient:
         """
         if module not in ["ITI", "Diploma","PDIS"]:
             raise ValueError(f"Module {module} not supported.")
-        if module in ["ITI", "Diploma"] and source_of_fund not in [1,5]:
-            raise ValueError(f"Source of fund {source_of_fund} not supported.")
 
         if count:
-            logger.info(f"Counting SAMS student records for module: {module},Year: {academic_year}, Source of Funds: {SOF['tostring'][source_of_fund]}")
+            logger.info(f"Counting SAMS student records for module: {module},Year: {academic_year}")
         else:
-            logger.info(f"Getting SAMS student module: {module}, Year: {academic_year},Source of Funds: {SOF['tostring'][source_of_fund]}, Page number: {page_number}")        
+            logger.info(f"Getting SAMS student module: {module}, Year: {academic_year}, Page number: {page_number}")        
 
         # Set up packet
         url = self.endpoints.get_student_data()
@@ -76,7 +73,6 @@ class SAMSClient:
             "AcademicYear": academic_year,
         }
         if module != "PDIS":
-            params["SourceOfFund"] = source_of_fund
             params["PageNumber"] = page_number
 
         # Make HTTP request
@@ -190,10 +186,6 @@ def main():
     # Fetch student data
     pdis_data = client.get_student_data(module="PDIS", academic_year=2022,count=False)
     logger.info(pdis_data[5])
-    # iti_data = client.get_student_data(module="ITI", academic_year=2022, source_of_fund=1, page_number=5,count=False)
-    # logger.info(iti_data)
-    # diploma_data = client.get_student_data(module="Diploma", academic_year=2022, source_of_fund=1, page_number=1,count=False)
-    # logger.info(diploma_data)
 
     # # Fetch institute data
     # institute_data = client.get_institute_data(module="PDIS", academic_year=2022,count=False)

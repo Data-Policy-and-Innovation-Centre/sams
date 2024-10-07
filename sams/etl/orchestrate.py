@@ -9,8 +9,8 @@ class SAMSDataOrchestrator:
         self.downloader = SamsDataDownloader()
         self.loader = SamsDataLoader(db_url)
 
-    def download_and_add_student_data(self, module:str, academic_year:int, source_of_fund:int = None):
-        student_data = self.downloader.fetch_students(module, academic_year, source_of_fund, pandify=False)
+    def download_and_add_student_data(self, module:str, academic_year:int):
+        student_data = self.downloader.fetch_students(module, academic_year, pandify=False)
         self.loader.load_student_data(student_data)
 
     def download_and_add_institute_data(self, module:str, academic_year:int, admission_type:int = None):
@@ -30,14 +30,9 @@ class SAMSDataOrchestrator:
         if table_name == "students":
             for module, metadata in STUDENT.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
-                    if module == "PDIS":
-                        print(f"Downloading module: {module}, year: {year}")
-                        self.download_and_add_student_data(module, year)
-                    else:
-                        print(f"Downloading module: {module}, year: {year}, type: Govt")
-                        self.download_and_add_student_data(module, year, 1)
-                        print(f"Downloading module: {module}, year: {year}, type: Pvt")
-                        self.download_and_add_student_data(module, year, 5)
+                    print(f"Downloading module: {module}, year: {year}")
+                    self.download_and_add_student_data(module, year)
+             
         else:
             for module, metadata in INSTITUTE.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):

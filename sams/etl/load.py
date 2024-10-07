@@ -70,7 +70,6 @@ class Student(Base):
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
     module = Column(String, nullable=True)
     academic_year = Column(Integer, nullable=True)
-    source_of_fund = Column(String, nullable=True)
 
     # Example of a unique constraint if needed
     __table_args__ = (
@@ -239,8 +238,6 @@ class SamsDataLoader:
                 mark_data=data['MarkData'],
                 module=data['module'],
                 academic_year=data['academic_year'],
-                source_of_fund=data['source_of_fund']
-
 
             )
             session.add(student)

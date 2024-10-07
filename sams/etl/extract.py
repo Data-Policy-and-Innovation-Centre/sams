@@ -22,7 +22,7 @@ class SamsDataDownloader:
             self.api_client = client
         self.executor = ThreadPoolExecutor(max_workers=10)
 
-    def fetch_students(self, module: str, academic_year: int, source_of_fund: int = None, pandify = True) -> pd.DataFrame | list:
+    def fetch_students(self, module: str, academic_year: int, pandify = True) -> pd.DataFrame | list:
 
         """
         Fetches student data from the SAMS API for the given academic year,
@@ -31,19 +31,18 @@ class SamsDataDownloader:
         Args:
             academic_year (int): The academic year for which to fetch the data.
             module (str): The module for which to fetch the data.
-            source_of_fund (int, optional): The source of fund for which to fetch the data.
             pandify (bool, default True): If True, returns a pandas DataFrame.
                 Otherwise, returns a list of dictionaries.
 
         Returns:
             pd.DataFrame or list: The fetched data.
         """
-        academic_year = self._check_student_data_params(academic_year, module, source_of_fund)
+        academic_year = self._check_student_data_params(academic_year, module)
 
-        expected_records = self._get_records("students",academic_year, module, source_of_fund, count=True)
+        expected_records = self._get_records("students",academic_year, module, count=True)
 
         if module in ['ITI', 'Diploma']:
-            data = self._get_students_iti_diploma(academic_year, module, source_of_fund)
+            data = self._get_students_iti_diploma(academic_year, module)
         else:
             data = self._get_records("students",academic_year,module)
 
@@ -51,13 +50,13 @@ class SamsDataDownloader:
             logger.warning(f"Expected {expected_records} records, but got {len(data)} records.")
 
         try:
-            info = f"""\nStudent data downloaded for module {module}, academic year {academic_year}, source of fund {SOF['tostring'][source_of_fund]}. 
+            info = f"""\nStudent data downloaded for module {module}, academic year {academic_year}. 
             \n.Num fields: {len(data[0])} \n.Num records: {len(data)} \n.Num distinct records: { len(set(map(lambda item: tuple(sorted(item.items())), data)))} \n.Expected records: {expected_records}"""
             logger.info(info)
         except IndexError as e:
-            logger.error(f"Student data missing for module {module}, academic year {academic_year}, source of fund {SOF['tostring'][source_of_fund]}.")
+            logger.error(f"Student data missing for module {module}, academic year {academic_year}.")
         except TypeError as t:
-            info = f"""\nStudent data downloaded for module {module}, academic year {academic_year}, source of fund {SOF['tostring'][source_of_fund]}. 
+            info = f"""\nStudent data downloaded for module {module}, academic year {academic_year}. 
             \n.Num fields: {len(data[0])} \n.Num records: {len(data)} \n.Expected records: {expected_records}"""
             logger.info(info)
 
@@ -65,13 +64,11 @@ class SamsDataDownloader:
             df = pd.DataFrame(data)
             df['module'] = module
             df['academic_year'] = academic_year
-            df['source_of_fund'] = source_of_fund
             return df
         else:
             for item in data:
                 item['module'] = module
                 item['academic_year'] = academic_year
-                item['source_of_fund'] = source_of_fund
             return data
         
     def fetch_institutes(self, module: str, academic_year: int, admission_type: int = None, pandify = False) -> list:
@@ -110,7 +107,7 @@ class SamsDataDownloader:
             return data
          
     
-    def _get_students_iti_diploma(self, academic_year: int, module: str, source_of_fund: int) -> list:
+    def _get_students_iti_diploma(self, academic_year: int, module: str) -> list:
         
         """
         Downloads student data for ITI and Diploma from SAMS API.
@@ -118,7 +115,6 @@ class SamsDataDownloader:
         Args:
             academic_year (int): The academic year for which to fetch the data.
             module (str): The module for which to fetch the data.
-            source_of_fund (int): The source of fund for which to fetch the data.
 
         Returns:
             list: The downloaded data.
@@ -128,7 +124,7 @@ class SamsDataDownloader:
         data = []
 
         while True:
-            records = self._get_records(table_name="students", module=module, academic_year=academic_year, source_of_fund=source_of_fund, page_number=page)
+            records = self._get_records(table_name="students", module=module, academic_year=academic_year, page_number=page)
 
             if len(records) == 0:
                 break
@@ -139,7 +135,7 @@ class SamsDataDownloader:
         return data
               
 
-    def _get_records(self, table_name: str, academic_year: int, module: str, source_of_fund: int = None, admission_type: int = None, page_number = 1, count = False) -> int | list:
+    def _get_records(self, table_name: str, academic_year: int, module: str, admission_type: int = None, page_number = 1, count = False) -> int | list:
         
         """
         Fetches the expected number of student records, or the actual list of records from SAMS API for the given academic year, module and source of fund.
@@ -148,7 +144,6 @@ class SamsDataDownloader:
             table (str): The table for which to fetch the data.
             academic_year (int): The academic year for which to fetch the data.
             module (str): The module for which to fetch the data.
-            source_of_fund (int, optional): The source of fund for which to fetch the data.
             page_number (int, optional): The page number to fetch.
             count (bool, optional): If True, returns the expected number of records. Otherwise returns a list consisting of the actual records.
         
@@ -164,7 +159,7 @@ class SamsDataDownloader:
         while retries < ERRMAX:
             try:
                 if table_name == 'students':
-                    records = self.api_client.get_student_data(module=module, academic_year=academic_year, source_of_fund=source_of_fund, page_number=page_number, count = count)
+                    records = self.api_client.get_student_data(module=module, academic_year=academic_year, page_number=page_number, count = count)
                 else:
                     records = self.api_client.get_institute_data(module=module, academic_year=academic_year, admission_type=admission_type, count = count)
                 break 
@@ -181,7 +176,7 @@ class SamsDataDownloader:
         return records
                  
 
-    def _check_student_data_params(self, academic_year: int, module: str, source_of_fund: int = None) -> int:
+    def _check_student_data_params(self, academic_year: int, module: str) -> int:
         """
         Checks if the given academic year, module and source of fund are valid,
         and if not, adjusts them to the nearest valid values.
@@ -189,16 +184,12 @@ class SamsDataDownloader:
         Args:
             academic_year (int): The academic year for which to fetch the data.
             module (str): The module for which to fetch the data.
-            source_of_fund (int): The source of fund for which to fetch the data.
 
         Returns:
             int: The adjusted academic year.
         """
         if module not in ["ITI", "Diploma", "PDIS"]:
             raise ValueError("Module must be either 'ITI', 'PDIS' or 'Diploma'. ")
-        
-        if module in ["ITI", "Diploma"] and source_of_fund not in [1,5]:
-            raise ValueError("Source of fund must be either 1 (for Govt) or 5 (for Private). ")
         
         if academic_year < STUDENT[module]['yearmin'] or academic_year > STUDENT[module]['yearmax']:
             logger.warning(f"Data from Academic year {academic_year} is not available for {module}. It must be between {STUDENT[module]['yearmin']} and {STUDENT[module]['yearmax']}. ")
@@ -376,9 +367,7 @@ class SamsDataDownloader:
                 while not success:
                     try:
                         if type == "students":
-                            counter[type] += self.api_client.get_student_data(module, year, source_of_fund=1,page_number=1, count=True)
-                            if module in ["ITI", "Diploma"]:
-                                counter[type] += self.api_client.get_student_data(module, year, source_of_fund=5,page_number=1, count=True)
+                            counter[type] += self.api_client.get_student_data(module, year,page_number=1, count=True)
                         else:
                             counter[type] += self.api_client.get_institute_data(module, year, admission_type=1, count=True)
                             if module == "Diploma":
