@@ -16,7 +16,7 @@ class SAMSDataOrchestrator:
     def download_and_add_institute_data(self, module:str, academic_year:int, admission_type:int = None):
         pass
 
-    def process_data(self, table_name:str):
+    def process_data(self, table_name:str, exclude=[]):
         # Remove all existing log handlers
         for handler_id in list(logger._core.handlers.keys()):
             logger.remove(handler_id)
@@ -30,8 +30,9 @@ class SAMSDataOrchestrator:
         if table_name == "students":
             for module, metadata in STUDENT.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
-                    print(f"Downloading module: {module}, year: {year}")
-                    self.download_and_add_student_data(module, year)
+                    if (module, year) not in exclude:
+                        print(f"Downloading module: {module}, year: {year}")
+                        self.download_and_add_student_data(module, year)
              
         else:
             for module, metadata in INSTITUTE.items():
@@ -41,6 +42,9 @@ class SAMSDataOrchestrator:
                         self.download_and_add_institute_data(module, year,1)
                         print(f"Downloading module: {module}, year: {year}, entry: Lateral")
                         self.download_and_add_institute_data(module, year,2)
+                    else:
+                        print(f"Downloading module: {module}, year: {year}")
+                        self.download_and_add_institute_data(module, year)
 
 
 
