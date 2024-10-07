@@ -1,0 +1,29 @@
+name: skills
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - black
+  - flake8
+  - isort
+  - pip
+  - typer
+  - loguru
+  - tqdm
+  - ipython
+  - jupyterlab
+  - matplotlib
+  - notebook
+  - numpy
+  - sqlalchemy
+  - schedule
+  - pandas
+  - polars
+  - scikit-learn
+  - boxsdk
+  - pip:
+    - python-dotenv
+    - mkdocs
+    - polars[all]
+    - openpyxl
+    - pytest
