@@ -22,7 +22,7 @@ class SamsDataDownloader:
             self.api_client = client
         self.executor = ThreadPoolExecutor(max_workers=10)
 
-    def fetch_students(self, academic_year: int, module: str, source_of_fund: int = None, pandify = True) -> pd.DataFrame | list:
+    def fetch_students(self, module: str, academic_year: int, source_of_fund: int = None, pandify = True) -> pd.DataFrame | list:
 
         """
         Fetches student data from the SAMS API for the given academic year,
@@ -68,6 +68,10 @@ class SamsDataDownloader:
             df['source_of_fund'] = source_of_fund
             return df
         else:
+            for item in data:
+                item['module'] = module
+                item['academic_year'] = academic_year
+                item['source_of_fund'] = source_of_fund
             return data
         
     def fetch_institutes(self, module: str, academic_year: int, admission_type: int = None, pandify = False) -> list:
@@ -401,7 +405,8 @@ def main():
 
     # Create a SamsDataDownloader instance
     downloader = SamsDataDownloader()
-    student_data = downloader.download_all_student_data()
+    student_data = downloader.fetch_students("ITI",2022,1)
+    print(student_data.columns)    
     # institude_data = downloader.download_all_institute_data()
 
     # Write to parquet file

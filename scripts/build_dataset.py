@@ -6,7 +6,4 @@ if not Path(API_AUTH).exists():
     raise FileNotFoundError(f"API_AUTH file not found at {API_AUTH}")
 
 orchestrator = SAMSDataOrchestrator()    
-try:
-    orchestrator.process_data(student=True, institute=False)
-finally:
-    orchestrator.close()
+orchestrator.process_data("students")
