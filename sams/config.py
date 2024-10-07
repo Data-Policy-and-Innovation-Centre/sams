@@ -28,7 +28,8 @@ for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTER
         path.mkdir(parents=True, exist_ok=True)
 
 # Auth
-API_AUTH = os.path.join(PROJ_ROOT, "credentials.json")
+USERNAME = os.getenv("SAMSAPI_USERNAME")
+PASSWORD = os.getenv("SAMSAPI_PASSWORD")
 
 # Error constants
 ERRMAX = 3
