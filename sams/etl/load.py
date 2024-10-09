@@ -7,7 +7,6 @@ from tqdm import tqdm
 import time
 from loguru import logger
 from sams.config import ERRMAX, RAW_DATA_DIR
-from sams.etl.extract import SamsDataDownloader
 from sams.etl.validate import check_null_values
 
 Base = declarative_base()
@@ -295,6 +294,28 @@ class SamsDataLoader:
         finally:
             session.close()
 
+    def remove(self, table_name: str, module:str, year:str, admission_type:int = None) -> None:
+        """
+        Removes all records from the given table that correspond to the given module,
+        year and (if table is "institutes" and module is "Diploma") admission_type.
+        """
+        session = self.Session()
+        try:
+            if table_name == "institutes":
+                if module == "Diploma":
+                    session.query(Institute).filter_by(module=module, year=year, admission_type=admission_type).delete()
+                else:
+                    session.query(Institute).filter_by(module=module, year=year).delete()
+            else:
+                session.query(Student).filter_by(module=module, year=year).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error removing records from {table_name}: {e}")
+        finally:
+            session.close()
+
+
 class SamsDataLoaderPandas(SamsDataLoader):
     def __init__(self, db_url):
         super().__init__(db_url)
@@ -326,24 +347,10 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 time.sleep(1)
             
 def main():
-    engine = create_engine(f'sqlite:///{RAW_DATA_DIR}/sams.db')
 
-    # Create an Inspector object
-    inspector = inspect(engine)
-
-    # Get a list of tables in the database
-    tables = inspector.get_table_names()
-    print(f"Tables: {tables}")
-
-    # Inspect the 'users' table for constraints
-    constraints = inspector.get_unique_constraints('students')
-    print(f"Unique Constraints on 'students': {constraints}")
-
-    df = pd.read_sql_table('students', con=engine)
-    df.drop(columns=['mark_data','id'], inplace=True)
-    print(df.duplicated().sum())
-    print(df.duplicated(subset=['barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status', 'phase', 'year'],keep=False).sum())
-    df.to_csv(f'{RAW_DATA_DIR}/students_tmp.csv', index=False)
+    loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
+    loader.remove("students", "ITI", "2017")
+    # loader.remove("students", "Diploma", "2019")
 
 
 if __name__ == "__main__":

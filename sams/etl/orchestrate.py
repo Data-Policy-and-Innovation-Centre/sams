@@ -2,6 +2,7 @@ import os
 from loguru import logger
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.load import SamsDataLoader
+from sams.etl.validate import validate
 from sams.config import RAW_DATA_DIR, STUDENT, LOGS, INSTITUTE
 
 class SAMSDataOrchestrator:
@@ -11,6 +12,7 @@ class SAMSDataOrchestrator:
 
     def download_and_add_student_data(self, module:str, academic_year:int):
         student_data = self.downloader.fetch_students(module, academic_year, pandify=False)
+        validate(student_data, table_name="students")
         self.loader.load_student_data(student_data)
 
     def download_and_add_institute_data(self, module:str, academic_year:int, admission_type:int = None):

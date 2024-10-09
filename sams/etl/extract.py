@@ -360,7 +360,7 @@ class SamsDataDownloader:
         student_counter = self._update_total_records(student_counter, STUDENT, table_name="students")
 
         # Institutes
-        institute_counter = self._update_total_records(student_counter, INSTITUTE, table_name="institutes")
+        institute_counter = self._update_total_records(institute_counter, INSTITUTE, table_name="institutes")
         
         # Dump counts in json file
         student_counter.to_csv(os.path.join(LOGS, "students_count.csv"), index=False)
