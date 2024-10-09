@@ -5,6 +5,7 @@ docs/*
 !data/raw/*.keep
 *.swp
 *.json
+logs/
 notebooks/*.html
 notebooks/.Rhistory
 notebooks/.RData
