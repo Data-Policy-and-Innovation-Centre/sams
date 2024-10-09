@@ -1,7 +1,30 @@
 from loguru import logger
 import pandas as pd
 import os
-from config import LOGS
+from sams.config import LOGS
+
+def check_null_values(row: dict, 
+                      varlist: list = ['Barcode','module','academic_year',
+                                       'AppliedStatus','EnrollmentStatus','AdmissionStatus','Phase','Year']) -> bool:
+    """Check if any of the given variables in the row are null or empty.
+    
+    Parameters
+    ----------
+    row : dict
+        A dictionary containing the row data.
+    varlist : list
+        A list of variable names to check.
+    
+    Returns
+    -------
+    bool
+        False if all variables are not null or empty, otherwise False.
+    """
+    for var in varlist:
+        if row[var] is None or row[var] in ["", " ", "NA"]:
+            return True
+
+    return False
 
 def _pd_check_student_missing_values(df: pd.DataFrame, logfile: str = "student_missing_values.log") -> None:
 

@@ -17,14 +17,14 @@ def data_downloader(mock_sams_client):
     return SamsDataDownloader(mock_sams_client)
 
 class TestSamsDataDownloader: 
-    @pytest.mark.parametrize("year, module, source_of_fund, expected_data", [
-        (2022, 'ITI', 1, [{'id': 1, 'name': 'John Doe', 'module': 'ITI', 'year': 2022, 'source_of_fund': 1}]),
-        (2023, 'Diploma', 5, [{'id': 2, 'name': 'Jane Smith', 'module': 'Diploma', 'year': 2023, 'source_of_fund': 5}]),
-        (2021, 'PDIS', None, [{'id': 3, 'name': 'Bob Johnson', 'module': 'PDIS', 'year': 2021}]),
+    @pytest.mark.parametrize("year, module, expected_data", [
+        (2022, 'ITI', [{'id': 1, 'name': 'John Doe', 'module': 'ITI', 'year': 2022}]),
+        (2023, 'Diploma', [{'id': 2, 'name': 'Jane Smith', 'module': 'Diploma', 'year': 2023}]),
+        (2021, 'PDIS', [{'id': 3, 'name': 'Bob Johnson', 'module': 'PDIS', 'year': 2021}]),
     ])
-    def test_fetch_students(self, data_downloader, mock_sams_client, year, module, source_of_fund, expected_data):
+    def test_fetch_students(self, data_downloader, mock_sams_client, year, module, expected_data):
         mock_sams_client.get_student_data.side_effect = [1,expected_data,[]]
-        result = data_downloader.fetch_students(year, module, source_of_fund)
+        result = data_downloader.fetch_students(module, year)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == len(expected_data)
         for i, row in result.iterrows():

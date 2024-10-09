@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 from collections import Counter
 from loguru import logger
-from sams.config import API_AUTH, ERRMAX, STUDENT, RAW_DATA_DIR, \
+from sams.config import ERRMAX, STUDENT, RAW_DATA_DIR, \
 INSTITUTE, SOF, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
 from sams.util import is_valid_date
 from tqdm import tqdm
@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class SamsDataDownloader:
     def __init__(self, client=None):
         if not client:
-            self.api_client = SAMSClient(API_AUTH)
+            self.api_client = SAMSClient()
         else:
             self.api_client = client
         self.executor = ThreadPoolExecutor(max_workers=10)
@@ -388,18 +388,16 @@ def main():
     Main function that downloads student data from the SAMS API and saves it to an Excel file.
     """ 
     # Check if the API authentication file exists
-    if not Path(API_AUTH).exists():
-        logger.critical(f"{API_AUTH} not found. API authentication is required.")
-        exit(1)
 
     # Create a SamsDataDownloader instance
     downloader = SamsDataDownloader()
-    student_data = downloader.fetch_students("ITI",2022,1)
-    print(student_data.columns)    
+    student_data = downloader.fetch_students("PDIS",2017,pandify=False)
+    for student in student_data:
+        print(student['SAMSCode'])  
     # institude_data = downloader.download_all_institute_data()
 
     # Write to parquet file
-    student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
+    #student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
 
     # # Write to json file
     # with open(os.path.join(RAW_DATA_DIR,'institute_data.json'), 'w', encoding='utf-8') as f:
