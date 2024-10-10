@@ -52,7 +52,7 @@ def count_null_values(data: list, table_name: str = "students") -> None:
     log_file = Path(MISSING_VALUES / f"missing_values_{table_name}_{df['module'].iloc[0]}_{df['academic_year'].iloc[0]}.log")
     if not log_file.exists():
         log_file.touch()
-    with open(log_file, "a") as f:
+    with open(log_file, "w") as f:
         f.write(f"Metadata: {table_name}, {df['module'].iloc[0]}, {df['academic_year'].iloc[0]}\n")
         if table_name == "institutes":
             f.write(f"Admission Type: {df['admission_type'].iloc[0]}\n")

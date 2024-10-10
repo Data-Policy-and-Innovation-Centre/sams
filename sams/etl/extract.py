@@ -7,8 +7,7 @@ import json
 from collections import Counter
 from loguru import logger
 from sams.config import ERRMAX, STUDENT, RAW_DATA_DIR, \
-INSTITUTE, SOF, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
-from sams.util import is_valid_date
+INSTITUTE, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
 from tqdm import tqdm
 import polars as pl
 import pandas as pd
