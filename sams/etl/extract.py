@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 from collections import Counter
 from loguru import logger
-from sams.config import API_AUTH, ERRMAX, STUDENT, RAW_DATA_DIR, \
+from sams.config import ERRMAX, STUDENT, RAW_DATA_DIR, \
 INSTITUTE, SOF, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
 from sams.util import is_valid_date
 from tqdm import tqdm
@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 class SamsDataDownloader:
     def __init__(self, client=None):
         if not client:
-            self.api_client = SAMSClient(API_AUTH)
+            self.api_client = SAMSClient()
         else:
             self.api_client = client
         self.executor = ThreadPoolExecutor(max_workers=10)
@@ -325,7 +325,23 @@ class SamsDataDownloader:
         return institute_data
 
     def update_total_records(self) -> None:
+        """
+        Updates the total number of student and institute records by downloading them from SAMS API.
 
+        This method downloads the total number of student and institute records for each module from SAMS API, and updates the counts in a csv file.
+
+        The file is saved in the logs directory with the name "student_count.csv" and "institute_count.csv" respectively.
+
+        This method is useful for updating the total number of records periodically, so that the progress bars are accurate.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Remove all existing log handlers
         for handler_id in list(logger._core.handlers.keys()):
             logger.remove(handler_id)
@@ -337,42 +353,48 @@ class SamsDataDownloader:
         )
 
         # Set up counter
-        counter = {
-            "students": 0,
-            "institutes": 0
-        }
-
+        student_counter = pd.DataFrame(columns=["module", "academic_year", "count"])
+        institute_counter = pd.DataFrame(columns=["module", "academic_year", "admission_type", "count"])
+        
         # Students
-        counter = self._update_total_records(counter, STUDENT, type="students")
+        student_counter = self._update_total_records(student_counter, STUDENT, table_name="students")
 
         # Institutes
-        counter = self._update_total_records(counter, INSTITUTE, type="institutes")
+        institute_counter = self._update_total_records(student_counter, INSTITUTE, table_name="institutes")
         
         # Dump counts in json file
-        with open(os.path.join(LOGS, "total_records.json"), "w") as f:
-            json.dump(counter, f)
+        student_counter.to_csv(os.path.join(LOGS, "students_count.csv"), index=False)
+        institute_counter.to_csv(os.path.join(LOGS, "institutes_count.csv"), index=False)
 
         # Close the log handler
         logger.remove(log_file_id)
 
-    def _update_total_records(self, counter, metadict, type="students") -> dict:
+    def _update_total_records(self, counter: pd.DataFrame, metadict: dict, table_name: str) -> pd.DataFrame:
 
-        if type not in ["students", "institutes"]:
+        if table_name not in ["students", "institutes"]:
             raise ValueError("type must be either 'students' or 'institutes'")
 
         for module, metadata in metadict.items():
             for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
                 retries = 0
-                success = False
-                while not success:
+                while retries < ERRMAX:
                     try:
-                        if type == "students":
-                            counter[type] += self.api_client.get_student_data(module, year,page_number=1, count=True)
+                        if table_name == "students":
+                            count = self.api_client.get_student_data(module, year,page_number=1, count=True)
+                            new_row = pd.DataFrame([{'module': module, 'academic_year': year, 'count': count}])
+                            counter = pd.concat([counter, new_row], ignore_index=True)
                         else:
-                            counter[type] += self.api_client.get_institute_data(module, year, admission_type=1, count=True)
                             if module == "Diploma":
-                                counter[type] += self.api_client.get_institute_data(module, year, admission_type=2, count=True)
-                        success = True
+                                for admission_type in [1,2]:
+                                    count = self.api_client.get_institute_data(module, year, admission_type, count=True)
+                                    new_row = pd.DataFrame([{'module': module, 'academic_year': year, 'admission_type': admission_type, 'count': count}])
+                                    counter = pd.concat([counter, new_row], ignore_index=True)
+                            else:
+                                count = self.api_client.get_institute_data(module, year, count=True)
+                                new_row = pd.DataFrame([{'module': module, 'academic_year': year, 'admission_type' : None, 'count': count}])
+                                counter = pd.concat([counter, new_row], ignore_index=True)
+
+                        break
                     except APIError as e:
                         retries += 1
                         if retries >= ERRMAX:
@@ -380,26 +402,23 @@ class SamsDataDownloader:
                             break
                         else:
                             continue
-        return counter
-        
+        return counter        
     
 def main():
     """
     Main function that downloads student data from the SAMS API and saves it to an Excel file.
     """ 
     # Check if the API authentication file exists
-    if not Path(API_AUTH).exists():
-        logger.critical(f"{API_AUTH} not found. API authentication is required.")
-        exit(1)
 
     # Create a SamsDataDownloader instance
     downloader = SamsDataDownloader()
-    student_data = downloader.fetch_students("ITI",2022,1)
-    print(student_data.columns)    
+    student_data = downloader.fetch_students("PDIS",2017,pandify=False)
+    for student in student_data:
+        print(student['SAMSCode'])  
     # institude_data = downloader.download_all_institute_data()
 
     # Write to parquet file
-    student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
+    #student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
 
     # # Write to json file
     # with open(os.path.join(RAW_DATA_DIR,'institute_data.json'), 'w', encoding='utf-8') as f:

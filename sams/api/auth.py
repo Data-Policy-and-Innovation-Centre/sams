@@ -1,5 +1,6 @@
 import requests
 import time
+from loguru import logger
 
 class Auth:
     def __init__(self, username, password):
@@ -12,7 +13,6 @@ class Auth:
         """
 
         # Store the username and password
-
         self.username = username
         self.password = password
 

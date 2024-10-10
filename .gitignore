@@ -1,11 +1,14 @@
 data/*
+output/*
 docs/*
 !*.keep
 !data/raw/*.keep
 *.swp
 *.json
+logs/
 notebooks/*.html
 notebooks/.Rhistory
+notebooks/.RData
 /notebooks/Markdown_finding_duplicates_files
 references/*
 

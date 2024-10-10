@@ -3,7 +3,7 @@ import json
 from sams.api.auth import Auth
 from sams.api.endpoints import Endpoints
 from sams.api.exceptions import APIError
-from sams.config import API_AUTH, SOF
+from sams.config import USERNAME, PASSWORD, SOF
 from loguru import logger
 
 class SAMSClient:
@@ -19,17 +19,14 @@ class SAMSClient:
         endpoints (Endpoints): An instance of the Endpoints class used for
             accessing the API endpoints.
     """
-    def __init__(self, config_path):
+    def __init__(self):
         """
         Initialize the SAMS client.
 
         Loads the API credentials from the configuration file and
         initializes the Auth and Endpoints instances.
         """
-        with open(config_path, "r") as f:
-            cred = json.load(f)
-        
-        self.auth = Auth(cred['username'], cred['password'])
+        self.auth = Auth(USERNAME,PASSWORD)
         self.endpoints = Endpoints()
         
     def refresh(self):
@@ -181,7 +178,7 @@ class SAMSClient:
 
 
 def main():
-    client = SAMSClient(API_AUTH)
+    client = SAMSClient()
 
     # Fetch student data
     pdis_data = client.get_student_data(module="PDIS", academic_year=2022,count=False)

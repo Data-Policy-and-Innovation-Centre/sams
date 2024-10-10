@@ -1,0 +1,2231 @@
+---
+title: "SAMS Student Data Diagnostics"
+output: html_document
+date: "2024-08-29"
+---
+This document provides a diagnostics of SAMS data - API access - CSM. 
+
+
+
+# Import the .parquest datafile
+```{r}
+install.packages("arrow")
+library(arrow)
+
+# Replace 'your_file.parquet' with the path to your Parquet file
+df <- read_parquet("C:/Users/Admin/Box/Amitav/Skills/student_data.parquet")
+
+```
+
+
+
+# Check for Duplicates in id variables
+```{r}
+# Check for the non-unique Barcode × Year. Generates a column which is a count of duplicates
+df_duplicates_barcode <- df %>%
+  group_by(Barcode) %>%
+  summarize(num_duplicates = n())
+
+duplicate_barcodes <- df_duplicates_barcode %>%
+ filter(num_duplicates > 1) %>%   # Filter rows where num_duplicates are greater than 1
+ select(Barcode)           # Select only those Barcodes
+
+
+barcode_dupli_list = df %>% filter(Barcode %in% duplicate_barcodes$Barcode)
+view(barcode_dupli_list)
+
+write.xlsx(barcode_dupli_list, "barcode_duplicates_df.xlsx")
+
+ 
+#filtered_sams = sams_student_data %>% filter(Barcode %in% duplicate_barcodes$Barcode)
+#view(filtered_sams)
+#remove(sams_student_data)
+#print(df_duplicates_barcode$Barcode>1)
+
+#duplicate_barcodes <- df_duplicates_barcode %>%
+ # filter(num_duplicates > 1) %>%   # Filter rows where col1 is greater than 1
+  #select(Barcode)           # Select only col1
+
+```
+
+# Check if all the institutes in 2024 (ITI, Diploma and PDIS) are present in the dataset
+This should be done after the admission cycle has ended to check if the "college participation" figures for 2024 on SAMS website matches with the SAMS dataset. 
+```{r}
+## For ITIs
+missing_itis = setdiff(gsub(" ", "", iti_list_2024_25$Institute_Name), gsub(" ", "", sams_student_data$ReportedInstitute))
+
+print("Number of ITIs missing from SAMS")
+print(missing_itis)
+
+remove(d_list,e_list)
+## For Diploma
+
+## For PDIS
+
+```
+
+
+
+# Year-wise count
+```{r}
+# Calculate frequency of Gender and Year for all institutes
+freq_df_gender <- df_ITI %>%
+  group_by(Year, Gender) %>%
+  summarise(Frequency = n()) %>%
+  mutate(Percentage = Frequency / sum(Frequency) * 100) %>%
+  ungroup()
+
+# Create the stacked bar chart
+ggplot(freq_df_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count Students Reported by Gender in ITIs",
+    x = "Year",
+    y = "Count",
+    fill = "Gender"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  #  ylim(0, 500) +
+  theme_minimal(base_size = 15) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+    geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5)) #+
+ # geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+#          vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))  # Add text labels inside bars
+
+# filter Gov institutes only
+df_ITI_gov = df %>% filter(df$TypeofInstitute == "Govt.")
+
+# Calculate frequency for Gov. institutes only
+freq_df_gov_gender <- df_ITI_gov %>%
+  group_by(Year, Gender) %>%
+  summarise(Frequency = n()) %>%
+  mutate(Percentage = Frequency / sum(Frequency) * 100) %>%
+  ungroup()
+
+# Create the Gov only stacked bar chart
+ggplot(freq_df_gov_gender, aes(x = as.factor(Year), y = Frequency, fill = Gender)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar color and border
+  labs(
+    title = "Count Students Reported by Gender in Gov ITIs only",
+    x = "Year",
+    y = "Count",
+    fill = "Gender"
+  ) +
+  scale_fill_brewer(palette = "Set3") +
+  ylim(0, 30000) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 20),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  ) +
+#  geom_text(aes(label = Frequency), vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))
+ geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+          vjust = -0.5, size = 3, position = position_stack(vjust = 0.5))  # Add text labels inside bars
+
+# Difference between data count and SAMS website 
+# -294 (2023-24)
+# -3246 (2022-23)
+# -13029 (2021-22)
+# (2020-21)
+
+```
+
+# Count of Institutes - ITI, Poly & PDIS by Year
+
+
+```{r}
+# 
+unique_institues = df %>%
+  filter(Year == "2024" & module =="ITI") %>%  # Change "ITI" to "Diploma" or "PDIS" as needed
+  summarise(Unique_Count = n_distinct(ReportedInstitute))
+
+print(unique_institues)
+
+```
+
+# "Percentage" validation exercise
+```{r}
+# Convert SecuredMarks and TotalMarks to numeric
+df <- df %>%
+  mutate(
+    SecuredMarks = as.numeric(as.character(SecuredMarks)),
+    TotalMarks = as.numeric(as.character(TotalMarks)),
+    Percentage = as.numeric(as.character(Percentage))
+  )
+
+# Calculate the expected percentage
+df <- df %>%
+  mutate(expected_percentage = (SecuredMarks/TotalMarks) * 100)
+
+# Compare the expected percentage with the actual percentage
+df <- df %>%
+  mutate(is_correct = round(expected_percentage, 2) == round(Percentage, 2))
+
+# Count the number of correct rows
+num_correct <- sum(df$is_correct, na.rm = TRUE)
+
+selected_columns = df %>%
+  filter(is_correct == FALSE) %>%
+  select(Percentage,expected_percentage)
+
+hist(selected_columns$Percentage)
+hist(selected_columns$expected_percentage)
+
+print(paste("Number of correct rows:", num_correct))
+```
+
+
+
+
+## Visualizations 
+
+# "Percentage" Distribution Visuals
+```{r}
+library(ggplot2)
+
+# Subset to module 
+df_ITI = df %>% filter(df$module == "ITI")
+df_Diploma = df %>% filter(df$module == "Diploma")
+df_PDIS = df %>% filter(df$module == "PDIS")
+
+
+# Custom function to create the histogram
+plot_percentage_histogram <- function(data, percentage_col) {
+  # Create histogram
+  p <- ggplot(data, aes_string(x = percentage_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5, 
+      fill = "#2E86C1", 
+      color = "#1B4F72", 
+      alpha = 0.7
+    ) +
+    labs(
+      title = paste("Distribution of", percentage_col, "Scores"),
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      color = "#CB4335", 
+      fill = "#F5B7B1", 
+      alpha = 0.3,
+      adjust = 1
+    )
+  
+  return(p)
+}
+
+
+# Plot percentage for ITI
+histogram1 <- plot_percentage_histogram(df_ITI, "expected_percentage")
+print(histogram1)
+
+# Plot percentage for Diploma
+histogram2 <- plot_percentage_histogram(df_Diploma, "expected_percentage")
+print(histogram2)
+
+# Plot percentage for Diploma
+histogram3 <- plot_percentage_histogram(df_PDIS, "expected_percentage")
+print(histogram3)
+
+```
+
+# Marks Percentage Histograms by Gender
+
+Who are the ones applying and getting in ITI, Polytechnics and PDIS? The minimum marks percentage to apply for ITIs is 33% in 10th or 8th Grade (minimum passing marks) depending on the trade. To apply for Diploma through Fresh entry in Engineering or Beauty Culture courses, one has to pass 10th grade at 33%. For Diploma courses in Hotel Management & Catering Technology, Modern Office Management, and Pharmacy, applicant should be a 10+2 pass in science/commerce/arts. 
+For Lateral Entry to Engineering course, one has to Pass in +2 Science or +2 Vocational in an Engineering Trade/ ITI Pass from 2 years ITI in Engineering Trade or COE Trade with pass in 10th. 
+
+```{r}
+
+plot_overlapping_histograms <- function(data, percentage_col, gender_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = gender_col, color = gender_col)) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.2  # Transparency of density line
+    ) +
+    labs(
+      title = "Distribution of Percentage Scores by Module",
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'Gender'
+bar_plot <- plot_overlapping_histograms(df_ITI, "expected_percentage", "Gender")
+print(bar_plot)
+
+t_test_result <- t.test(expected_percentage ~ Gender, data = df_ITI)
+f_test_result <- var.test(expected_percentage ~ Gender, data = df_ITI)
+
+# View the t-test result
+print(t_test_result)
+print(f_test_result)
+
+```
+We can see from the above histogram, ITI applicants have a more right skew compared to Diploma applicants in their percentage marks. ITI applicants generally tend to be academically weaker students. However, it is not clear whether the reported percentage marks for Diploma applicants is 10th, 12th or ITI.
+Now, let's compare the marks distribution between private and government institutes. 
+
+# Private Vs Government - Percentage Marks
+
+```{r}
+plot_pvt_gov_overlapping_histograms <- function(data, percentage_col, type_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = type_col, color = type_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5,  # Adjust binwidth as needed
+      position = "identity",  # Overlap histograms
+      alpha = 0.5,  # Transparency of histograms
+      color = "black"
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.5  # Transparency of density line
+    ) +
+    labs(
+      title = "Distribution of Percentage Scores by Institute Type",
+      x = "Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'TypeofInstitute'
+bar_ITItype_plot <- plot_pvt_gov_overlapping_histograms(df_ITI, "expected_percentage", "TypeofInstitute")
+print(bar_ITItype_plot)
+
+bar_Diplomatype_plot <- plot_pvt_gov_overlapping_histograms(df_Diploma, "expected_percentage", "TypeofInstitute")
+print(bar_Diplomatype_plot)
+
+
+
+```
+From the above graphs, applicants in Gov institutes tend to have higher percentage marks than private institutes across ITI and Diploma courses. 
+
+
+# Gender wise - Percentage Marks
+
+```{r}
+# Exclude Transgender from dataset
+excl_trans_df_ITI = df_ITI %>% filter(Gender != "Transgender")
+excl_trans_df_Diploma = df_Diploma %>% filter(Gender != "Transgender")
+
+plot_gender_overlapping_histograms <- function(data, percentage_col, gender_col) {
+  
+  # Create the histogram and density plot
+  p <- ggplot(data, aes_string(x = percentage_col, fill = gender_col, color = gender_col)) +
+    geom_histogram(
+      aes(y = ..density.. * 100),  # Use density and multiply by 100 for percentage
+      binwidth = 5,  # Adjust binwidth as needed
+      position = "identity",  # Overlap histograms
+      alpha = 0.5,  # Transparency of histograms
+      color = "black"
+    ) +
+    geom_density(
+      aes(y = ..density.. * 100),  # Adjust density line to match percentage scale
+      adjust = 1,  # Smoothness of density line
+      alpha = 0.5  # Transparency of density line
+    ) +
+    labs(
+      x = "Marks Percentage",
+      y = "Percentage of Total"
+    ) +
+    scale_x_continuous(
+      limits = c(0, 100),  # Limit the x-axis from 0 to 100
+      breaks = seq(0, 100, by = 10)  # Set breaks at intervals of 10
+    ) +
+    scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title = element_text(size = 12),
+      axis.text = element_text(size = 10),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9")
+    )
+  
+  return(p)
+}
+
+# Assuming your dataset is named 'df_ITI' and has columns 'percentage_score' and 'TypeofInstitute'
+bar_ITItype_plot <- plot_pvt_gov_overlapping_histograms(excl_trans_df_ITI, "expected_percentage", "Gender")
+print(bar_ITItype_plot)
+
+bar_Diplomatype_plot <- plot_pvt_gov_overlapping_histograms(excl_trans_df_Diploma, "expected_percentage", "Gender")
+print(bar_Diplomatype_plot)
+
+
+
+```
+There is very minimal disparity between two genders in ITIs, however the disparity is relatively higher in Diploma with Male being more skewed to the left than Female. 
+
+# Percentage Time Trends
+
+```{r}
+
+# Custom function to create a bar plot of the mean percentage score by year
+plot_mean_percentage_by_year <- function(data, year_col, percentage_col) {
+  
+  # Calculate the arithmetic mean of percentage_score by year
+  mean_data <- data %>%
+    group_by_at(year_col) %>%
+    summarise(mean_percentage = mean(.data[[percentage_col]], na.rm = TRUE))
+  
+  # Create the bar plot
+  p <- ggplot(mean_data, aes_string(x = year_col, y = "mean_percentage")) +
+    geom_bar(stat = "identity", fill = "#3498DB", color = "#1F78B4", alpha = 0.8) +
+    labs(
+      title = paste("Mean Percentage Score by Year"),
+      x = "Year",
+      y = "Mean Percentage Score"
+    ) +
+    ylim(0,100) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9"),
+      axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for better readability
+    ) +
+    geom_text(aes(label = round(mean_percentage, 2)), vjust = -0.5, size = 4)
+  
+  return(p)
+}
+
+# Example usage
+# Assuming your dataset is named 'data' and has columns 'Year' and 'percentage_score'
+bar_ITI_time_plot <- plot_mean_percentage_by_year(df_ITI, "Year", "expected_percentage")
+print(bar_ITI_time_plot)
+
+bar_Diploma_time_plot <- plot_mean_percentage_by_year(df_Diploma, "Year", "expected_percentage")
+print(bar_Diploma_time_plot)
+
+bar_PDIS_time_plot <- plot_mean_percentage_by_year(df_PDIS, "Year", "expected_percentage")
+print(bar_PDIS_time_plot)
+
+```
+
+# Percentage Time Trends by Gender
+
+```{r}
+
+plot_mean_percentage_by_year_gender <- function(data, year_col, percentage_col, gender_col) {
+# Calculate the arithmetic mean of percentage_score by year and gender
+  mean_data <- data %>%
+    group_by_at(c(year_col, gender_col)) %>%
+    summarise(mean_percentage = mean(.data[[percentage_col]], na.rm = TRUE), .groups = 'drop')
+  
+ # Create the bar plot
+  p <- ggplot(mean_data, aes_string(x = year_col, y = "mean_percentage", fill = gender_col)) +
+    geom_bar(stat = "identity", position = position_dodge(), color = "#1F78B4", alpha = 0.8) +
+    labs(
+      title = "Mean Percentage Score by Year and Gender",
+      x = "Year",
+      y = "Mean Percentage Score"
+    ) +
+    scale_fill_manual(values = c("Male" = "#3498DB", "Female" = "#E74C3C")) +
+    theme_minimal() +
+    ylim(0,100) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      panel.grid.major = element_line(color = "#D5D8DC"),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "#F7F9F9"),
+      axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels for better readability
+    ) +
+    geom_text(aes(label = round(mean_percentage, 2)), position = position_dodge(width = 0.9), vjust = -0.5, size = 3)
+  
+  return(p)
+}
+
+# Example usage
+# Assuming your dataset is named 'data' and has columns 'year', 'percentage_score', and 'gender'
+bar_plot_ITI <- plot_mean_percentage_by_year_gender(df_ITI, "Year", "expected_percentage","Gender")
+print(bar_plot_ITI)
+
+bar_plot_Diploma <- plot_mean_percentage_by_year_gender(df_Diploma, "Year", "expected_percentage","Gender")
+print(bar_plot_Diploma)
+
+bar_plot_PDIS <- plot_mean_percentage_by_year_gender(df_PDIS, "Year", "expected_percentage","Gender")
+print(bar_plot_PDIS)
+
+```
+
+
+
+
+# Income Male vs Female (Pvt. vs Public)
+```{r}
+
+# Calculate total counts for each gender for Gov
+df_ITI_summary <- df_ITI_gov %>%
+  group_by(Gender, AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = AnnualIncome, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 2) +
+  labs(
+    title = "Percentage Distribution of Income by Gender in Gov ITIs",
+    x = "Annual Household Income (Rs.)",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  ylim(0,100) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+# Filter only private ITIs
+df_ITI_pvt = df_ITI %>% filter(df_ITI$TypeofInstitute == "Pvt.")
+
+# Calculate total counts for each gender for Gov
+df_ITI_summary <- df_ITI_pvt %>%
+  group_by(Gender, AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = AnnualIncome, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 2) +
+  labs(
+    title = "Percentage Distribution of Income by Gender in Pvt ITIs",
+    x = "Annual Household Income (Rs.)",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  ylim(0,100) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+
+
+
+
+```
+
+# Religion Male vs Female
+
+```{r}
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, ReligionName) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = ReligionName, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 2) +
+  labs(
+    title = "Percentage Distribution of Religion by Gender in ITIs",
+    x = "Religion",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+```
+
+# Social Category by Gender
+```{r}
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI_gov %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = SocialCategory, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Social Category Distribution by Gender in Gov ITIs",
+    x = "Social Category",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI_pvt %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+view(df_ITI_summary)
+
+ggplot(df_ITI_summary, aes(x = SocialCategory, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Social Category Distribution by Gender in Pvt ITIs",
+    x = "Social Category",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+```
+
+# Highest Qualification by Gender (Column needs cleaning)
+```{r}
+
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, HighestQualification) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = HighestQualification, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Highest Qualification Distribution by Gender",
+    x = "Highest Qualification",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+# Course Period by Gender
+```{r}
+# Calculate total counts for each gender
+df_ITI_summary <- df_ITI %>%
+  group_by(Gender, CoursePeriod) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(percentage = count / sum(count) * 100)
+
+ggplot(df_ITI_summary, aes(x = CoursePeriod, y = percentage, fill = Gender)) +
+  geom_bar(stat = "identity", position = "dodge", color = "white") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "ITI Course Period Distribution by Gender",
+    x = "Course Period",
+    y = "Percentage",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+
+# Migration Analysis for ____
+
+Top In-migration districts
+```{r}
+# Count the number of students by their home district and institute district
+district_flow <- df_Diploma %>%
+  group_by(District, InstituteDistrict) %>%
+  summarise(student_count = n(), .groups = 'drop')
+
+
+# Filter to include only students who study outside their home district
+students_outside_home <- district_flow %>%
+  filter(District != InstituteDistrict)
+
+# Summarize the number of incoming students for each institute district
+incoming_students <- students_outside_home %>%
+  group_by(InstituteDistrict) %>%
+  summarise(total_incoming_students = sum(student_count), .groups = 'drop') %>%
+  arrange(desc(total_incoming_students))
+
+# View the top institute districts by incoming students
+top_institute_districts <- incoming_students %>%
+  top_n(5, wt = total_incoming_students)  # Adjust the number to view more or fewer top districts
+
+print(top_institute_districts)
+
+# Bar plot to visualize the top institute districts
+ggplot(top_institute_districts, aes(x = reorder(InstituteDistrict, -total_incoming_students), y = total_incoming_students)) +
+  geom_bar(stat = "identity", fill = "#3498DB", alpha = 0.8) +
+  labs(
+    title = "Top Institute Districts by Incoming Students",
+    x = "Institute District",
+    y = "Total Incoming Students"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+```
+
+Top Out-migration districts
+```{r}
+district_percentage <- df_Diploma %>%
+  group_by(District) %>%
+  summarise(
+    total_students = n(),
+    students_outside = sum(District != InstituteDistrict),
+    percentage_outside = (students_outside / total_students) * 100,
+    .groups = 'drop'
+  )
+
+library(ggplot2)
+
+ggplot(district_percentage, aes(x = reorder(District, percentage_outside), y = percentage_outside)) +
+  geom_bar(stat = "identity", fill = "#3498DB", alpha = 0.8) +
+  labs(
+    title = "Percentage of Students Studying Outside Their Home District",
+    x = "Home District",
+    y = "Percentage of Students"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  ) +
+  coord_flip()
+
+```
+
+
+# Net Migration Bar Chart
+```{r}
+df_female_Diploma = df_Diploma %>% filter(Gender == "Female")
+# Calculate outgoing students (students leaving their home district)
+outgoing_students <- df_female_Diploma %>%
+  filter(District != InstituteDistrict) %>%
+  group_by(District) %>%
+  summarise(total_outgoing = n(), .groups = 'drop')
+
+# Calculate incoming students (students entering the district from another district)
+incoming_students <- df_female_Diploma %>%
+  filter(District != InstituteDistrict) %>%
+  group_by(InstituteDistrict) %>%
+  summarise(total_incoming = n(), .groups = 'drop')
+
+# Combine outgoing and incoming data
+net_migration <- outgoing_students %>%
+  full_join(incoming_students, by = c("District" = "InstituteDistrict")) %>%
+  mutate(
+    total_outgoing = replace_na(total_outgoing, 0),
+    total_incoming = replace_na(total_incoming, 0),
+    net_outmigration = total_outgoing - total_incoming
+  )
+
+
+library(ggpubr)
+
+# Prepare the data for plotting
+net_migration <- net_migration %>%
+  mutate(migration_status = if_else(net_outmigration > 0, "Positive", "Negative"))
+view(net_migration)
+# Create the horizontal bar chart
+ggbarplot(net_migration, x = "District", y = "net_outmigration",
+          fill = "migration_status",  # Color bars based on migration status
+          color = "white",            # Set bar border colors to white
+          palette = c("Positive" = "yellow", "Negative" = "blue"),  # Define custom colors
+          sort.val = "desc",          # Sort values in descending order
+          sort.by.groups = FALSE,     # Don't sort inside each group
+          x.text.angle = 90,          # Rotate x-axis labels
+          ylab = "Net Outmigration",
+          legend.title = "Migration Status",
+          rotate = TRUE,              # Rotate the plot to make it horizontal
+          ggtheme = theme_minimal()
+          ) + scale_y_continuous(breaks = get_breaks(n = 7))
+
+```
+
+
+## Spatial Visualizations 
+
+```{r}
+## Student - Institute District Match
+# Pvt. vs Gov.
+
+table(sams_student_data$State)
+filtered_sams_student = sams_student_data %>% filter(State == "Others")
+
+
+```
+
+
+# Number of ITIs and Total Students in it by Gender
+```{r}
+# Create file path
+file_path = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\ITI_descriptives.xlsx"
+# Create a new workbook
+wb_ITI_proof <- createWorkbook()
+
+# For count of ITI refer code line which contains variable - Count_ITI
+addWorksheet(wb_ITI_proof, "Count of ITIs by Year")
+writeData(wb_ITI_proof, "Count of ITIs by Year", count_ITI)
+
+# Number of Students in ITIs
+count_females_ITI <- df_ITI %>%
+  filter(Year != 2024) %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Female_Students = sum(Gender == "Female"),
+    Male_Students = sum(Gender == "Male"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+view(count_females_ITI)
+
+addWorksheet(wb_ITI_proof, "Students in ITIs by Year")
+writeData(wb_ITI_proof, "Students in ITIs by Year", count_females_ITI)
+
+# Number of Students in Gov ITIs
+count_females_ITI_gov <- df_ITI %>%
+  filter(Year != 2024) %>%
+  filter(TypeofInstitute=="Govt.") %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Male_Students = sum(Gender == "Male"),
+    Female_Students = sum(Gender == "Female"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Students in Gov ITIs by Year")
+writeData(wb_ITI_proof, "Students in Gov ITIs by Year", count_females_ITI_gov)
+
+# Number of Students in Pvt ITIs
+count_females_ITI_pvt <- df_ITI %>%
+  filter(Year != 2024) %>%
+  filter(TypeofInstitute=="Pvt.") %>%
+  group_by(Year) %>%
+  summarise(
+    Total_Students = n(),
+    Male_Students = sum(Gender == "Male"),
+    Female_Students = sum(Gender == "Female"),
+    Female_Percentage = (Female_Students / Total_Students) * 100
+  ) %>%
+  mutate(Female_Percentage = round(Female_Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Students in Pvt ITIs by Year")
+writeData(wb_ITI_proof, "Students in Pvt ITIs by Year", count_females_ITI_pvt)
+
+
+```
+
+
+# Check the big 5-10 ITIs by enrollment (by trade also) - boys/girls 
+
+```{r}
+
+# Step 1: Filter the data for the year 2023 and calculate counts
+df_summary <- df_ITI %>%
+  filter(Year == 2023) %>%
+  group_by(Gender, ReportedInstitute,TypeofInstitute) %>%
+  summarise(student_count = n(), .groups = 'drop')
+
+# Step 2: Select the top 10 institutes with the highest student counts
+df_summary <- df_summary %>%
+  group_by(ReportedInstitute) %>%
+  summarise(total_count = sum(student_count)) %>%
+  inner_join(df_summary, by = "ReportedInstitute")
+
+top_students_ITI = df_summary %>%
+  select(ReportedInstitute, total_count, TypeofInstitute) %>%
+  distinct() %>% 
+  arrange(desc(total_count))
+
+top_students_ITI_gov = top_students_ITI %>%
+  filter(TypeofInstitute =="Govt.") %>%
+  select(ReportedInstitute, total_count) %>%
+  arrange(desc(total_count))
+
+top_students_ITI_pvt = top_students_ITI %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  select(ReportedInstitute, total_count) %>%
+  arrange(desc(total_count))
+  
+top_female_ITI = df_summary %>% 
+  filter(Gender =="Female") %>%
+  select(ReportedInstitute, student_count, TypeofInstitute) %>%
+  distinct() %>%
+  arrange(desc(student_count))
+
+top_female_ITI_gov = top_female_ITI %>% 
+  filter(TypeofInstitute =="Govt.") %>%
+  select(ReportedInstitute, student_count) %>%
+  arrange(desc(student_count))
+
+top_female_ITI_pvt = top_female_ITI %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  select(ReportedInstitute, student_count) %>%
+  arrange(desc(student_count))
+
+
+# Slice the first 10 and export
+top_10_students_ITI = top_students_ITI %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top ITIs by Students")
+writeData(wb_ITI_proof, "Top ITIs by Students", top_10_students_ITI)
+
+top_10_students_ITI_gov = top_students_ITI_gov %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Gov ITIs by Students")
+writeData(wb_ITI_proof, "Top Gov ITIs by Students", top_10_students_ITI_gov)
+
+
+top_10_students_ITI_pvt = top_students_ITI_pvt %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Pvt ITIs by Students")
+writeData(wb_ITI_proof, "Top Pvt ITIs by Students", top_10_students_ITI_pvt)
+
+
+top_10_female_ITI = top_female_ITI %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top ITIs by Female Students")
+writeData(wb_ITI_proof, "Top ITIs by Female Students", top_10_female_ITI)
+
+top_10_female_ITI_gov = top_female_ITI_gov %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Gov ITIs by Female Students")
+writeData(wb_ITI_proof, "Top Gov ITIs by Female Students", top_10_female_ITI_gov)
+
+top_10_female_ITI_pvt = top_female_ITI_pvt %>%
+  slice(1:10) %>%
+  mutate(Rank = 1:10) %>%
+  relocate(Rank, .before = 1)
+addWorksheet(wb_ITI_proof, "Top Pvt ITIs by Female Students")
+writeData(wb_ITI_proof, "Top Pvt ITIs by Female Students", top_10_female_ITI_pvt)
+
+
+# Identify the top 5 institutes by number of female students in 2023
+top_5_institutes <- top_female_ITI_gov %>%
+  arrange(desc(student_count)) %>%
+  slice(1:5) %>%
+  pull(ReportedInstitute)
+
+ts_top_5_female_ITI_gov <- df_summary_gov %>%
+  filter(ReportedInstitute %in% top_5_institutes)   
+view(ts_top_5_female_ITI_gov)
+
+## Calculate female share for aggregate in Gov ITI only
+aggregated_data <- df_ITI_gov %>%
+  filter(Year != 2024) %>%
+  group_by(Year) %>%
+  summarise(
+    Female_Students = sum(Gender == "Female"),
+    Total_Students = n(),
+    Aggregate_Female_Percent = sum(Female_Students) / sum(Total_Students) * 100
+  ) %>%
+  ungroup()
+view(aggregated_data)
+
+ts_top_5_female_ITI_gov$Year = as.numeric(ts_top_5_female_ITI_gov$Year)
+aggregated_data$Year = as.numeric(aggregated_data$Year)
+
+# Plot the number of female students over time for the top 5 institutes
+ggplot(ts_top_5_female_ITI_gov, aes(x = Year, y = female_students, color = ReportedInstitute, group = ReportedInstitute )) +
+  geom_line() +
+  labs(title = "Number of Female Students Over Time",
+       x = "Year",
+       y = "Number of Female Students") +
+  scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
+  ylim(0,800) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+# Plot the female share over time for the top 5 institutes and aggregate share
+ggplot() +
+  geom_line(data = ts_top_5_female_ITI_gov, aes(x = Year, y = female_percentage, color = ReportedInstitute, group = ReportedInstitute)) +
+   geom_line(data = aggregated_data, 
+            aes(x = Year, y = Aggregate_Female_Percent, linetype = "Aggregate Share"), 
+            color = "black", size = 1) +  # Using linetype aesthetic for legend entry
+  
+  scale_linetype_manual(values = c("Aggregate Share" = "dotted")) +  
+  labs(
+    title = "Female Share of Total Students Over Time",
+    x = "Year",
+    y = "Female Share",
+    color = "Reported Institute",  # Legend title for institutes
+    linetype = "Legend"  # Legend title for linetype
+  ) +
+  scale_x_continuous(breaks = seq(min(ts_top_5_female_ITI_gov$Year), max(ts_top_5_female_ITI_gov$Year), by = 1)) + # Breaks every year
+  ylim(0,50) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+  
+# Save the workbook to the specified directory
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+
+
+# Step 3: Create the horizontal bar chart
+ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y = student_count, fill = Gender)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Number of Students by Gender in 2023 (Top 10 Institutes)",
+    x = "Reported Institute",
+    y = "Number of Students",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+    axis.title = element_text(size = 12)
+  )
+
+## Top 10 institutes by girl students
+# Step 1: Filter the data for the year 2023 and female students only
+df_female_2023 <- df_ITI %>%
+  filter(Year == 2023 & Gender == "Female")
+
+# Step 2: Group by ReportedInstitute and summarize the count of female students
+df_summary_female <- df_female_2023 %>%
+  group_by(ReportedInstitute) %>%
+  summarise(female_student_count = n(), .groups = 'drop')
+
+# Step 3: Select the top 10 institutes with the highest female student counts
+top_10_institutes_female <- df_summary_female %>%
+  slice_max(female_student_count, n = 10)
+
+# Step 4: Create the horizontal bar chart
+ggplot(top_10_institutes_female, aes(x = reorder(ReportedInstitute, female_student_count), y = female_student_count, fill = ReportedInstitute)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Number of Female Students by Institute in 2023 (Top 10 Institutes)",
+    x = "Reported Institute",
+    y = "Number of Female Students"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 11),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  )
+
+```
+The districts in which the 10 institutes (total students) are situated are - 
+Ganjam, Cuttack, Balasore, Khurda, Mayurbhanj and Keonjhar (East Odisha);
+Sundergarh & Sambalpur (West Odisha).  
+
+The districts in which the 10 institutes (total female students) are situated are - 
+Ganjam, Cuttack, Balasore, Khurda, and Keonjhar (East Odisha);
+Sundergarh, Sambalpur, Koraput (West Odisha).  
+Angul (Central)
+
+# Social Group & Income Group Make up in ITIs 2023
+```{r}
+## Social Group
+# All ITIs
+ITI_soc_grp = df_ITI_2023 %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group ITIs")
+writeData(wb_ITI_proof, "Social Group ITIs", ITI_soc_grp)
+
+
+# All Public ITIs
+ITI_pub_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Govt.") %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group Gov ITIs")
+writeData(wb_ITI_proof, "Social Group Gov ITIs", ITI_pub_soc_grp)
+
+# All Pvt ITIs
+ITI_pvt_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  group_by(SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Social Group Pvt ITIs")
+writeData(wb_ITI_proof, "Social Group Pvt ITIs", ITI_pvt_soc_grp)
+
+# Gender-wise within Public
+ITI_pub_gender_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Govt.") %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Soc Grp Gender-Wise Gov ITIs")
+writeData(wb_ITI_proof, "Soc Grp Gender-Wise Gov ITIs", ITI_pub_gender_soc_grp)
+
+# Gender-wise within Pvt
+ITI_pvt_gender_soc_grp = df_ITI_2023 %>%
+  filter(TypeofInstitute =="Pvt.") %>%
+  group_by(Gender, SocialCategory) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Soc Grp Gender-Wise Pvt ITIs")
+writeData(wb_ITI_proof, "Soc Grp Gender-Wise Pvt ITIs", ITI_pvt_gender_soc_grp)
+
+# Save the workbook to the specified directory
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+## Income Group
+
+# All ITIs
+ITI_income_grp = df_ITI_2023 %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp = ITI_income_grp %>%
+  bind_rows(
+    ITI_income_grp %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group ITIs")
+writeData(wb_ITI_proof, "Income Group ITIs", ITI_income_grp)
+
+
+# All Public ITIs
+ITI_income_grp_gov = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Govt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp_gov = ITI_income_grp_gov %>%
+  bind_rows(
+    ITI_income_grp_gov %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group Gov ITIs")
+writeData(wb_ITI_proof, "Income Group Gov ITIs", ITI_income_grp_gov)
+
+
+# All Pvt ITIs
+ITI_income_grp_pvt = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Pvt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome) %>%
+  summarise(count = n(), .groups = 'drop') 
+ITI_income_grp_pvt = ITI_income_grp_pvt %>%
+  bind_rows(
+    ITI_income_grp_pvt %>%
+      filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+      summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
+      mutate(AnnualIncome = "2,50,000 and Above")
+  ) %>%
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1))
+
+addWorksheet(wb_ITI_proof, "Income Group Pvt ITIs")
+writeData(wb_ITI_proof, "Income Group Pvt ITIs", ITI_income_grp_pvt)
+
+
+# Gender-wise within Public
+ITI_income_grp_gender_pub = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Govt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome, Gender) %>%
+  summarise(count = n(), .groups = 'drop') 
+
+new_group = ITI_income_grp_gender_pub %>%
+  filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+  group_by(Gender) %>%
+  summarise(
+    count = sum(count)
+  ) %>%
+  mutate(AnnualIncome = "2,50,000 and Above") # Assign new group name
+
+ITI_income_grp_gender_pub <- bind_rows(ITI_income_grp_gender_pub, new_group)
+
+ITI_income_grp_gender_pub = ITI_income_grp_gender_pub %>% 
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Income Grp Gender-Wise Gov ITIs")
+writeData(wb_ITI_proof, "Income Grp Gender-Wise Gov ITIs", ITI_income_grp_gender_pub)
+
+
+# Gender-wise within Pvt
+ITI_income_grp_gender_pvt = df_ITI_2023 %>%
+  filter(TypeofInstitute == "Pvt.") %>%
+  select(AnnualIncome,Gender,TypeofInstitute) %>%
+  group_by(AnnualIncome, Gender) %>%
+  summarise(count = n(), .groups = 'drop') 
+
+new_group = ITI_income_grp_gender_pvt %>%
+  filter(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000")) %>%
+  group_by(Gender) %>%
+  summarise(
+    count = sum(count)
+  ) %>%
+  mutate(AnnualIncome = "2,50,000 and Above") # Assign new group name
+
+ITI_income_grp_gender_pvt <- bind_rows(ITI_income_grp_gender_pvt, new_group)
+
+ITI_income_grp_gender_pvt = ITI_income_grp_gender_pvt %>% 
+  filter(!(AnnualIncome %in% c("2,50,000 - 6,00,000", "More than 8,00,000","NA","OTHER"))) %>%
+  group_by(Gender) %>%
+  mutate(Percentage = count / sum(count) * 100) %>%
+  mutate(Percentage = round(Percentage, 1)) %>%
+  mutate(count = NULL) %>%
+  spread(key = Gender, value = Percentage)
+
+addWorksheet(wb_ITI_proof, "Income Grp Gender-Wise Pvt ITIs")
+writeData(wb_ITI_proof, "Income Grp Gender-Wise Pvt ITIs", ITI_income_grp_gender_pvt)
+
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+```
+
+
+
+# Female Percentage in all Institutes over time
+```{r}
+# Step 1: Filter for government institutes
+df_ITI_gov <- df_ITI %>%
+  filter(TypeofInstitute == "Govt.")
+
+# Step 2: Summarize the data (total students, female students, and female percentage) over time
+df_summary_gov <- df_ITI_gov %>%
+  filter(Year != "2024") %>%
+  group_by(ReportedInstitute, Year) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_percentage = (female_students / total_students) * 100,
+    .groups = 'drop'
+  )
+
+# Get the female_percentage for institutes in 2023
+df_2023 <- df_summary_gov %>%
+  filter(Year == 2023) %>%
+  select(ReportedInstitute, female_percentage)
+
+# Categorize institutes based on their 2023 female_percentage
+df_2023 <- df_2023 %>%
+  mutate(
+    female_30_category_2023 = ifelse(female_percentage >= 30, "30% or more", "Below 30%"),
+    female_sub_category_2023 = case_when(
+      female_percentage > 0 & female_percentage <= 20 ~ "Between 0 to 20",
+      female_percentage > 20 & female_percentage <= 30 ~ "Between 20 to 30",
+      female_percentage > 30 & female_percentage <= 40 ~ "Between 30 to 40",
+      female_percentage > 40 & female_percentage <= 50 ~ "Between 40 to 50",
+      female_percentage > 50 ~ "Between 50 to 60"
+    )
+  )
+  
+
+
+
+# Step 4: Join this categorization back to the main summary dataframe
+df_summary_gov <- df_summary_gov %>%
+  left_join(df_2023 %>% select(ReportedInstitute, female_category_2023, female_sub_category_2023), by = "ReportedInstitute")
+
+
+# Filter data for the specific year
+df_sum_gov_2023 <- df_summary_gov %>%
+  filter(Year == 2023)
+
+view(df_sum_gov_2023)
+
+top_10_female_percent <- df_sum_gov_2023 %>%
+  slice_max(female_percentage, n = 15)
+
+# Create the horizontal bar chart
+ggplot(top_10_female_percent, aes(x = reorder(ReportedInstitute, female_percentage), y = female_percentage, fill = ReportedInstitute)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +
+  labs(
+    title = "Female Percentage by Gov ITI Institutes in 2023 (Top 15 Institutes)",
+    x = "Reported Institute",
+    y = "Female Students (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 11),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  )
+
+# Bar Plot
+ggplot(df_sum_gov_2023, aes(x = reorder(ReportedInstitute, female_percentage), y = female_percentage, fill = female_sub_category_2023)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # Flip coordinates to make it horizontal
+  labs(
+    title = "Female Percentage by Institute for 2023",
+    x = "Institute",
+    y = "Female Percentage",
+    fill = "Female Percentage Category"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+
+# Bar Plot
+df_count_2023 <- df_2023 %>%
+  group_by(female_sub_category_2023) %>%
+  summarise(count = n(), .groups = 'drop')
+ggplot(df_count_2023, aes(x = female_sub_category_2023, y=count )) +
+  geom_bar(stat="identity", fill="skyblue",  color = "black") +
+  labs(title = "Distribution of Gov. ITIs by Female Percentage Category for 2023", x = "Female Percentage", y = "Number of ITIs", fill="Female Percentage Category") +
+  ylim(0,35) +
+  theme_minimal(base_size = 13) +  # Base text size
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),  # Center title, bold, and larger
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotate x-axis labels
+    plot.caption = element_text(size = 10)  # Increase bottom margin
+  ) +
+  geom_text(aes(label = count), vjust = -0.5, size = 4)  # Add text labels on top of bars
+
+  
+
+ggplot(data=df_summary_gov, aes(x=Year, y=female_percentage, group = ReportedInstitute, 
+                                            colour = female_category_2023)) + 
+  geom_line() +
+  labs(y= "Female (%)", x = "Year") + 
+  ggtitle("Percentage of Female Over Years in Top Institutes") + 
+  geom_point()
+ 
+
+
+
+
+```
+
+
+
+# Female Percentage in Top 5 Institutes (in 2023) over time
+```{r}
+
+# Step 1: Filter for government institutes
+df_ITI_gov <- df_ITI %>%
+  filter(TypeofInstitute == "Govt.")
+
+# Step 2: Summarize the data (total students, female students, and female percentage) over time
+df_summary_gov <- df_ITI_gov %>%
+  filter(Year != "2024") %>%
+  group_by(ReportedInstitute, Year) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_percentage = (female_students / total_students) * 100,
+    .groups = 'drop'
+  )
+
+# Step 3: Select the top 5 government institutes in 2023
+top_5_institutes_2023 <- df_summary_gov %>%
+  filter(Year == 2023) %>%
+  slice_max(total_students, n = 5) %>%
+  pull(ReportedInstitute)  # Extract the names of the top 5 institutes in 2023
+
+# Step 4: Filter the original summary for only the top 5 institutes (over time)
+df_top_5_summary <- df_summary_gov %>%
+  filter(ReportedInstitute %in% top_5_institutes_2023)
+
+ggplot(data=df_top_5_summary, aes(x=Year, y=female_percentage, group = ReportedInstitute, 
+                                            colour = ReportedInstitute)) + 
+  geom_line() +
+  labs(y= "Female (%)", x = "Year") + 
+  ggtitle("Percentage of Female Over Years in Top Gov ITIs") + 
+  geom_point()
+ 
+
+
+
+
+```
+
+
+
+# Core Trades (identified by ChatGPT)
+```{r}
+# print list of trades in ITI
+unique(df_ITI$ReportedBranchORTrade)
+
+# "Core trades" identified by ChatGPT
+core_trades <- c(
+  "Electrician (NSQF)",
+  "Fitter (NSQF)",
+  "Mechanic (Motor Vehicle) (NSQF)",
+  "Welder (NSQF)",
+  "Electronics Mechanic (NSQF)",
+  "Mechanic Diesel (NSQF)",
+  "Turner (NSQF)",
+  "Machinist (NSQF)",
+  "Refrigeration & Air Conditioning Technician(NSQF)",
+  "Information Technology(NSQF)"
+)
+
+filtered_data <- df_ITI %>%
+  filter(ReportedBranchORTrade %in% core_trades)
+
+# Calculate gender ratio by year and trade
+gender_ratio <- filtered_data %>%
+  group_by(Year, ReportedBranchORTrade, Gender) %>%
+  summarise(Count = n()) %>%
+  spread(key = Gender, value = Count, fill = 0) %>%
+  mutate(Total = Male + Female, PercentFemale = (Female / Total) * 100)
+
+
+# Create the sophisticated plot
+ggplot(gender_ratio, aes(x = Year, y = PercentFemale, colour = ReportedBranchORTrade, group = ReportedBranchORTrade)) +
+  geom_line() +
+  geom_point(size = 1, shape = 21, fill = "white") +
+  labs(
+    title = "Percentage of Female Over Time by Core Trades",
+    subtitle = "Gender distribution in core trades in Odisha ITIs (Female %)",
+    x = "Year",
+    y = "Female (%)",
+    color = "Trade",
+    linetype = "Trade"
+  ) 
+
+```
+
+
+# Top Trades by various dimensions 
+```{r}
+
+gender_ratio <- df_ITI %>%
+  group_by(Year, ReportedBranchORTrade, Gender) %>%
+  summarise(Count = n()) %>%
+  spread(key = Gender, value = Count, fill = 0) %>%
+  mutate(Total = Male + Female, PercentFemale = (Female / Total) * 100) # Calculate ratio as Female Share (%)
+view(gender_ratio)
+
+gender_ratio_excl_2024 = gender_ratio %>% filter(Year != "2024")
+view(gender_ratio_excl_2024)
+
+
+```
+
+# ITI Berhampur 
+```{r}
+df_ITI_Berhampur = df_ITI %>% filter(ReportedInstitute == "ITI Berhampur, Ganjam")
+
+# Student Composition (M vs F) over time
+gender_ITI_Berhampur = df_ITI_Berhampur %>% 
+  group_by(Year,Gender) %>%
+  summarise(Count = n()) %>%
+  spread(key = Gender,value = Count, fill = 0) %>%
+  mutate(Total = Male + Female, PercentFemale = (Female / Total) * 100)
+view(gender_ITI_Berhampur)
+# Trade composition - Most popular and unpopular among female 
+
+# 
+
+
+```
+
+
+# Replicating DTET & SCTEVT Dashboard
+
+```{r}
+# install and load packages 
+install.packages("pivottabler")
+install.packages("openxlsx") # For exporting to Excel
+
+library(pivottabler)
+library(openxlsx)
+
+
+## Intake by ITI - Total
+pt <- PivotTable$new()
+pt$addData(df_ITI)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+iti_students <- as.data.frame(pt$asDataFrame())
+
+## Intake by ITI - Gov
+pt <- PivotTable$new()
+pt$addData(df_ITI_gov)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+iti_students_gov <- as.data.frame(pt$asDataFrame())
+
+## Intake by ITI - Pvt
+pt <- PivotTable$new()
+pt$addData(df_ITI_pvt)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+iti_students_pvt <- as.data.frame(pt$asDataFrame())
+
+
+## Intake by Diploma - Total
+pt <- PivotTable$new()
+pt$addData(df_Diploma)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+diploma_students <- as.data.frame(pt$asDataFrame(includeHeaderValues=TRUE))
+
+## Intake by Diploma - Gov
+df_Diploma_gov = df_Diploma %>% filter(TypeofInstitute == "Govt.")
+pt <- PivotTable$new()
+pt$addData(df_Diploma_gov)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+diploma_students_gov <- as.data.frame(pt$asDataFrame())
+
+## Intake by Diploma - Pvt
+df_Diploma_pvt = df_Diploma %>% filter(TypeofInstitute == "Pvt.")
+pt <- PivotTable$new()
+pt$addData(df_Diploma_pvt)
+pt$addColumnDataGroups("Gender")  # Column by 
+pt$addRowDataGroups("Year",addTotal=FALSE)    # Row by 
+# Define calculation for the total count (absolute count)
+pt$defineCalculation(calculationName = "TotalStudents", 
+                     caption = "Student Count", 
+                     summariseExpression = "n()")
+
+
+# Render the pivot table
+pt$renderPivot()
+# Convert it to a df
+year_data <- as.character(unlist(pt$getDistinctRowGroups()))
+
+
+diploma_students_pvt <- pt$asDataFrame()
+
+# Combine row headers with pivot data
+diploma_students_pvt <- cbind(Year=year_data, diploma_students_pvt)
+
+
+# Export Student count to excel file
+student_wb = createWorkbook()
+addWorksheet(student_wb, "ITI - Total")
+writeData(student_wb, "ITI - Total", iti_students)
+
+addWorksheet(student_wb, "ITI - Gov")
+writeData(student_wb, "ITI - Gov", iti_students_gov)
+
+addWorksheet(student_wb, "ITI - Pvt")
+writeData(student_wb, "ITI - Pvt", iti_students_pvt)
+
+addWorksheet(student_wb, "Polytechnic - Total")
+writeData(student_wb, "Polytechnic - Total", diploma_students)
+
+addWorksheet(student_wb, "Polytechnic - Gov")
+writeData(student_wb, "Polytechnic - Gov", diploma_students_gov)
+
+addWorksheet(student_wb, "Polytechnic - Pvt")
+writeData(student_wb, "Polytechnic - Pvt", diploma_students_pvt)
+
+# Save the workbook to a file
+saveWorkbook(student_wb, file = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\Student Count.xlsx", overwrite = TRUE)
+
+
+
+student_count_ITI = df_ITI %>%
+  group_by(Year) %>%
+  summarise(
+    Student_count = n()) %>%
+  arrange(Year)
+view(student_count_ITI)
+
+student_count_PDIS = df_PDIS %>%
+  group_by(Year) %>%
+  summarise(
+    Student_count = n()) %>%
+  arrange(Year)
+view(student_count_PDIS)
+
+
+df_ITI
+
+# Intake by District
+
+
+# Intake by Type 
+
+
+# Intake by Branch
+
+# Institute Count 
+count_ITI = df_ITI %>%
+  group_by(Year) %>%
+  summarise(
+    total_institutes = n_distinct(ReportedInstitute),
+    gov_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Govt."]),
+    pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
+  ) %>%
+  arrange(Year)
+view(count_ITI)
+
+count_Poly = df_Diploma %>%
+  group_by(Year) %>%
+  summarise(
+    total_institutes = n_distinct(ReportedInstitute),
+    gov_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Govt."]),
+    pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
+  ) %>%
+  arrange(Year)
+view(count_Poly)
+
+count_PDIS = df_PDIS %>%
+  group_by(Year) %>%
+  summarise(
+    total_institutes = n_distinct(ReportedInstitute),
+    gov_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Govt."]),
+    pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
+  ) %>%
+  arrange(Year)
+view(count_PDIS)
+
+
+# Export institute count to an excel file
+count_wb = createWorkbook()
+addWorksheet(count_wb, "ITI")
+writeData(count_wb, "ITI", count_ITI)
+
+addWorksheet(count_wb, "Polytechnic")
+writeData(count_wb, "Polytechnic", count_Poly)
+
+addWorksheet(count_wb, "PDIS")
+writeData(count_wb, "PDIS", count_PDIS)
+
+# Save the workbook to a file
+saveWorkbook(count_wb, file = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\Institute Count.xlsx", overwrite = TRUE)
+
+
+```
+# Pre-post plot for ITIs
+```{r}
+# Step 1: Calculate female share per institute per year
+ITI_female_share <- df_ITI %>%
+  group_by(Year, ReportedInstitute, TypeofInstitute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_share = female_students / total_students * 100
+  )
+
+# Step 2: Prepare data for difference-in-difference type analysis
+# Define the treatment group (Govt.) and control group (Pvt.)
+#did_data <- Dip_female_share %>%
+#  mutate(
+#    post_2023 = ifelse(Year >= 2023, 1, 0),  # Indicator for post-intervention period
+#    treatment = ifelse(TypeofInstitute == "Govt.", 1, 0)  # Treatment group (Govt.)
+#  )
+
+# Calculate the aggregate female share per year for Govt. and Pvt. institutes
+#Dip_mean_female_share <- df_Diploma %>%
+#  group_by(Year, TypeofInstitute) %>%
+#  summarise(
+#    total_students = n(),
+#    female_students = sum(Gender == "Female"),
+#    aggr_female_share = female_students / total_students * 100
+#  )
+
+# Calculate mean female share of students 
+Dip_mean_female_share <- ITI_female_share %>%
+  group_by(Year, TypeofInstitute) %>%
+  summarise(
+    mean_female_share = mean(female_share)
+  )
+
+Dip_mean_female_share <- Dip_mean_female_share %>%
+  mutate(Year = as.numeric(Year))
+
+# Step 4: Combined plot
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_mean_female_share, aes(x = Year, y = mean_female_share, color = TypeofInstitute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_mean_female_share, aes(x = Year, y = mean_female_share, color = TypeofInstitute, group = TypeofInstitute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+#  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  # Labels and theme
+  ylim(0,40) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Mean Female Share (%) in Pvt. & Govt. ITIs",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+## Total female students
+ITI_total_female = ITI_female_share %>%
+  group_by(Year, TypeofInstitute) %>%
+  summarise(
+    total_female = sum(female_students)
+  ) %>%
+  mutate(Year = as.numeric(Year))
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = ITI_total_female, aes(x = Year, y = total_female, color = TypeofInstitute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = ITI_total_female, aes(x = Year, y = total_female, color = TypeofInstitute, group = TypeofInstitute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+#  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Labels and theme
+  ylim(0,8000) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Total Female Students in Pvt. & Govt. ITIs",
+    x = "Year",
+    y = "Female Students",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+## Visualizing ITI Data from NCVT (National Council for Vocational Education and Training)
+
+# Import the data 
+NCVT_ITI_Share <- read_excel("C:/Users/Admin/Downloads/Pre-2017 Gov. ITI Figures.xlsx", 
+    sheet = "NCVT MIS", skip = 1, n_max = 11)
+NCVT_ITI_Share = NCVT_ITI_Share %>%
+  rename(
+    Year = ...1,
+    Gov_ITIs = `Total ITIs (Affiliated)...2`,
+    Gov_students = `Total Students...3`,
+    Gov_female_students = `Female Students...4`,
+    Gov_female_share = `Female Share...5`,
+    Pvt_ITIs = `Total ITIs (Affiliated)...8`,
+    Pvt_students = `Total Students...9`,
+    Pvt_female_students = `Female Students...10`,
+    Pvt_female_share = `Female Share...11`,
+  )
+NCVT_ITI_Share = NCVT_ITI_Share %>%
+  mutate(Gov_female_share = Gov_female_share*100,
+         Pvt_female_share = Pvt_female_share*100)
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = NCVT_ITI_Share, aes(x = Year, y = Gov_female_share, color = "Govt."), 
+             size = 2, shape = 17) +  
+  geom_point(data = NCVT_ITI_Share, aes(x = Year, y = Pvt_female_share, color = "Pvt."), 
+             size = 2, shape = 17) +
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = NCVT_ITI_Share, aes(x = Year, y = Gov_female_share, color = "Govt."), size = 1) +
+  geom_line(data = NCVT_ITI_Share, aes(x = Year, y = Pvt_female_share, color = "Pvt."), size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2017, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Set color for Govt and Pvt and create a legend
+  scale_color_manual(values = c("Govt." = "#FF6F61", "Pvt." = "#00C8C8")) +  
+  
+  # Labels and theme
+  ylim(0, 40) +
+  scale_x_continuous(name = "Year",
+                     limits = c(2014, 2022),  # Set the x-axis range
+                     breaks = seq(2014, 2022, 1))  +
+  labs(
+    title = "Aggregate Female Share (%) in Pvt. & Govt. ITIs (NCVT)",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Institute Type"  # Legend label
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+    axis.ticks.y = element_line(size = 0.6, colour = "black"),
+    axis.ticks.length = unit(5, "pt")
+  )
+
+
+
+
+```
+
+
+# Pre-post plot for Polytechnics
+```{r}
+# Step 1: Calculate female share per institute per year
+Dip_female_share <- df_Diploma %>%
+  group_by(Year, ReportedInstitute, TypeofInstitute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    female_share = female_students / total_students * 100
+  )
+
+# Step 2: Prepare data for difference-in-difference type analysis
+# Define the treatment group (Govt.) and control group (Pvt.)
+did_data <- Dip_female_share %>%
+  mutate(
+    post_2023 = ifelse(Year >= 2023, 1, 0),  # Indicator for post-intervention period
+    treatment = ifelse(TypeofInstitute == "Govt.", 1, 0)  # Treatment group (Govt.)
+  )
+
+# Calculate the aggregate female share per year for Govt. and Pvt. institutes
+Dip_mean_female_share <- df_Diploma %>%
+  group_by(Year, TypeofInstitute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(Gender == "Female"),
+    aggr_female_share = female_students / total_students * 100
+  )
+
+# Calculate mean female share of students 
+Dip_mean_female_share <- did_data %>%
+  group_by(Year, TypeofInstitute) %>%
+  summarise(
+    mean_female_share = mean(female_share)
+  )
+
+Dip_mean_female_share <- Dip_mean_female_share %>%
+  mutate(Year = as.numeric(Year))
+
+# Step 4: Combined plot
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_mean_female_share, aes(x = Year, y = aggr_female_share, color = TypeofInstitute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_mean_female_share, aes(x = Year, y = aggr_female_share, color = TypeofInstitute, group = TypeofInstitute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Labels and theme
+  ylim(0,40) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Aggregate Female Share (%) in Pvt. & Govt. Polytechnics",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+## Total female students 
+
+Dip_total_female = Dip_female_share %>%
+  group_by(Year, TypeofInstitute) %>%
+  summarise(
+    total_female = sum(female_students)
+  ) %>%
+  mutate(Year = as.numeric(Year))
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_total_female, aes(x = Year, y = total_female, color = TypeofInstitute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_total_female, aes(x = Year, y = total_female, color = TypeofInstitute, group = TypeofInstitute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Labels and theme
+  ylim(0,6000) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1),
+    labels = seq(2018, 2024, 1)  # Labels for each year
+    )  +
+  labs(
+    title = "Total Female Students in Pvt. & Govt. Polytechnics",
+    x = "Year",
+    y = "Female Students",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+```
+
+
+# ITI Plots - Female Share for SC/ST share over time
+```{r}
+
+
+
+
+
+
+```
+
+
+# Maps
+
+```{r}
+
+```
+
+
+# Reference Code for Map
+```{r}
+# Install necessary packages if not already installed
+# install.packages(c("sf", "tidyverse", "tmap"))
+
+
+library(sf)
+library(tmap)
+
+# Step 1: Load the shapefile of Odisha districts
+# Replace with the actual path to your shapefile
+odisha_districts <- st_read("C:/Users/Admin/Downloads/odisha.kml")
+
+# Step 3: Count the number of ITIs in each district
+iti_count <- iti_list_2024_25 %>%
+  group_by(District_Name) %>%
+  summarise(num_itis = n())
+
+iti_count = iti_count %>% mutate(District_Name = toupper(District_Name))
+
+iti_count <- iti_count %>%
+  mutate(District_Name = case_when(
+    District_Name == "ANGUL" ~ "ANUGUL",
+    District_Name == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    District_Name == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    District_Name == "JAJPUR" ~ "JAJAPUR",
+    District_Name == "KENDRAPARA" ~ "KENDRAPARHA",
+    District_Name == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    District_Name == "KHURDA" ~ "KHORDHA",
+    District_Name == "NAWARANGPUR" ~"NABARANGAPUR",
+    District_Name == "NUAPADA" ~"NUAPARHA",
+    District_Name == "RAYAGADA" ~"RAYAGARHA",
+    District_Name == "SONEPUR" ~"SUBARNAPUR",
+    District_Name == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ District_Name  # Keep other district names unchanged
+  ))
+
+
+# Step 4: Merge the ITI count data with the Odisha districts shapefile
+odisha_districts <- odisha_districts %>%
+  left_join(iti_count, by = c("Name" = "District_Name"))
+
+breaks = c(1,10,20,30,40,51)
+# Step 5: Visualize the map
+# Plotting with tmap
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("num_itis", 
+              title = "Number of ITIs", 
+              palette = "Blues", 
+              breaks = breaks,
+              n = 5) +
+  tm_layout(main.title = "Number of ITIs in Each District of Odisha",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+## For NVCT
+odisha_iti_seats_all$ITI.Count = as.numeric(odisha_iti_seats_all$ITI.Count)
+
+odisha_iti_seats_all = odisha_iti_seats_all %>% mutate(State.District = toupper(State.District))
+
+odisha_districts <- odisha_districts %>%
+  left_join(odisha_iti_seats_all, by = c("Name" = "State.District"))
+
+# change count of ITIs in SUBARNAPUR to 2 and trade.count to 7
+odisha_districts[28, "ITI.Count"] <- 2
+odisha_districts[28, "Trade.Count"] = 7
+
+odisha_districts = odisha_districts[-29,]
+odisha_districts$ITI.Count = as.numeric(odisha_districts$ITI.Count)
+
+odisha_iti_seats_all <- odisha_iti_seats_all %>%
+  mutate(State.District = case_when(
+    State.District == "BARGARH" ~ "BARAGARH",
+    State.District == "BALANGIR" ~ "BOLANGIR (BALANGIR)",
+    State.District == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    State.District == "JAGATSINGHAPUR" ~ "JAGATSINGHPUR",
+    State.District == "KENDRAPARA" ~ "KENDRAPARHA",
+    State.District == "KENDUJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    State.District == "KHORDHA" ~ "KHORDHA",
+    State.District == "NABARANGPUR" ~"NABARANGAPUR",
+    State.District == "NUAPADA" ~"NUAPARHA",
+    State.District == "RAYAGADA" ~"RAYAGARHA",
+    State.District == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ State.District  # Keep other district names unchanged
+  ))
+
+# Visualize NCVT figures
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("ITI.Count", 
+              title = "Number of ITIs", 
+              palette = "Blues", 
+              breaks = breaks,
+              n = 5) +
+  tm_layout(main.title = "Number of ITIs in Each District of Odisha",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+
+# Difference between SAMS and NCVT
+odisha_districts$diff_trade_count = odisha_districts$ITI.Count - odisha_districts$num_itis
+
+# Visualize the difference
+tmap_mode("plot")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("diff_trade_count", 
+              title = "Difference in ITIs", 
+              palette = "Blues", 
+              style = "quantile",
+              n = 5) +
+  tm_layout(main.title = "Difference in Number of ITIs SAMS and NCVT",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+# breaks for seat utilization
+breaks_utilization = c(68.0,80,85.0,90.0,95.0,100.0)
+
+# Visualize Seat utilization of "Previous Year" i.e. 2021
+tmap_mode("view")  # Change to "view" for interactive mode
+tm_shape(odisha_districts) +
+  tm_polygons("Seat.Utilization.Previous", 
+              title = "Seat Utilization (%)", 
+              palette = "Blues", 
+              breaks = breaks_utilization,
+              popup.vars = c("Seat Utilization Rate" = "Seat.Utilization.Previous"),
+              n = 5) +
+  tm_layout(main.title = "Seat Utilization Rate in ITIs",
+            main.title.size = 1.2) +
+  tm_borders(lwd = 3, col = "black")
+
+```
+
+
+
+
+
+
