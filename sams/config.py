@@ -15,6 +15,7 @@ DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
+PROCESSED_SAMS = PROCESSED_DATA_DIR / "sams"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
@@ -22,8 +23,11 @@ MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 
+# Data file names
+SAMS_DB = RAW_DATA_DIR / "sams.db"
+
 # Verify that all the directories exist
-for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR, LOGS, MISSING_VALUES]:
+for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROCESSED_SAMS,EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR, LOGS, MISSING_VALUES]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
