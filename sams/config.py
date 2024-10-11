@@ -49,10 +49,6 @@ INSTITUTE = {
    "Diploma":{"yearmin":2018,"yearmax":2024}
 }
 
-SOF = {
-    "tostring": {1:"Govt", 5:"Pvt",None:"N/A"},
-    "toint":{"Govt":1,"Pvt":5}
-}
 
 try:
     counts = json.load(open(os.path.join(LOGS, "total_records.json")))

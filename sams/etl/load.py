@@ -167,12 +167,6 @@ class SamsDataLoader:
         with tqdm(total=len(student_data), desc="Loading student data") as pbar:
             for data in student_data:
                 
-                # Check for nulls in variables within the uniqueness constraint of the table
-                nulls = check_null_values(data)
-                if nulls:
-                    logger.warning(f"Nulls in unique constraint for {data['Barcode']} - {data['module']} - {data['academic_year']}")
-                    continue
-                
                 # Try to add row to table
                 success = self._add_student(data)
                 if success:
@@ -201,7 +195,7 @@ class SamsDataLoader:
         finally:
             session.close()
 
-    def _add_student(self, data):
+    def _add_student(self, data: dict):
         """
         Adds the given student data to the database.
 
@@ -211,24 +205,30 @@ class SamsDataLoader:
         Returns:
             bool: True if student data was successfully added, False otherwise.
         """
-        success = True
-
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary")
+        
+        data = dict_camel_to_snake_case(data)
         session = self.Session()
+        success = False
         try:
             student = Student(**data)
             session.add(student)
             session.commit()
-
+            success = True
         except IntegrityError as e:
             session.rollback()
             if 'UNIQUE constraint failed' in str(e):
-                logger.warning(f"Skipping duplicate student: {data['Barcode']} - {data['module']} - {data['academic_year']}")
+                logger.warning(f"Skipping duplicate student: {data['barcode']} - {data['module']} - {data['academic_year']}")
             elif 'NOT NULL constraint failed' in str(e):
-                logger.warning(f"Skipping student: {data['Barcode']} - {data['module']} - {data['academic_year']} due to null value in {find_null_column(str(e))} ")
+                logger.warning(f"Skipping student: {data['barcode']} - {data['module']} - {data['academic_year']} due to null value in '{find_null_column(str(e))}' ")
+            else:
+                logger.error(f"Error adding student: {e}")
             success = False
         except Exception as e:
             if 'database is locked' in str(e):
                 time.sleep(1)
+                success = self._add_student(data)
             else:
                 session.rollback()
                 logger.error(f"Error adding student: {e}")

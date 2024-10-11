@@ -96,8 +96,8 @@ def correct_spelling(text: str):
     return text
 
 def find_null_column(text: str):
-    match = re.search(r'(students)|(institutes)\.(\w+)', text)
-    return match.group(1) if match else None
+    match = re.search(r'(students)\.(\w+)|(institutes)\.(\w+)', text)
+    return match.group().split('.')[1] if match else None
     
 def hours_since_creation(path: str):
     if os.path.exists(path):
@@ -105,5 +105,4 @@ def hours_since_creation(path: str):
     return float('inf')
 
 if __name__ == "__main__":
-    print(camel_to_snake_case("ReportedBranchORTrade"))
-    
+    pass

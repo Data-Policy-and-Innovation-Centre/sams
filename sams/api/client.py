@@ -3,7 +3,7 @@ import json
 from sams.api.auth import Auth
 from sams.api.endpoints import Endpoints
 from sams.api.exceptions import APIError
-from sams.config import USERNAME, PASSWORD, SOF
+from sams.config import USERNAME, PASSWORD
 from loguru import logger
 
 class SAMSClient:
