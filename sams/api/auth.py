@@ -1,6 +1,7 @@
 import requests
 import time
 from loguru import logger
+from sams.api.exceptions import APIError
 
 class Auth:
     def __init__(self, username, password):
@@ -41,15 +42,13 @@ class Auth:
         # Make a POST request to the getDPICtoken endpoint with the payload
         response = requests.post(url, json=payload)
 
-        # Check if the response status code is 200 (success)
+        # Check if the response status code is 200 and retrieve the token
         if response.status_code == 200:
-            # If successful, retrieve the token from the response JSON
             token = response.json().get("Token_No")
             self.token = token
             self.last_token_refresh = time.time()
         else:
-            # If unsuccessful, raise an exception
-            raise Exception("Authentication failed")
+            raise APIError("Authentication failed")
 
     def get_auth_header(self):
         """
@@ -64,7 +63,6 @@ class Auth:
         """
         # Check if the token has expired or if it has not been retrieved yet
         if not self.last_token_refresh or time.time() - self.last_token_refresh > 1800:
-            # If expired or not present, get a new token
             self.get_token()
         
         return {"Authorization": f"Bearer {self.token}"}
