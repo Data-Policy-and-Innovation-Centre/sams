@@ -9,10 +9,8 @@ This document provides a diagnostics of SAMS data - API access - CSM.
 
 # Import the .parquest datafile
 ```{r}
-library(rprojroot)
+source("paths.r")
 library(arrow)
-
-source(file.path(find_root("paths.R"),"paths.R"))
 
 
 # Replace 'your_file.parquet' with the path to your Parquet file
