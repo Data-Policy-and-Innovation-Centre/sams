@@ -6,16 +6,19 @@ from sams.etl.extract import SamsDataDownloader
 import sams.etl.extract as extr
 import importlib
 
+
 # Test suite for SamsDataDownloader# Test suite for SamsDataDownloader
 @pytest.fixture
 def mock_sams_client():
-    with patch('sams.api.client.SAMSClient') as MockSAMSClient:
+    with patch("sams.api.client.SAMSClient") as MockSAMSClient:
         mock_client = MockSAMSClient.return_value
         yield mock_client
+
 
 @pytest.fixture
 def data_downloader(mock_sams_client):
     return SamsDataDownloader(mock_sams_client)
+
 
 @pytest.fixture
 def mock_api_client():
@@ -25,51 +28,90 @@ def mock_api_client():
     return mock_client
 
 
-@pytest.mark.parametrize("year, module, expected_data", [
-        (2022, 'ITI', [{'id': 1, 'name': 'John Doe', 'module': 'ITI', 'year': 2022}]),
-        (2023, 'Diploma', [{'id': 2, 'name': 'Jane Smith', 'module': 'Diploma', 'year': 2023}]),
-        (2021, 'PDIS', [{'id': 3, 'name': 'Bob Johnson', 'module': 'PDIS', 'year': 2021}]),
-])
+@pytest.mark.parametrize(
+    "year, module, expected_data",
+    [
+        (2022, "ITI", [{"id": 1, "name": "John Doe", "module": "ITI", "year": 2022}]),
+        (
+            2023,
+            "Diploma",
+            [{"id": 2, "name": "Jane Smith", "module": "Diploma", "year": 2023}],
+        ),
+        (
+            2021,
+            "PDIS",
+            [{"id": 3, "name": "Bob Johnson", "module": "PDIS", "year": 2021}],
+        ),
+    ],
+)
 def test_fetch_students(data_downloader, mock_sams_client, year, module, expected_data):
-    mock_sams_client.get_student_data.side_effect = [1,expected_data,[]]
+    mock_sams_client.get_student_data.side_effect = [1, expected_data, []]
     result = data_downloader.fetch_students(module, year)
     assert isinstance(result, pd.DataFrame)
     assert len(result) == len(expected_data)
     for i, row in result.iterrows():
-        assert row['name'] == expected_data[i]['name']
-        assert row['module'] == expected_data[i]['module']
-        assert row['academic_year'] == expected_data[i]['year']
-        if 'source_of_fund' in expected_data[i]:
-            assert row['source_of_fund'] == expected_data[i]['source_of_fund']
+        assert row["name"] == expected_data[i]["name"]
+        assert row["module"] == expected_data[i]["module"]
+        assert row["academic_year"] == expected_data[i]["year"]
+        if "source_of_fund" in expected_data[i]:
+            assert row["source_of_fund"] == expected_data[i]["source_of_fund"]
 
 
-@pytest.mark.parametrize("module, year, admission_type, expected_data", [
-        ('ITI', 2022, None, [{'id': 1, 'name': 'ITI Institute', 'module': 'ITI', 'year': 2022}]),
-        ('Diploma', 2023, 1, [{'id': 2, 'name': 'Diploma College', 'module': 'Diploma', 'year': 2023, 'admission_type': 1}]),
-        ('PDIS', 2021, None, [{'id': 3, 'name': 'PDIS Center', 'module': 'PDIS', 'year': 2021}]),
-])
-def test_fetch_institutes(data_downloader, mock_sams_client, module, year, admission_type, expected_data):
-    mock_sams_client.get_institute_data.side_effect = [1,expected_data]
+@pytest.mark.parametrize(
+    "module, year, admission_type, expected_data",
+    [
+        (
+            "ITI",
+            2022,
+            None,
+            [{"id": 1, "name": "ITI Institute", "module": "ITI", "year": 2022}],
+        ),
+        (
+            "Diploma",
+            2023,
+            1,
+            [
+                {
+                    "id": 2,
+                    "name": "Diploma College",
+                    "module": "Diploma",
+                    "year": 2023,
+                    "admission_type": 1,
+                }
+            ],
+        ),
+        (
+            "PDIS",
+            2021,
+            None,
+            [{"id": 3, "name": "PDIS Center", "module": "PDIS", "year": 2021}],
+        ),
+    ],
+)
+def test_fetch_institutes(
+    data_downloader, mock_sams_client, module, year, admission_type, expected_data
+):
+    mock_sams_client.get_institute_data.side_effect = [1, expected_data]
     result = data_downloader.fetch_institutes(module, year, admission_type)
     assert isinstance(result, list)
     assert len(result) == len(expected_data)
     for i, item in enumerate(result):
-        assert item['name'] == expected_data[i]['name']
-        assert item['module'] == expected_data[i]['module']
-        assert item['academic_year'] == expected_data[i]['year']
-        if 'admission_type' in expected_data[i]:
-            assert item['admission_type'] == expected_data[i]['admission_type']
+        assert item["name"] == expected_data[i]["name"]
+        assert item["module"] == expected_data[i]["module"]
+        assert item["academic_year"] == expected_data[i]["year"]
+        if "admission_type" in expected_data[i]:
+            assert item["admission_type"] == expected_data[i]["admission_type"]
 
 
 def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
     # Mock the LOGS directory
-    monkeypatch.setattr('sams.config.LOGS', str(tmp_path))
-        
+    monkeypatch.setattr("sams.config.LOGS", str(tmp_path))
+
     # Mock the STUDENT and INSTITUTE dictionaries
-    mock_student = {'ITI': {'yearmin': 2020, 'yearmax': 2021}}
-    mock_institute = {'Diploma': {'yearmin': 2020, 'yearmax': 2021}}
-    monkeypatch.setattr('sams.config.STUDENT', mock_student)
-    monkeypatch.setattr('sams.config.INSTITUTE', mock_institute)
+    mock_student = {"ITI": {"yearmin": 2020, "yearmax": 2021}}
+    mock_institute = {"Diploma": {"yearmin": 2020, "yearmax": 2021}}
+    monkeypatch.setattr("sams.config.STUDENT", mock_student)
+    monkeypatch.setattr("sams.config.INSTITUTE", mock_institute)
 
     # Call the method
     importlib.reload(extr)
@@ -86,23 +128,24 @@ def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
 
     # Check the content of the students CSV
     assert len(students_df) == 2  # 2 years for ITI
-    assert all(students_df['count'] == 100)
-    assert all(students_df['module'] == 'ITI')
-    assert set(students_df['academic_year']) == {2020, 2021}
+    assert all(students_df["count"] == 100)
+    assert all(students_df["module"] == "ITI")
+    assert set(students_df["academic_year"]) == {2020, 2021}
 
     # Check the content of the institutes CSV
     assert len(institutes_df) == 4  # 2 years * 2 admission types for Diploma
-    assert all(institutes_df['count'] == 50)
-    assert all(institutes_df['module'] == 'Diploma')
-    assert set(institutes_df['academic_year']) == {2020, 2021}
-    assert set(institutes_df['admission_type']) == {1, 2}
+    assert all(institutes_df["count"] == 50)
+    assert all(institutes_df["module"] == "Diploma")
+    assert set(institutes_df["academic_year"]) == {2020, 2021}
+    assert set(institutes_df["admission_type"]) == {1, 2}
 
     # Check if the log file was created
     assert os.path.exists(os.path.join(tmp_path, "total_records.log"))
 
+
 # @pytest.mark.parametrize("table_name", ["students", "institutes"])
 # def test_update_total_records_api_error(table_name, monkeypatch):
-    
+
 #     # Mock the logger
 #     mock_logger = MagicMock()
 #     monkeypatch.setattr('extract.logger', mock_logger)
@@ -114,13 +157,9 @@ def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
 #     mock_client.get_institute_data.side_effect = Exception("API Error")
 #     downloader = extr.SamsDataDownloader(mock_client)
 
-    
 
 #     # Call the method
 #     downloader._update_total_records(pd.DataFrame(), {table_name: {'yearmin': 2020, 'yearmax': 2020}}, table_name)
 
 #     # Check if the error was logged
 #     mock_logger.error.assert_called_with(f"Data download failed for {table_name} 2020 after 3 retries. Skipping...")
-
-
-    
