@@ -17,12 +17,13 @@ INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 LOGS = PROJ_ROOT / "logs"
+MISSING_VALUES = LOGS / "missing_values"
 
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 
 # Verify that all the directories exist
-for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR]:
+for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR, LOGS, MISSING_VALUES]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
@@ -48,10 +49,6 @@ INSTITUTE = {
    "Diploma":{"yearmin":2018,"yearmax":2024}
 }
 
-SOF = {
-    "tostring": {1:"Govt", 5:"Pvt",None:"N/A"},
-    "toint":{"Govt":1,"Pvt":5}
-}
 
 try:
     counts = json.load(open(os.path.join(LOGS, "total_records.json")))

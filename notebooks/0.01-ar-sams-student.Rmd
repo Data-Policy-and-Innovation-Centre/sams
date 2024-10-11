@@ -9,11 +9,14 @@ This document provides a diagnostics of SAMS data - API access - CSM.
 
 # Import the .parquest datafile
 ```{r}
-install.packages("arrow")
+library(rprojroot)
 library(arrow)
 
+source(file.path(find_root("paths.R"),"paths.R"))
+
+
 # Replace 'your_file.parquet' with the path to your Parquet file
-df <- read_parquet("C:/Users/Admin/Box/Amitav/Skills/student_data.parquet")
+df <- read_parquet(file.path(raw_data,"student_data.parquet"))
 
 ```
 
