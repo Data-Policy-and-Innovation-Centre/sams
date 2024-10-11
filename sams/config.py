@@ -55,18 +55,6 @@ INSTITUTE = {
 
 
 try:
-    counts = json.load(open(os.path.join(LOGS, "total_records.json")))
-except FileNotFoundError as f:
-    counts = {
-        'students':677000,
-        'institutes':18000
-    }
-
-NUM_TOTAL_STUDENT_RECORDS = counts['students']
-
-NUM_TOTAL_INSTITUTE_RECORDS = counts['institutes']
-
-try:
     from tqdm import tqdm
 
     # Remove all handlers

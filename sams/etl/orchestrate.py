@@ -3,7 +3,7 @@ from loguru import logger
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.load import SamsDataLoader
 from sams.etl.validate import validate
-from sams.config import RAW_DATA_DIR, STUDENT, LOGS, INSTITUTE, SAMS_DB
+from sams.config import STUDENT, LOGS, INSTITUTE, SAMS_DB
 
 class SAMSDataOrchestrator:
     def __init__(self, db_url=f"sqlite:///{SAMS_DB}"):
