@@ -10,7 +10,8 @@ PYTHON_INTERPRETER = python
 ENV_FILE = environment.yml
 PROJECT_ROOT := $(shell pwd)
 PACKAGE_PATH := $(PROJECT_ROOT)/sams
-SCRIPTS_PATH := $(PROJECT_ROOT)/scripts/
+SCRIPTS_PATH := $(PROJECT_ROOT)/scripts
+BUILD_SAMS_SCRIPT := $(SCRIPTS_PATH)/build_sams_db.py
 export PYTHONPATH := $(PROJECT_ROOT):$(PYTHONPATH)
 
 #################################################################################
@@ -41,10 +42,10 @@ clean:
 	find . -type f -name '*.db' -exec rm -f {} +
 	find . -type f -name '*.db-journal' -exec rm -f {} +
 
-# Build dataset
-dataset:
-	@echo "Running build_datasets.py with PYTHONPATH=$(PYTHONPATH)"
-	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)build_dataset.py
+# Build raw sams database
+sams_db:
+	@echo "Running build_sams_db.py with PYTHONPATH=$(PYTHONPATH)"
+	$(PYTHON_INTERPRETER) $(BUILD_SAMS_SCRIPT)
 
 # Tests
 tests:
