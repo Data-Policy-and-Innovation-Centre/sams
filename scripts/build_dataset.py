@@ -14,8 +14,8 @@ if max(hours_since_creation(Path(LOGS / "students_count.csv")), hours_since_crea
     logger.info("Total records file out of date (if it exists), updating total records...")
     downloader.update_total_records()
 
-orchestrator = SAMSDataOrchestrator(db_url=f"sqlite:///{RAW_DATA_DIR}/sams-temp.db")
+orchestrator = SAMSDataOrchestrator(db_url=f"sqlite:///{RAW_DATA_DIR}/sams.db")
 
 # Download student data
-excluded_modules = get_existing_modules("students", db_path=f"{RAW_DATA_DIR}/sams-temp.db")
-orchestrator.process_data("students",exclude=excluded_modules, bulk_add=True)
+excluded_modules = get_existing_modules("students", db_path=f"{RAW_DATA_DIR}/sams.db")
+orchestrator.process_data("students",exclude=excluded_modules, bulk_add=False)
