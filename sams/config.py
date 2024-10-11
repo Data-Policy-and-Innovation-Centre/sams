@@ -27,7 +27,18 @@ FIGURES_DIR = OUTPUT_DIR / "figures"
 SAMS_DB = RAW_DATA_DIR / "sams.db"
 
 # Verify that all the directories exist
-for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROCESSED_SAMS,EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR, LOGS, MISSING_VALUES]:
+for path in [
+    DATA_DIR,
+    RAW_DATA_DIR,
+    INTERIM_DATA_DIR,
+    PROCESSED_DATA_DIR,
+    PROCESSED_SAMS,
+    EXTERNAL_DATA_DIR,
+    OUTPUT_DIR,
+    FIGURES_DIR,
+    LOGS,
+    MISSING_VALUES,
+]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
@@ -41,16 +52,16 @@ ERRMAX = 3
 
 # Metadata
 STUDENT = {
-   "PDIS":{"yearmin":2020,"yearmax":2024},
-   "ITI":{"yearmin":2017,"yearmax":2024},
-   "Diploma":{"yearmin":2018,"yearmax":2024}
+    "PDIS": {"yearmin": 2020, "yearmax": 2024},
+    "ITI": {"yearmin": 2017, "yearmax": 2024},
+    "Diploma": {"yearmin": 2018, "yearmax": 2024},
 }
 
 
 INSTITUTE = {
-   "PDIS":{"yearmin":2020,"yearmax":2024},
-   "ITI":{"yearmin":2017,"yearmax":2024},
-   "Diploma":{"yearmin":2018,"yearmax":2024}
+    "PDIS": {"yearmin": 2020, "yearmax": 2024},
+    "ITI": {"yearmin": 2017, "yearmax": 2024},
+    "Diploma": {"yearmin": 2018, "yearmax": 2024},
 }
 
 

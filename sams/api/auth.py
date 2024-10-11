@@ -3,6 +3,7 @@ import time
 from loguru import logger
 from sams.api.exceptions import APIError
 
+
 class Auth:
     def __init__(self, username, password):
         """
@@ -34,10 +35,7 @@ class Auth:
         url = "https://api.samsodisha.gov.in/api/getDPICtoken"
 
         # Set the payload containing the username and password
-        payload = {
-            "username": self.username,
-            "password": self.password
-        }
+        payload = {"username": self.username, "password": self.password}
 
         # Make a POST request to the getDPICtoken endpoint with the payload
         response = requests.post(url, json=payload)
@@ -64,5 +62,5 @@ class Auth:
         # Check if the token has expired or if it has not been retrieved yet
         if not self.last_token_refresh or time.time() - self.last_token_refresh > 1800:
             self.get_token()
-        
+
         return {"Authorization": f"Bearer {self.token}"}
