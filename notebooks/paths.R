@@ -1,18 +1,22 @@
 packages <- c("tidyverse","RSQLite","rprojroot","knitr",
-              "kableExtra","here","rmarkdown")
+              "kableExtra","here","rmarkdown","prettydoc","ggsankey")
 
 # Loop through the package names and install if not already installed
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     install.packages(pkg)
   }
 }
+rm(pkg)
 
 
 library(here)
 
+
 # Load paths
-root <- dirname(dirname(here::here("paths.R")))
+here::i_am("README.md")
+root <- here()
 data <- file.path(root,"data")
 raw_data <- file.path(data,"raw")
 
