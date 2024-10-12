@@ -4,7 +4,38 @@ output: html_document
 date: "2024-10-09"
 ---
 
-```{r setup, include=FALSE}
+```{r}
+install.packages("DBI")
+install.packages("RSQLite")
 
 ```
 
+# Load the libraries
+
+```{r}
+library(RSQLite)
+library(DBI)
+```
+
+# Import db file
+
+```{r}
+# Connect to the SQLite database
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# List available tables in the database
+tables <- dbListTables(con)
+print(tables)
+
+# Send the SQL query for one year and one module
+result <- dbSendQuery(con, "SELECT * FROM student_data WHERE year = '2023' AND module = 'Module_1';")
+
+# Fetch the data
+data <- dbFetch(result)
+print(data)
+
+# Clear the result and disconnect
+dbClearResult(result)
+dbDisconnect(con)
+
+```
