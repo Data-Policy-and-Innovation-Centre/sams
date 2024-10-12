@@ -28,14 +28,83 @@ tables <- dbListTables(con)
 print(tables)
 
 # Send the SQL query for one year and one module
-result <- dbSendQuery(con, "SELECT * FROM student_data WHERE year = '2023' AND module = 'Module_1';")
+result <- dbSendQuery(con, "SELECT * FROM students WHERE year = '2023' AND module = 'ITI';")
 
 # Fetch the data
 data <- dbFetch(result)
-print(data)
+view(data)
+remove(data)
 
 # Clear the result and disconnect
 dbClearResult(result)
 dbDisconnect(con)
 
 ```
+# Application - Enrollment 
+
+```{r}
+# Check for disrepencies in applied_status and admission and enrollment
+table(student_data_iti$admission_status,student_data_iti$enrollment_status)
+
+# Applied_status and Admission_status Matrix
+table(student_data_iti$applied_status, student_data_iti$admission_status)
+# Above - (Yes,Yes) means applied and accepted. (Yes,No) means applied and rejected. (No,No) means did not apply so rejected. (No,Yes) is a puzzle. How can one not apply and get in? 
+
+
+```
+There is four columns with information on application and enrollment: 
+application_status: Accepted/Pending 
+applied_status: Yes/No
+enrollment_status: Yes/No
+admission_status: Yes/No
+
+enrollment_status and admission_status are the same.
+application_status and applied_status are equivalent (Accepted = Yes; Pending = No)
+
+No in applied status probably means those who were not able to complete applying or did not pay the fees. (Confirm with CSM once) 
+
+To calculate the count who did not get admission - Yes in applied status; No in enrollment_status
+It is not sure among those who did not get admission whether they were rejected or did not accept. 
+
+A categorical dummy can be made indicate rejected applicants and accepted applicants. 
+After that, a comparison between the two groups can be done based on various variables. 
+
+Y - keep the data where the SAMSCode is there. 
+Multiple Applications (Check). 
+1st graph - The number of people applying. these are the number of people going
+
+
+## ITI Student Data from 2017 to 2023 
+```{r}
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_iti <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+
+
+## Check the admission count each year
+student_iti_admis = student_data_iti[!is.na(student_data_iti$sams_code),]
+table(student_iti_admis$year)
+
+student_iti_admis = student_data_iti %>%
+  filter(admission_status == "Yes")
+table(student_iti_admis$year)
+
+## Applicants not selected
+
+# Create a dummy for rejected, rejected = 0, accepted = 1. Neither = NA
+
+
+
+```
+
+
