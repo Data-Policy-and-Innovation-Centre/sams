@@ -18,7 +18,6 @@ PROCESSED_SAMS = PROCESSED_DATA_DIR / "sams"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
-
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 
