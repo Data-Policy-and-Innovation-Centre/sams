@@ -2,17 +2,11 @@ from sams.api.client import SAMSClient
 from sams.api.exceptions import APIError
 from requests import HTTPError, ConnectionError
 import os
-from pathlib import Path
-import json
-from collections import Counter
 from loguru import logger
-from sams.config import ERRMAX, STUDENT, RAW_DATA_DIR, \
-INSTITUTE, SOF, LOGS, NUM_TOTAL_STUDENT_RECORDS, NUM_TOTAL_INSTITUTE_RECORDS
-from sams.util import is_valid_date
-from tqdm import tqdm
-import polars as pl
+from sams.config import ERRMAX, STUDENT, \
+INSTITUTE, LOGS
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 class SamsDataDownloader:
     def __init__(self, client=None):
@@ -20,7 +14,6 @@ class SamsDataDownloader:
             self.api_client = SAMSClient()
         else:
             self.api_client = client
-        self.executor = ThreadPoolExecutor(max_workers=10)
 
     def fetch_students(self, module: str, academic_year: int, pandify = True) -> pd.DataFrame | list:
 
@@ -224,106 +217,7 @@ class SamsDataDownloader:
 
         return academic_year   
     
-    def download_all_student_data(self, save: bool = False) -> pl.DataFrame:
-        """
-        Downloads student data from SAMS API for all modules and years.
-
-        Returns:
-            pl.DataFrame: A polars dataframe, where each row represents a student.
-        """
-        # Remove all existing log handlers
-        for handler_id in list(logger._core.handlers.keys()):
-            logger.remove(handler_id)
-        
-        # Add a new log handler for downloading student data
-        log_file_id = logger.add(
-            os.path.join(LOGS, "student_data_download.log"), mode='w',
-            format="{time} {level} {message}", level="INFO"
-        )
-
-        student_data = []
-        futures = []
-        
-        # Progress bar for downloading student data
-        with tqdm(total=NUM_TOTAL_STUDENT_RECORDS, desc="Downloading student data") as pbar:
-            for module, metadata in STUDENT.items():
-                for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
-                    if module == "PDIS":
-                        future = self.executor.submit(self.fetch_students, year, module)
-                        futures.append(future)
-                    else:
-                        future_govt = self.executor.submit(self.fetch_students, year, module, 1)
-                        future_pvt = self.executor.submit(self.fetch_students, year, module, 5)
-                        futures.extend([future_govt, future_pvt])
-                    
-
-            for future in as_completed(futures):
-                data = future.result()
-
-                # Add only if data is not empty
-                if data.shape[0] > 0:
-                    student_data.append(data)
-                pbar.update(len(data))
-
-        # Convert to polars
-        student_data = pl.concat([pl.from_pandas(df) for df in student_data])
-
-        # Remove the log handler for downloading student data
-        logger.remove(log_file_id)
-
-        # Add a new log handler for validation
-        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
-
-        if save:
-            student_data.write_parquet(os.path.join(RAW_DATA_DIR, "student_data.parquet"))
-
-        return student_data
-
-    def download_all_institute_data(self) -> list:
-        """
-        Downloads institute data from SAMS API for all modules and years.
-
-        Returns:
-            list: A list of dictionaries, where each dictionary represents an institute.
-        """
-        # Remove all existing log handlers
-        for handler_id in list(logger._core.handlers.keys()):
-            logger.remove(handler_id)
-        
-        # Add a new log handler for downloading institute data
-        log_file_id = logger.add(
-            os.path.join(LOGS, "institute_data_download.log"), mode='w',
-            format="{time} {level} {message}", level="INFO"
-        )
-
-        institute_data = []
-        futures = []
-        
-        # Progress bar for downloading institute data
-        with tqdm(total=NUM_TOTAL_INSTITUTE_RECORDS, desc="Downloading institute data") as pbar:
-            for module, metadata in INSTITUTE.items():
-                for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
-                    if module == "Diploma":
-                        future_fresh = self.executor.submit(self.fetch_institutes, module, year, 1)
-                        future_lateral = self.executor.submit(self.fetch_institutes, module, year, 2)
-                        futures.extend([future_fresh, future_lateral])
-                    else:
-                        future = self.executor.submit(self.fetch_institutes, module, year)
-                        futures.append(future)
-
-            for future in as_completed(futures):
-                data = future.result()
-                institute_data.extend(data)
-                pbar.update(len(data))
-
-        # Remove the log handler for downloading institute data
-        logger.remove(log_file_id)
-
-        # Add a new log handler for validation
-        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
-
-        return institute_data
-
+    
     def update_total_records(self) -> None:
         """
         Updates the total number of student and institute records by downloading them from SAMS API.
@@ -360,7 +254,7 @@ class SamsDataDownloader:
         student_counter = self._update_total_records(student_counter, STUDENT, table_name="students")
 
         # Institutes
-        institute_counter = self._update_total_records(student_counter, INSTITUTE, table_name="institutes")
+        institute_counter = self._update_total_records(institute_counter, INSTITUTE, table_name="institutes")
         
         # Dump counts in json file
         student_counter.to_csv(os.path.join(LOGS, "students_count.csv"), index=False)
@@ -368,6 +262,8 @@ class SamsDataDownloader:
 
         # Close the log handler
         logger.remove(log_file_id)
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+        logger.info("Total records updated.")
 
     def _update_total_records(self, counter: pd.DataFrame, metadict: dict, table_name: str) -> pd.DataFrame:
 
@@ -408,25 +304,7 @@ def main():
     """
     Main function that downloads student data from the SAMS API and saves it to an Excel file.
     """ 
-    # Check if the API authentication file exists
-
-    # Create a SamsDataDownloader instance
-    downloader = SamsDataDownloader()
-    student_data = downloader.fetch_students("PDIS",2017,pandify=False)
-    for student in student_data:
-        print(student['SAMSCode'])  
-    # institude_data = downloader.download_all_institute_data()
-
-    # Write to parquet file
-    #student_data.write_parquet(os.path.join(RAW_DATA_DIR,'student_data.parquet'))
-
-    # # Write to json file
-    # with open(os.path.join(RAW_DATA_DIR,'institute_data.json'), 'w', encoding='utf-8') as f:
-    #     json.dump(institude_data, f, ensure_ascii=False, indent=4)
-    
-    
-    
-    #downloader.download_all_student_data(save=True)
+    pass
     
 
 

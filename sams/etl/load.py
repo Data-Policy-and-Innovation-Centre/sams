@@ -7,8 +7,8 @@ from tqdm import tqdm
 import time
 from loguru import logger
 from sams.config import ERRMAX, RAW_DATA_DIR
-from sams.etl.extract import SamsDataDownloader
 from sams.etl.validate import check_null_values
+from sams.util import dict_camel_to_snake_case, find_null_column
 
 Base = declarative_base()
 
@@ -167,18 +167,35 @@ class SamsDataLoader:
         with tqdm(total=len(student_data), desc="Loading student data") as pbar:
             for data in student_data:
                 
-                # Check for nulls in variables within the uniqueness constraint of the table
-                nulls = check_null_values(data)
-                if nulls:
-                    logger.warning(f"Nulls in unique constraint for {data['Barcode']} - {data['module']} - {data['academic_year']}")
-                    continue
-                
                 # Try to add row to table
                 success = self._add_student(data)
                 if success:
                     pbar.update(1)
 
-    def _add_student(self, data):
+    def bulk_add_students(self, student_data):
+        """
+        Adds the given student data to the database in bulk.
+
+        Args:
+            student_data (list): List of dictionaries containing student data.
+
+        Returns:
+            None
+        """
+        session = self.Session()
+
+        student_data = [dict_camel_to_snake_case(student) for student in student_data]
+
+        try:
+            session.bulk_save_objects([Student(**data) for data in student_data])
+            session.commit()
+        except (OperationalError, IntegrityError, DatabaseError) as e:
+            logger.error(f"Error while adding student data in bulk - {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def _add_student(self, data: dict):
         """
         Adds the given student data to the database.
 
@@ -188,77 +205,30 @@ class SamsDataLoader:
         Returns:
             bool: True if student data was successfully added, False otherwise.
         """
-        success = True
-
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary")
+        
+        data = dict_camel_to_snake_case(data)
         session = self.Session()
+        success = False
         try:
-            student = Student(
-                barcode=data['Barcode'],
-                student_name=data['StudentName'],
-                gender=data['Gender'],
-                dob=data['DOB'],
-                nationality=data['Nationality'],
-                annual_income=data['AnnualIncome'],
-                address=data['Address'],
-                state=data['State'],
-                district=data['District'],
-                block=data['Block'],
-                pin_code=data['PINCode'],
-                social_category=data['SocialCategory'],             
-                religion_name=data['ReligionName'],
-                domicile=data['Domicile'],
-                s_domicile_category=data['S_DomicileCategory'],
-                outside_odisha_applicant_state_name=data['OutsideOdishaApplicantStateName'],
-                odia_applicant_living_outside_odisha_state_name=data['OdiaApplicantLivingOutsideOdishaStateName'],
-                residence_barcode_number=data['ResidenceBarcodeNumber'],
-                tenth_exam_school_address=data['TengthExamSchoolAddress'],
-                eighth_exam_school_address=data['EighthExamSchoolAddress'],
-                highest_qualification=data['HighestQualification'],
-                had_two_year_full_time_work_exp_after_tenth=data['hadTwoYearFullTimeWorkExpAfterTength'],
-                gc=data['GC'],
-                ph=data['PH'],
-                es=data['ES'],
-                sports=data['Sports'],
-                national_cadet_corps=data['NationalCadetCorps'],
-                pm_care=data['PMCare'],
-                orphan=data['Orphan'],
-                income_barcode=data['IncomeBarcode'],
-                tfw=data['TFW'],
-                ews=data['EWS'],
-                boc=data['BOC'],
-                boc_regd_no=data['BOCRegdNo'],
-                course_name=data['CourseName'],
-                course_period=data['CoursePeriod'],
-                beauty_culture_type=data['BeautyCultureType'],
-                sams_code=data['SAMSCode'],
-                reported_institute=data['ReportedInstitute'],
-                reported_branch_or_trade=data['ReportedBranchORTrade'],
-                institute_district=data['InstituteDistrict'],
-                typeof_institute=data['TypeofInstitute'],
-                phase=data['Phase'],
-                year=data['Year'],
-                admission_status=data['AdmissionStatus'],
-                enrollment_status=data['EnrollmentStatus'],
-                applied_status=data['AppliedStatus'],
-                date_of_application=data['DateOfApplication'],
-                application_status=data['ApplicationStatus'],
-                aadhar_no=data['AadharNo'],
-                registration_number=data['RegistrationNumber'],
-                mark_data=data['MarkData'],
-                module=data['module'],
-                academic_year=data['academic_year'],
-
-            )
+            student = Student(**data)
             session.add(student)
             session.commit()
-
+            success = True
         except IntegrityError as e:
             session.rollback()
-            logger.warning(f"Skipping duplicate student: {data['Barcode']} - {data['module']} - {data['academic_year']}")
+            if 'UNIQUE constraint failed' in str(e):
+                logger.warning(f"Skipping duplicate student: {data['barcode']} - {data['module']} - {data['academic_year']}")
+            elif 'NOT NULL constraint failed' in str(e):
+                logger.warning(f"Skipping student: {data['barcode']} - {data['module']} - {data['academic_year']} due to null value in '{find_null_column(str(e))}' ")
+            else:
+                logger.error(f"Error adding student: {e}")
             success = False
         except Exception as e:
             if 'database is locked' in str(e):
                 time.sleep(1)
+                success = self._add_student(data)
             else:
                 session.rollback()
                 logger.error(f"Error adding student: {e}")
@@ -270,30 +240,50 @@ class SamsDataLoader:
     def _add_institute(self, data):
         session = self.Session()
         try:
-            institute = Institute(
-                sams_code=data['SAMSCode'],
-                year=int(data['academic_year']),
-                module=data['module'],
-                name=data['InstituteName'],
-                funding_source=data['TypeofInstitute'] ,         
-                
-                # Add other columns as needed
-                strength=data['strength'],
-                cutoff=data['cuttoff']
-            )
+            institute = Institute(**data)
             session.add(institute)
             session.commit()
-        except Exception as e:
-            if 'database is locked' in str(e):
-                time.sleep(1)
+        except IntegrityError as e:
             if 'UNIQUE constraint failed' in str(e):
                 session.rollback()
                 logger.warning(f"Skipping duplicate institute: {data['SAMSCode']}")
+            elif 'NOT NULL constraint failed' in str(e):
+                session.rollback()
+                logger.warning(f"Skipping institute: {data['SAMSCode']} due to null value in ")
             else:
                 session.rollback()
                 logger.error(f"Error adding institute: {e}")
+        except Exception as e:
+            if 'database is locked' in str(e):
+                time.sleep(1)
+            else:
+                session.rollback()
+                logger.error(f"Error adding institute: {e}")
+
         finally:
             session.close()
+
+    def remove(self, table_name: str, module:str, year:str, admission_type:int = None) -> None:
+        """
+        Removes all records from the given table that correspond to the given module,
+        year and (if table is "institutes" and module is "Diploma") admission_type.
+        """
+        session = self.Session()
+        try:
+            if table_name == "institutes":
+                if module == "Diploma":
+                    session.query(Institute).filter_by(module=module, year=year, admission_type=admission_type).delete()
+                else:
+                    session.query(Institute).filter_by(module=module, year=year).delete()
+            else:
+                session.query(Student).filter_by(module=module, year=year).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error removing records from {table_name}: {e}")
+        finally:
+            session.close()
+
 
 class SamsDataLoaderPandas(SamsDataLoader):
     def __init__(self, db_url):
@@ -326,24 +316,10 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 time.sleep(1)
             
 def main():
-    engine = create_engine(f'sqlite:///{RAW_DATA_DIR}/sams.db')
 
-    # Create an Inspector object
-    inspector = inspect(engine)
-
-    # Get a list of tables in the database
-    tables = inspector.get_table_names()
-    print(f"Tables: {tables}")
-
-    # Inspect the 'users' table for constraints
-    constraints = inspector.get_unique_constraints('students')
-    print(f"Unique Constraints on 'students': {constraints}")
-
-    df = pd.read_sql_table('students', con=engine)
-    df.drop(columns=['mark_data','id'], inplace=True)
-    print(df.duplicated().sum())
-    print(df.duplicated(subset=['barcode', 'module', 'academic_year', 'sams_code', 'applied_status','enrollment_status','admission_status', 'phase', 'year'],keep=False).sum())
-    df.to_csv(f'{RAW_DATA_DIR}/students_tmp.csv', index=False)
+    loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
+    loader.remove("students", "ITI", "2017")
+    # loader.remove("students", "Diploma", "2019")
 
 
 if __name__ == "__main__":

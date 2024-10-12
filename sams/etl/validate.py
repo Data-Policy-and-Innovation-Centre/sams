@@ -1,7 +1,73 @@
 from loguru import logger
 import pandas as pd
-import os
-from sams.config import LOGS
+from sams.config import MISSING_VALUES
+from pathlib import Path
+
+def count_null_values(data: list, table_name: str = "students") -> None:
+
+    """
+    Counts the number of null values in each column of the given data and writes it to a log file.
+
+    Parameters
+    ----------
+    data : list
+        A list of dictionaries where each dictionary represents a row in the data.
+    table_name : str, optional
+        The name of the table to be validated. It can be either "students" or "institutes".
+
+    Raises
+    ------
+    ValueError
+        If the table name is not valid.
+    Exception
+        If not all values of module and year are constant in the data.
+        If not all values of admission_type are constant in the data when module is Diploma and table name is institutes.
+
+    Notes
+    -----
+    This function does not return anything. It just writes the counts of missing values to a file.
+    """
+
+    if table_name not in ["students", "institutes"]:
+        raise ValueError(f"Invalid table name: {table_name}")
+
+    df = pd.DataFrame(data)
+
+    # Check if all values of module and year are constant
+    if not (df["module"].nunique() == 1 and df["academic_year"].nunique() == 1):
+        raise Exception(f"All values of module and academic_year must be constant.")
+
+    # Check if admission_type is constant if module is Diploma and table name is institutes
+    if (df["module"].iloc[0] == "Diploma" and table_name == "institutes" and
+            df["admission_type"].nunique() != 1):
+        raise Exception(f"All values of admission_type must be constant.")
+    
+    # Count nulls
+    null_counts = df.isnull().sum()
+    null_counts += (df == "").sum()
+    null_counts += (df == " ").sum()
+    null_counts += (df == "NA").sum()
+
+    # Write null counts to a file
+    log_file = Path(MISSING_VALUES / f"missing_values_{table_name}_{df['module'].iloc[0]}_{df['academic_year'].iloc[0]}.log")
+    if not log_file.exists():
+        log_file.touch()
+    with open(log_file, "w") as f:
+        f.write(f"Metadata: {table_name}, {df['module'].iloc[0]}, {df['academic_year'].iloc[0]}\n")
+        if table_name == "institutes":
+            f.write(f"Admission Type: {df['admission_type'].iloc[0]}\n")
+        f.write(f"Total Records: {len(df)}\n")
+        f.write(f"Missing Values:\n")
+        for var, count in null_counts[null_counts > 0].items():
+            f.write(f"{var}: {count}\n")
+        f.write("\n\n\n")
+
+def validate(data: list, table_name: str = "students") -> None:
+
+    count_null_values(data, table_name)
+    
+
+        
 
 def check_null_values(row: dict, 
                       varlist: list = ['Barcode','module','academic_year',
@@ -26,60 +92,3 @@ def check_null_values(row: dict,
 
     return False
 
-def _pd_check_student_missing_values(df: pd.DataFrame, logfile: str = "student_missing_values.log") -> None:
-
-    # Remove all existing log handlers
-    for handler_id in list(logger._core.handlers.keys()):
-          logger.remove(handler_id)
-
-    # Add a new log handler
-    log_file_id = logger.add(
-          os.path.join(LOGS, logfile), mode='w',
-          format="{time} {level} {message}", level="INFO"
-     )
-    
-     # Define required keys
-    required_keys = ["Barcode", "StudentName", "Gender", "DOB", "ReligionName", "Nationality", "AnnualIncome", "Address", "State", "District", "Block",
-                        "PINCode", "SocialCategory", "Domicile", "S_DomicileCategory", "OutsideOdishaApplicantStateName",
-                        "OdiaApplicantLivingOutsideOdishaStateName", "ResidenceBarcodeNumber", "TengthExamSchoolAddress", "EighthExamSchoolAddress",
-                      "HighestQualification", "HighestQualificationExamBoard", "HighestQualificationBoardExamName", "ExaminationType", "YearofPassing",
-                     "RollNo", "TotalMarks", "SecuredMarks", "Percentage", "CompartmentalStatus", "CompartmentalFailMark", "SubjectWiseMarks", "hadTwoYearFullTimeWorkExpAfterTength",
-                        "GC", "PH", "ES", "Sports", "NationalCadetCorps", "PMCare", "Orphan", "IncomeBarcode", "TFW", "EWS", "BOC", "BOCRegdNo", "CourseName", "CoursePeriod",
-                        "BeautyCultureType", "ReportedInstitute", "ReportedBranchORTrade", "InstituteDistrict", "TypeofInstitute", "Phase", "Year", "AdmissionStatus", "EnrollmentStatus"]
-    
-    # Check for missing keys
-    missing_keys = [key for key in required_keys if key not in df.columns]
-    if missing_keys:
-        logger.error(f"Missing required keys: {missing_keys}")
-    
-    # Check for missing values
-    missing_values_summary = df.isna().sum()
-    missing_values_summary_pct = (missing_values_summary / len(df)) * 100
-    missing_values_summary_pct = missing_values_summary_pct.to_frame(name='Percentage of missing values')
-    missing_values_summary_pct['Percentage of missing values'] = missing_values_summary_pct['Percentage of missing values'].apply(lambda x: f"{x:.2f}%")
-    
-    # Log aggregate summary table
-    logger.error("Missing values summary:")
-    logger.error(missing_values_summary_pct.to_string())
-    logger.info(f"Missing values summary logged to '{LOGS}/{logfile}'")
-
-
-def _check_duplicate_students(data: pd.DataFrame) -> None:
-    duplicates, not_unique = _find_duplicate_students(data)
-    if not_unique:
-        _log_duplicates(duplicates, "student_duplicates.log")
-
-def _find_duplicate_students(data: list) -> tuple[pd.DataFrame, bool]:
-    barcodes = [record["Barcode"] for record in data]
-    num_duplicate_barcodes = len(barcodes) - len(set(barcodes))
-    if num_duplicate_barcodes > 0:
-        df = pd.DataFrame(data, columns=["Barcode", "StudentName", "Module", "Year"])
-        duplicates = df[df.duplicated(subset=['Barcode'], keep=False)]
-        return duplicates, True
-    return pd.DataFrame(), False
-
-def _log_duplicates(duplicates: pd.DataFrame, filename) -> None:
-    file_id = logger.add(os.path.join(LOGS, filename), mode='w', format="{time} {level} {message}", level="INFO")
-    logger.warning(f"Found {len(duplicates)} duplicate barcodes in downloaded student data")
-    logger.debug(duplicates)
-    logger.remove(file_id)

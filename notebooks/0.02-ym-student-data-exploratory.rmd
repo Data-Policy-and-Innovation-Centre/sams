@@ -1,0 +1,26 @@
+---
+title: "Student data exploratory"
+author: "Yashaswi Mohanty"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: cerulean
+---
+
+
+
+```{r Import libraries, echo=FALSE}
+source("paths.R")
+library(RSQLite)
+
+```
+
+```{r Check data types}
+
+
+
+```
+
