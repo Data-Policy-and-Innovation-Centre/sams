@@ -41,11 +41,14 @@ iti_data <- dbGetQuery(con, query)
 
 ```{r Counting unique students, include=FALSE}
 # Count number of unique obs
-aadhar <- iti_data %>% summarize(count = n_distinct(aadhar_no)) 
-aadhar <- aadhar[[1]]
+aadhar <- n_distinct(iti_data$aadhar_no)
 year_min <- min(iti_data$academic_year)
 year_max <- max(iti_data$academic_year)
 ```
 
 # The vocational pipeline
-There have been `r aadhar` ITI students in Odisha from academic years `r year_min` to `r year_max`. The 
+There have been `r aadhar` ITI students in Odisha from academic years `r year_min` to `r year_max`. The
+```{r}
+
+```
+
