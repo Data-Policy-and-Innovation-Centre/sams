@@ -1,5 +1,5 @@
 packages <- c("tidyverse","RSQLite","rprojroot","knitr",
-              "kableExtra","here","rmarkdown","prettydoc","ggsankey")
+              "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -12,13 +12,13 @@ rm(pkg)
 
 
 library(here)
+library(reticulate)
 
 
 # Load paths
 here::i_am("README.md")
 root <- here()
-data <- file.path(root,"data")
-raw_data <- file.path(data,"raw")
+config <- import_from_path("config", path = file.path(root, "sams", "config.py"))
 
 # Load figure constants
 optfig.labfontsize = 20 + 8
