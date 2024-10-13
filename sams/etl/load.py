@@ -13,15 +13,15 @@ from sqlalchemy import (
     Float,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
 import pandas as pd
 from tqdm import tqdm
 import time
 from loguru import logger
-from sams.config import ERRMAX, RAW_DATA_DIR
-from sams.etl.validate import check_null_values
-from sams.util import dict_camel_to_snake_case, find_null_column
+from sams.config import ERRMAX, RAW_DATA_DIR, LOGS
+from sams.util import dict_camel_to_snake_case, find_null_column, stop_logging_to_console, resume_logging_to_console
+import os
 
 Base = declarative_base()
 
@@ -75,7 +75,7 @@ class Student(Base):
     reported_branch_or_trade = Column(String, nullable=True)
     institute_district = Column(String, nullable=True)
     typeof_institute = Column(String, nullable=True)
-    phase = Column(String, nullable=False)
+    phase = Column(String, nullable=True)
     year = Column(Integer, nullable=False)
     admission_status = Column(String, nullable=False)
     enrollment_status = Column(String, nullable=False)
@@ -214,14 +214,19 @@ class SamsDataLoader:
 
         student_data = [dict_camel_to_snake_case(student) for student in student_data]
 
-        try:
-            session.bulk_save_objects([Student(**data) for data in student_data])
-            session.commit()
-        except (OperationalError, IntegrityError, DatabaseError) as e:
-            logger.error(f"Error while adding student data in bulk - {e}")
-            session.rollback()
-        finally:
-            session.close()
+        with tqdm(total=len(student_data), desc="Loading student data") as pbar:
+            try:
+                session.bulk_save_objects([Student(**data) for data in student_data])
+                session.commit()
+                pbar.update(len(student_data))
+            except (OperationalError, IntegrityError, DatabaseError) as e:
+                resume_logging_to_console()
+                logger.error(f"Error while adding student data in bulk - will try adding individually!")
+                stop_logging_to_console(os.path.join(LOGS, "students_data_download.log"))
+                session.rollback()
+                self.load_student_data(student_data)
+            finally:
+                session.close()
 
     def _add_student(self, data: dict):
         """
