@@ -4,6 +4,7 @@ from sams.etl.extract import SamsDataDownloader
 from sams.etl.load import SamsDataLoader
 from sams.etl.validate import validate
 from sams.config import STUDENT, LOGS, INSTITUTE, SAMS_DB
+from sams.util import stop_logging_to_console, resume_logging_to_console
 
 
 class SAMSDataOrchestrator:
@@ -14,6 +15,7 @@ class SAMSDataOrchestrator:
     def download_and_add_student_data(
         self, module: str, academic_year: int, bulk_add: bool = False
     ):
+        stop_logging_to_console(os.path.join(LOGS, "students_data_download.log"))
         student_data = self.downloader.fetch_students(
             module, academic_year, pandify=False
         )
@@ -22,6 +24,7 @@ class SAMSDataOrchestrator:
             self.loader.bulk_add_students(student_data)
         else:
             self.loader.load_student_data(student_data)
+        resume_logging_to_console()
 
     def download_and_add_institute_data(
         self,
@@ -30,17 +33,16 @@ class SAMSDataOrchestrator:
         admission_type: int = None,
         bulk_add: bool = False,
     ):
-        pass
+        stop_logging_to_console(os.path.join(LOGS, "institutes_data_download.log"))
+        ...
+        resume_logging_to_console()
 
     def process_data(self, table_name: str, exclude=[], bulk_add: bool = False):
 
+        fmt_exlcude = str(exclude).replace('),', ')\n')
         logger.info(
-            f"Processing data for table {table_name}, excluding modules {exclude}. Bulk adding: {bulk_add}"
+            f"Processing data for table: {table_name}\n excluding modules:\n {fmt_exlcude}.\n Bulk adding: {bulk_add}"
         )
-
-        # Remove all existing log handlers
-        for handler_id in list(logger._core.handlers.keys()):
-            logger.remove(handler_id)
 
         # Add a new log handler for downloading student data
         log_file_id = logger.add(
@@ -54,23 +56,24 @@ class SAMSDataOrchestrator:
             for module, metadata in STUDENT.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
                     if (module, year) not in exclude:
-                        print(f"Downloading module: {module}, year: {year}")
+                        logger.info(f"Downloading module: {module}, year: {year}")
                         self.download_and_add_student_data(module, year, bulk_add)
+                        
 
         else:
             for module, metadata in INSTITUTE.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
                     if module == "Diploma":
-                        print(
+                        logger.info(
                             f"Downloading module: {module}, year: {year}, entry: Fresh"
                         )
                         self.download_and_add_institute_data(module, year, 1, bulk_add)
-                        print(
+                        logger.info(
                             f"Downloading module: {module}, year: {year}, entry: Lateral"
                         )
                         self.download_and_add_institute_data(module, year, 2, bulk_add)
                     else:
-                        print(f"Downloading module: {module}, year: {year}")
+                        logger.info(f"Downloading module: {module}, year: {year}")
                         self.download_and_add_institute_data(module, year, bulk_add)
 
 
