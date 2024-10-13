@@ -39,7 +39,7 @@ class SAMSDataOrchestrator:
 
     def process_data(self, table_name: str, exclude=[], bulk_add: bool = False):
 
-        fmt_exlcude = str(exclude).replace('),', ')\n')
+        fmt_exlcude = str(exclude).replace("),", ")\n")
         logger.info(
             f"Processing data for table: {table_name}\n excluding modules:\n {fmt_exlcude}.\n Bulk adding: {bulk_add}"
         )
@@ -58,7 +58,6 @@ class SAMSDataOrchestrator:
                     if (module, year) not in exclude:
                         logger.info(f"Downloading module: {module}, year: {year}")
                         self.download_and_add_student_data(module, year, bulk_add)
-                        
 
         else:
             for module, metadata in INSTITUTE.items():

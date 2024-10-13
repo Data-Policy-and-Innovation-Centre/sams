@@ -6,11 +6,14 @@ import numpy as np
 def _make_date(x: pd.Series) -> pd.Series:
     return pd.to_datetime(x, errors="coerce")
 
+
 def _make_null(df: pd.DataFrame) -> pd.DataFrame:
     return df.replace({"": np.nan, " ": np.nan, "NA": np.nan})
 
+
 def _make_bool(x: pd.Series, true_val: str = "Yes", false_val: str = "No") -> pd.Series:
     return x.map({true_val: True, false_val: False})
+
 
 def _fix_qual_names(x: pd.Series) -> pd.Series:
     degree_names = [
@@ -35,18 +38,14 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
         "med",
         "graduation",
         "bcam",
-        "pg"
-
+        "pg",
     ]
-    diploma_names = [
-        "diploma",
-        "jbt/ett"
-    ]
+    diploma_names = ["diploma", "jbt/ett"]
 
     # Standardize format
     x = x.str.lower()
-    x = x.str.replace(".","")
-    x = x.str.replace(r'\(.*?\)', '',regex=True)
+    x = x.str.replace(".", "")
+    x = x.str.replace(r"\(.*?\)", "", regex=True)
     x = x.str.strip()
 
     # Standardize qual names using aggregations
@@ -74,20 +73,21 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 def _make_float(x: pd.Series) -> pd.Series:
     pass
 
+
 def _make_int(x: pd.Series) -> pd.Series:
     pass
 
+
 def preprocess_iti_students_enrolmentdata(df: pd.DataFrame) -> pd.DataFrame:
     df = _make_null(df)
-    df['dob'] = _make_date(df['dob'])
-    df['highest_qualification'] = _fix_qual_names(df['highest_qualification'])
+    df["dob"] = _make_date(df["dob"])
+    df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
     return df
+
 
 def preprocess_students_markdata(df: pd.DataFrame) -> pd.DataFrame:
     pass
 
+
 def preprocess_institutes(df: pd.DataFrame) -> pd.DataFrame:
     pass
-
-
-

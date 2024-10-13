@@ -116,6 +116,7 @@ def correct_spelling(text: str):
         text = text.replace("OR", "Or")
     return text
 
+
 def stop_logging_to_console(filename: str, mode: str = "a"):
 
     # Remove all handlers
@@ -131,6 +132,7 @@ def stop_logging_to_console(filename: str, mode: str = "a"):
         catch=True,
         mode=mode,
     )
+
 
 def resume_logging_to_console():
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)

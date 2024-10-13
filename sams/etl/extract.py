@@ -49,7 +49,7 @@ class SamsDataDownloader:
 
         try:
             info = f"""\nStudent data downloaded for module {module}, academic year {academic_year}. 
-            \n.Num fields: {len(data[0])} \n.Num records: {len(data)} \n.Num distinct records: { len(set(map(lambda item: tuple(sorted(item.items())), data)))} \n.Expected records: {expected_records}"""
+            \n.Num fields: {len(data[0])} \n.Num records: {len(data)} \n.Num distinct records: { len(set(map(lambda item: tuple(sorted(item.items())), data)))} \n.Expected records: {expected_records}\n\n\n"""
             logger.info(info)
         except IndexError as e:
             logger.error(
@@ -173,7 +173,7 @@ class SamsDataDownloader:
             count (bool, optional): If True, returns the expected number of records. Otherwise returns a list consisting of the actual records.
 
         Returns:
-            int or list : The expected number of student records or a list of records in JSON format.
+            int | list : The expected number of student records or a list of records in JSON format.
         """
         if table_name not in ["students", "institutes"]:
             raise ValueError(f"Invalid table name: {table_name}")

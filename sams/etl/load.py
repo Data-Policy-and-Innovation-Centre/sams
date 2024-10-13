@@ -20,7 +20,12 @@ from tqdm import tqdm
 import time
 from loguru import logger
 from sams.config import ERRMAX, RAW_DATA_DIR, LOGS
-from sams.util import dict_camel_to_snake_case, find_null_column, stop_logging_to_console, resume_logging_to_console
+from sams.util import (
+    dict_camel_to_snake_case,
+    find_null_column,
+    stop_logging_to_console,
+    resume_logging_to_console,
+)
 import os
 
 Base = declarative_base()
@@ -221,8 +226,12 @@ class SamsDataLoader:
                 pbar.update(len(student_data))
             except (OperationalError, IntegrityError, DatabaseError) as e:
                 resume_logging_to_console()
-                logger.error(f"Error while adding student data in bulk - will try adding individually!")
-                stop_logging_to_console(os.path.join(LOGS, "students_data_download.log"))
+                logger.error(
+                    f"Error while adding student data in bulk - will try adding individually!"
+                )
+                stop_logging_to_console(
+                    os.path.join(LOGS, "students_data_download.log")
+                )
                 session.rollback()
                 self.load_student_data(student_data)
             finally:
