@@ -74,7 +74,7 @@ Multiple Applications (Check).
 1st graph - The number of people applying. these are the number of people going
 
 
-## ITI Student Data from 2017 to 2023 
+## ITI Student Data from 2017 to 2024
 ```{r}
 con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
 
@@ -99,11 +99,183 @@ student_iti_admis = student_data_iti %>%
   filter(admission_status == "Yes")
 table(student_iti_admis$year)
 
-## Applicants not selected
 
-# Create a dummy for rejected, rejected = 0, accepted = 1. Neither = NA
+# Create the 'final_status' variable
+student_data_iti <- student_data_iti %>%
+  mutate(final_status = case_when(
+    admissionstatus == "Yes" ~ "accepted",
+    admissionstatus == "No" & appliedstatus == "Yes" ~ "rejected",
+    admissionstatus == "No" & appliedstatus == "No" ~ "not applied"
+  ))
 
 
+```
+## Diploma Student Data from 2018 to 2024 
+```{r}
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_dip <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+
+table(student_data_dip$admission_status,student_data_dip$applied_status)
+
+## Check the admission count each year
+student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
+table(student_data_dip$year)
+
+student_dip_admis = student_data_dip %>%
+  filter(admission_status == "Yes")
+table(student_dip_admis$year)
+
+
+
+```
+
+
+
+## Sankey Plot of 10th - ITI/Diploma
+```{r}
+# Exclude 2017 ITI
+student_data_iti_excl_2017 = student_data_iti %>%
+  filter(year != "2017")
+
+# Filter out those who have a higher than 10th Highest Qualification
+student_data_iti_tenth_excl_2017 = student_data_iti_excl_2017 %>%
+  filter(highest_qualification == "10th")
+# Couldn't do for Diploma cause "highest_qualification" is empty (NA)
+
+
+# Create a function to calculate the counts for each category
+process_data <- function(data) {
+  data %>%
+    group_by(year) %>%
+    summarise(
+      applied = sum(applied_status == "Yes", na.rm = TRUE),
+      admitted = sum(admission_status == "Yes", na.rm = TRUE),
+      not_admitted = sum(admission_status == "No" & applied_status == "Yes", na.rm = TRUE)
+    )
+}
+
+
+# Process ITI and Diploma data separately
+iti_summary <- process_data(student_data_iti_tenth_excl_2017)
+diploma_summary <- process_data(student_data_dip)
+
+# Filter for the year 2023
+iti_2023 <- iti_summary %>% filter(year == 2023)
+diploma_2023 <- diploma_summary %>% filter(year == 2023)
+
+# Import 10th figures
+tenth_count = read_excel("C:/Users/Admin/Documents/GitHub/sams/data/raw/10th_odisha.xlsx")
+
+# Summarize the data by year, calculating the total pass, total fail, and total batch count
+total_tenth_count <- tenth_count %>%
+  group_by(Year, Gender) %>%
+  summarise(
+    total_pass = sum(Pass, na.rm = TRUE),
+    total_fail = sum(Fail, na.rm = TRUE),
+    total_batch = total_pass + total_fail
+  ) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(
+    total_pass = sum(total_pass),
+    total_fail = sum(total_fail),
+    total_batch = total_pass + total_fail
+  )
+view(total_tenth_count)
+# Tenth passing batch only 2023
+total_tenth_count_2023 = total_tenth_count %>% filter(Year == 2023)
+
+# Define the admission count for +2 in 2023 from SAMS Dashboard
+Plus_two_admis_2023 =  414794	
+
+
+# Prepare df for Sankey
+sankey_data <- data.frame(
+  source = c("10th Batch", "10th Batch", "10th Batch","10th Batch", "Applied ITI", "Applied ITI", "Applied Diploma", "Applied Diploma"),
+  target = c("Admitted in +2", "Applied ITI", "Applied Diploma", "Others", "Applied and Admitted ITI", "Applied and Not Admitted ITI", "Applied and Admitted Diploma", "Applied and Not Admitted Diploma"),
+  value = c(
+    Plus_two_admis_2023, # Admitted in +2
+    iti_2023$applied,   # Applied ITI
+    diploma_2023$applied,   # Applied Diploma
+    total_tenth_count_2023$total_batch - iti_2023$applied - diploma_2023$applied - Plus_two_admis_2023,  # Others
+    iti_2023$admitted,  # Applied and Admitted ITI
+    iti_2023$not_admitted,  # Applied and Not Admitted ITI
+    diploma_2023$admitted,  # Applied and Admitted Diploma
+    diploma_2023$not_admitted  # Applied and Not Admitted Diploma
+  )
+)
+view(sankey_data)
+
+# Plot Sankey
+library(networkD3)
+
+# Create Nodes dataframe
+nodes <- data.frame(name = unique(c(sankey_data$source, sankey_data$target)))
+
+# Convert source and target to indices
+sankey_data$source <- match(sankey_data$source, nodes$name) - 1
+sankey_data$target <- match(sankey_data$target, nodes$name) - 1
+
+
+# Create Sankey plot
+sankey <- sankeyNetwork(Links = sankey_data, Nodes = data.frame(name = unique(c(sankey_data$source, sankey_data$target))),
+                        Source = "source", Target = "target", Value = "value", NodeID = "name", fontSize = 12, nodeWidth = 30)
+
+str(sankey_data)
+
+# Plot the Sankey diagram
+sankey
+
+
+
+
+```
+
+
+## Migration
+```{r}
+# Diagnose 
+table(student_iti_admis$district,student_iti_admis$institute_district)
+table(student_dip_admis$district,student_dip_admis$institute_district)
+
+n_distinct(student_dip_admis$district)
+n_distinct(student_data_iti$institute_district)
+# Number of districts in "institute_district" for ITIs is 30 (The number of districts in Odisha)
+
+
+## ITI Students 
+# Note - Only migration within Odisha state
+# Count the students who leave their home district
+ITI_leave_dist = student_iti_admis %>%
+  filter(!district %in% c("Other", "Skill Department (DTET)", "Odisha")) %>% # Exclude these
+  group_by(district,year,institute_district,gender,typeof_institute) %>%
+  summarise(leave_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+# How many leave their home district to study in 2023
+
+
+## Diploma Students 
+# Note - Only migration within Odisha state
+# Count the students who leave their home district
+Dip_leave_dist = student_dip_admis %>%
+  filter(district != "Other") %>% # Exclude these
+  group_by(district,year,institute_district,gender,typeof_institute) %>%
+  summarise(leave_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+# How many leave their home district to study in 2023
 
 ```
 
