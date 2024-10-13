@@ -10,15 +10,12 @@ for (pkg in packages) {
 }
 rm(pkg)
 
-
-library(here)
+# Load python env
 library(reticulate)
+use_condaenv("skills", required=TRUE)
 
-
-# Load paths
-here::i_am("README.md")
-root <- here()
-config <- import_from_path("config", path = file.path(root, "sams", "config.py"))
+# Configure using python configuration file
+config <- import_from_path("sams.config")
 
 # Load figure constants
 optfig.labfontsize = 20 + 8
