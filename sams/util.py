@@ -6,6 +6,7 @@ import time
 import sqlite3
 import pandas as pd
 import re
+from tqdm import tqdm
 
 
 def is_valid_date(date_string):
@@ -114,6 +115,25 @@ def correct_spelling(text: str):
     if "OR" in text:
         text = text.replace("OR", "Or")
     return text
+
+def stop_logging_to_console(filename: str, mode: str = "a"):
+
+    # Remove all handlers
+    for handler_id in list(logger._core.handlers.keys()):
+        logger.remove(handler_id)
+
+    # Add new logger
+    logger.add(
+        filename,
+        format="{time} {level} {message}",
+        level="INFO",
+        colorize=True,
+        catch=True,
+        mode=mode,
+    )
+
+def resume_logging_to_console():
+    logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
 
 
 def find_null_column(text: str):
