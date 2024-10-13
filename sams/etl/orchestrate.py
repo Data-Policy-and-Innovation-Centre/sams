@@ -3,10 +3,10 @@ from loguru import logger
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.load import SamsDataLoader
 from sams.etl.validate import validate
-from sams.config import RAW_DATA_DIR, STUDENT, LOGS, INSTITUTE
+from sams.config import STUDENT, LOGS, INSTITUTE, SAMS_DB
 
 class SAMSDataOrchestrator:
-    def __init__(self, db_url=f"sqlite:///{RAW_DATA_DIR}/sams.db"):
+    def __init__(self, db_url=f"sqlite:///{SAMS_DB}"):
         self.downloader = SamsDataDownloader()
         self.loader = SamsDataLoader(db_url)
 
@@ -58,8 +58,8 @@ class SAMSDataOrchestrator:
 
 
 def main():
-    db_url = f"sqlite:///{RAW_DATA_DIR}/sams.db"
-    logger.debug(os.path.exists(os.path.join(RAW_DATA_DIR, "sams.db")))
+    db_url = f"sqlite:///{SAMS_DB}"
+    logger.debug(os.path.exists(SAMS_DB))
     orchestrator = SAMSDataOrchestrator(db_url)
     orchestrator.process_data("students")
 
