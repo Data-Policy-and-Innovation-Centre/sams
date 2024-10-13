@@ -1,0 +1,29 @@
+---
+title: "Analysis of Trends and Patterns in Vocational Training in Odisha"
+author: "Data, Policy, and Innovation Centre"
+date: "`r Sys.Date()`"
+output: 
+  word_document: 
+    toc: true
+    number_sections: true
+---
+
+# Executive Summary
+
+**Purpose**: This report analyzes trends and patterns in vocational training in Odisha using data from the Student Academic Management System (SAMS).
+
+**Key Findings**: Enrollment trends indicate significant variations by gender and social category. 
+
+**Recommendations**: Enhance outreach programs targeting underrepresented groups and improve course availability.
+
+# Table of Contents
+
+# Introduction
+
+Vocational training plays a crucial role in enhancing employability and skill development in Odisha. This report aims to analyze...
+
+# Data Description
+
+The analysis uses data from the Student Academic Management System (SAMS), which includes variables such as...
+
+# Analysis
