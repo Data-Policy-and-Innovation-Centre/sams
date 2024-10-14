@@ -89,6 +89,7 @@ student_data_iti <- dbFetch(result)
 
 # Clear the result
 dbClearResult(result)
+dbDisconnect(con)
 
 
 ## Check the admission count each year
@@ -110,6 +111,8 @@ student_data_iti <- student_data_iti %>%
 
 
 ```
+
+
 ## Diploma Student Data from 2018 to 2024 
 ```{r}
 con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
@@ -136,6 +139,13 @@ student_dip_admis = student_data_dip %>%
   filter(admission_status == "Yes")
 table(student_dip_admis$year)
 
+table(student_data_dip$highest_qualification)
+
+student_dip_code_admis = student_data_dip %>%
+  filter(admission_status == "No")
+view(student_dip_code_admis)
+
+remove()
 
 
 ```
