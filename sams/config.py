@@ -21,7 +21,7 @@ OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 
 # Data file names
-SAMS_DB = RAW_DATA_DIR / "sams-temp.db"
+SAMS_DB = RAW_DATA_DIR / "sams.db"
 
 # Verify that all the directories exist
 for path in [
