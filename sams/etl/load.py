@@ -1,20 +1,39 @@
-from sqlalchemy import create_engine, inspect, func, Column, Integer, String, JSON, Enum, ForeignKey, UniqueConstraint, DateTime, Float
+from sqlalchemy import (
+    create_engine,
+    inspect,
+    func,
+    Column,
+    Integer,
+    String,
+    JSON,
+    Enum,
+    ForeignKey,
+    UniqueConstraint,
+    DateTime,
+    Float,
+)
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
 import pandas as pd
 from tqdm import tqdm
 import time
 from loguru import logger
-from sams.config import ERRMAX, RAW_DATA_DIR
-from sams.etl.validate import check_null_values
-from sams.util import dict_camel_to_snake_case, find_null_column
+from sams.config import ERRMAX, RAW_DATA_DIR, LOGS
+from sams.util import (
+    dict_camel_to_snake_case,
+    find_null_column,
+    stop_logging_to_console,
+    resume_logging_to_console,
+)
+import os
 
 Base = declarative_base()
 
+
 # Define the Student ORM model
 class Student(Base):
-    __tablename__ = 'students'
+    __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     barcode = Column(String, nullable=False)
@@ -38,7 +57,9 @@ class Student(Base):
     tenth_exam_school_address = Column(String, nullable=True)
     eighth_exam_school_address = Column(String, nullable=True)
     highest_qualification = Column(String, nullable=True)
-    had_two_year_full_time_work_exp_after_tenth = Column(String, nullable=True)  # Assume yes/no or boolean
+    had_two_year_full_time_work_exp_after_tenth = Column(
+        String, nullable=True
+    )  # Assume yes/no or boolean
     gc = Column(String, nullable=True)  # General category
     ph = Column(String, nullable=True)  # Physically Handicapped
     es = Column(String, nullable=True)  # Economically Weaker Section
@@ -59,7 +80,7 @@ class Student(Base):
     reported_branch_or_trade = Column(String, nullable=True)
     institute_district = Column(String, nullable=True)
     typeof_institute = Column(String, nullable=True)
-    phase = Column(String, nullable=False)
+    phase = Column(String, nullable=True)
     year = Column(Integer, nullable=False)
     admission_status = Column(String, nullable=False)
     enrollment_status = Column(String, nullable=False)
@@ -74,15 +95,26 @@ class Student(Base):
 
     # Example of a unique constraint if needed
     __table_args__ = (
-        UniqueConstraint('barcode', 'module', 'academic_year', 'applied_status','enrollment_status','admission_status', 'phase', 'year', name='uq_barcode_module_year'),
+        UniqueConstraint(
+            "barcode",
+            "module",
+            "academic_year",
+            "applied_status",
+            "enrollment_status",
+            "admission_status",
+            "phase",
+            "year",
+            name="uq_barcode_module_year",
+        ),
     )
 
+
 class Institute(Base):
-    __tablename__ = 'institutes'
+    __tablename__ = "institutes"
 
     # Primary columns
     id = Column(Integer, primary_key=True, autoincrement=True)
-    sams_code = Column(Integer,nullable=False)
+    sams_code = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
     module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
     name = Column(String)
@@ -93,34 +125,35 @@ class Institute(Base):
     cutoff = Column(JSON)
 
     # Polymorphic identity for inheritance
-    __mapper_args__ = {
-        'polymorphic_on': module
-    }
+    __mapper_args__ = {"polymorphic_on": module}
+
 
 class ITI(Institute):
-    __tablename__ = 'itis'
-    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+    __tablename__ = "itis"
+    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
     trade = Column(String)  # Trade is specific to non-PDIS
 
     __mapper_args__ = {
-        'polymorphic_identity': 'ITI',
+        "polymorphic_identity": "ITI",
     }
+
 
 class Diploma(Institute):
-    __tablename__ = 'diplomas'
-    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+    __tablename__ = "diplomas"
+    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
     trade = Column(String)  # Trade is specific to non-PDIS
 
     __mapper_args__ = {
-        'polymorphic_identity': 'Diploma',
+        "polymorphic_identity": "Diploma",
     }
 
+
 class PDIS(Institute):
-    __tablename__ = 'pdis'
-    id = Column(Integer, ForeignKey('institutes.id'), primary_key=True)
+    __tablename__ = "pdis"
+    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
 
     __mapper_args__ = {
-        'polymorphic_identity': 'PDIS',
+        "polymorphic_identity": "PDIS",
     }
 
 
@@ -166,7 +199,7 @@ class SamsDataLoader:
         """
         with tqdm(total=len(student_data), desc="Loading student data") as pbar:
             for data in student_data:
-                
+
                 # Try to add row to table
                 success = self._add_student(data)
                 if success:
@@ -186,14 +219,23 @@ class SamsDataLoader:
 
         student_data = [dict_camel_to_snake_case(student) for student in student_data]
 
-        try:
-            session.bulk_save_objects([Student(**data) for data in student_data])
-            session.commit()
-        except (OperationalError, IntegrityError, DatabaseError) as e:
-            logger.error(f"Error while adding student data in bulk - {e}")
-            session.rollback()
-        finally:
-            session.close()
+        with tqdm(total=len(student_data), desc="Loading student data") as pbar:
+            try:
+                session.bulk_save_objects([Student(**data) for data in student_data])
+                session.commit()
+                pbar.update(len(student_data))
+            except (OperationalError, IntegrityError, DatabaseError) as e:
+                resume_logging_to_console()
+                logger.error(
+                    f"Error while adding student data in bulk - will try adding individually!"
+                )
+                stop_logging_to_console(
+                    os.path.join(LOGS, "students_data_download.log")
+                )
+                session.rollback()
+                self.load_student_data(student_data)
+            finally:
+                session.close()
 
     def _add_student(self, data: dict):
         """
@@ -207,7 +249,7 @@ class SamsDataLoader:
         """
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
-        
+
         data = dict_camel_to_snake_case(data)
         session = self.Session()
         success = False
@@ -218,15 +260,19 @@ class SamsDataLoader:
             success = True
         except IntegrityError as e:
             session.rollback()
-            if 'UNIQUE constraint failed' in str(e):
-                logger.warning(f"Skipping duplicate student: {data['barcode']} - {data['module']} - {data['academic_year']}")
-            elif 'NOT NULL constraint failed' in str(e):
-                logger.warning(f"Skipping student: {data['barcode']} - {data['module']} - {data['academic_year']} due to null value in '{find_null_column(str(e))}' ")
+            if "UNIQUE constraint failed" in str(e):
+                logger.warning(
+                    f"Skipping duplicate student: {data['barcode']} - {data['module']} - {data['academic_year']}"
+                )
+            elif "NOT NULL constraint failed" in str(e):
+                logger.warning(
+                    f"Skipping student: {data['barcode']} - {data['module']} - {data['academic_year']} due to null value in '{find_null_column(str(e))}' "
+                )
             else:
                 logger.error(f"Error adding student: {e}")
             success = False
         except Exception as e:
-            if 'database is locked' in str(e):
+            if "database is locked" in str(e):
                 time.sleep(1)
                 success = self._add_student(data)
             else:
@@ -235,7 +281,7 @@ class SamsDataLoader:
                 success = False
         finally:
             session.close()
-            return success 
+            return success
 
     def _add_institute(self, data):
         session = self.Session()
@@ -244,17 +290,19 @@ class SamsDataLoader:
             session.add(institute)
             session.commit()
         except IntegrityError as e:
-            if 'UNIQUE constraint failed' in str(e):
+            if "UNIQUE constraint failed" in str(e):
                 session.rollback()
                 logger.warning(f"Skipping duplicate institute: {data['SAMSCode']}")
-            elif 'NOT NULL constraint failed' in str(e):
+            elif "NOT NULL constraint failed" in str(e):
                 session.rollback()
-                logger.warning(f"Skipping institute: {data['SAMSCode']} due to null value in ")
+                logger.warning(
+                    f"Skipping institute: {data['SAMSCode']} due to null value in "
+                )
             else:
                 session.rollback()
                 logger.error(f"Error adding institute: {e}")
         except Exception as e:
-            if 'database is locked' in str(e):
+            if "database is locked" in str(e):
                 time.sleep(1)
             else:
                 session.rollback()
@@ -263,7 +311,9 @@ class SamsDataLoader:
         finally:
             session.close()
 
-    def remove(self, table_name: str, module:str, year:str, admission_type:int = None) -> None:
+    def remove(
+        self, table_name: str, module: str, year: str, admission_type: int = None
+    ) -> None:
         """
         Removes all records from the given table that correspond to the given module,
         year and (if table is "institutes" and module is "Diploma") admission_type.
@@ -272,9 +322,13 @@ class SamsDataLoader:
         try:
             if table_name == "institutes":
                 if module == "Diploma":
-                    session.query(Institute).filter_by(module=module, year=year, admission_type=admission_type).delete()
+                    session.query(Institute).filter_by(
+                        module=module, year=year, admission_type=admission_type
+                    ).delete()
                 else:
-                    session.query(Institute).filter_by(module=module, year=year).delete()
+                    session.query(Institute).filter_by(
+                        module=module, year=year
+                    ).delete()
             else:
                 session.query(Student).filter_by(module=module, year=year).delete()
             session.commit()
@@ -304,7 +358,9 @@ class SamsDataLoaderPandas(SamsDataLoader):
 
         while num_retries < ERRMAX:
             try:
-                data.to_sql(table_name, con=self.engine, if_exists='append', index=False)
+                data.to_sql(
+                    table_name, con=self.engine, if_exists="append", index=False
+                )
                 break
             except IntegrityError as e:
                 logger.error(f"Error loading data into {table_name}: {e}")
@@ -314,7 +370,8 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 logger.info(f"Retrying ({num_retries+1}/{ERRMAX})...")
                 num_retries += 1
                 time.sleep(1)
-            
+
+
 def main():
 
     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
@@ -324,4 +381,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

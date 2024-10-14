@@ -3,6 +3,7 @@ import os
 import box_mirror
 from boxsdk import Client, JWTAuth
 
+
 def authenticate_box(config_path):
     """
     Authenticate with Box using a JSON Web Token (JWT) and return a client object.
@@ -44,17 +45,19 @@ def download_file_from_box(client, file_id, download_path):
         # Downloads the file with ID '1234567890' and saves it to 'path/to/download/file.txt'
     """
     box_file = client.file(file_id).get()
-    with open(download_path, 'wb') as output_file:
+    with open(download_path, "wb") as output_file:
         box_file.download_to(output_file)
     print(f"Downloaded file {box_file.name} to {download_path}")
 
+
 def main():
     root_dir = box_mirror.get_parent_directory()
-    jwt_config_path = os.path.join(root_dir, 'config.json')
-    data_config_path = os.path.join(root_dir,'fileids.csv')
+    jwt_config_path = os.path.join(root_dir, "config.json")
+    data_config_path = os.path.join(root_dir, "fileids.csv")
 
     client = authenticate_box(config_path)
     download_file_from_box(client, file_id, download_path)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

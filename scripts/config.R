@@ -1,5 +1,5 @@
 packages <- c("tidyverse","RSQLite","rprojroot","knitr",
-              "kableExtra","here","rmarkdown","prettydoc","ggsankey")
+              "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -10,15 +10,12 @@ for (pkg in packages) {
 }
 rm(pkg)
 
+# Load python env
+library(reticulate)
+use_condaenv("skills", required=TRUE)
 
-library(here)
-
-
-# Load paths
-here::i_am("README.md")
-root <- here()
-data <- file.path(root,"data")
-raw_data <- file.path(data,"raw")
+# Configure using python configuration file
+config <- import_from_path("sams.config")
 
 # Load figure constants
 optfig.labfontsize = 20 + 8

@@ -2,7 +2,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 import os
-import json
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -15,19 +14,27 @@ DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
-PROCESSED_SAMS = PROCESSED_DATA_DIR / "sams"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
-
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 
 # Data file names
-SAMS_DB = RAW_DATA_DIR / "sams.db"
+SAMS_DB = RAW_DATA_DIR / "sams-temp.db"
 
 # Verify that all the directories exist
-for path in [DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR, PROCESSED_DATA_DIR, PROCESSED_SAMS,EXTERNAL_DATA_DIR, OUTPUT_DIR, FIGURES_DIR, LOGS, MISSING_VALUES]:
+for path in [
+    DATA_DIR,
+    RAW_DATA_DIR,
+    INTERIM_DATA_DIR,
+    PROCESSED_DATA_DIR,
+    EXTERNAL_DATA_DIR,
+    OUTPUT_DIR,
+    FIGURES_DIR,
+    LOGS,
+    MISSING_VALUES,
+]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
@@ -41,16 +48,16 @@ ERRMAX = 3
 
 # Metadata
 STUDENT = {
-   "PDIS":{"yearmin":2020,"yearmax":2024},
-   "ITI":{"yearmin":2017,"yearmax":2024},
-   "Diploma":{"yearmin":2018,"yearmax":2024}
+    "PDIS": {"yearmin": 2020, "yearmax": 2024},
+    "ITI": {"yearmin": 2017, "yearmax": 2024},
+    "Diploma": {"yearmin": 2018, "yearmax": 2024},
 }
 
 
 INSTITUTE = {
-   "PDIS":{"yearmin":2020,"yearmax":2024},
-   "ITI":{"yearmin":2017,"yearmax":2024},
-   "Diploma":{"yearmin":2018,"yearmax":2024}
+    "PDIS": {"yearmin": 2020, "yearmax": 2024},
+    "ITI": {"yearmin": 2017, "yearmax": 2024},
+    "Diploma": {"yearmin": 2018, "yearmax": 2024},
 }
 
 
