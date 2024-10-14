@@ -92,6 +92,11 @@ class SAMSClient:
             logger.info("Resetting connection...")
             self.refresh()
             response = requests.get(url, headers=headers, json=params)
+        except requests.exceptions.ChunkedEncodingError as chk:
+            logger.error(f"Chunked encoding error: {chk}")
+            logger.info("Resetting connection...")
+            self.refresh()
+            response = requests.get(url, headers=headers, json=params)
 
         return self._handle_response(response, count)
 
