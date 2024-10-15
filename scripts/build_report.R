@@ -5,5 +5,9 @@ install.packages("here")
 library("here")
 here::i_am("README.md")
 source(here("scripts/config.R"))
+rmarkdown::render(here("notebooks/0.02-ar-sams-student.Rmd"),
+output_file=here("output/temp-analysis-report.docx"))
+
 rmarkdown::render(here("notebooks/4.01-ym-oct2024-report.Rmd"), 
 output_file = here("output/report-oct2024.docx"))
+
