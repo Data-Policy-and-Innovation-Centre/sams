@@ -32,19 +32,301 @@ The analysis uses data from the Student Academic Management System (SAMS), which
 
 ```{r}
 
+
+
 ```
 
 
 ## Geography
 
+
 ```{r}
+
+```
+
+
+## Import ITI and Diploma Data from the database
+
+```{r, echo=FALSE}
+install.packages("dplyr")
+install.packages("tidyverse")
+install.packages("knitr")
+install.packages("DBI")
+install.packages("RSQLite")
+install.packages("kableExtra")
+
+```
+
+
+```{r, echo=FALSE}
+# Load the libraries
+library(RSQLite)
+library(DBI)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+```
+
+
+```{r, echo=FALSE}
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_iti <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+# Admitted students only 
+student_iti_admis = student_data_iti %>%
+  filter(admission_status == "Yes")
+
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_dip <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+# Admitted Students only
+student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
+
 
 ```
 
 
 ## Institutions
 
-```{r}
+```{r, echo=FALSE}
+
+## Student count in ITIs
+iti_student_count = student_iti_admis %>%
+  group_by(year,typeof_institute) %>%
+  summarise(student_count = n(), .groups = "drop")
+
+# Pivot the data wider to have separate columns for Pvt. and Govt. institutes
+iti_student_count_pivoted <- iti_student_count %>%
+  pivot_wider( 
+    names_from = typeof_institute, 
+    values_from = student_count, 
+    values_fill = 0  # Fill missing values with 0
+  )
+
+# Calculate total students and share of Govt. students
+iti_student_count_summary <- iti_student_count_pivoted %>%
+  # Create a new column for total institutes and share of Govt. institutes, rounded to 1 decimal
+  mutate(total_students = Govt. + Pvt.,
+         share_of_govt = round((Govt. / total_students) * 100, 1)) %>%
+  # Select only the necessary columns
+  select(year, total_students, share_of_govt)
+
+
+## Student count in Polytechnics
+dip_student_count = student_dip_admis %>%
+  group_by(year,typeof_institute) %>%
+  summarise(student_count = n(), .groups = "drop")
+
+# Pivot the data wider to have separate columns for Pvt. and Govt. institutes
+dip_student_count_pivoted <- dip_student_count %>%
+  pivot_wider( 
+    names_from = typeof_institute, 
+    values_from = student_count, 
+    values_fill = NA  # Fill missing values with NA
+  )
+
+# Calculate total students and share of Govt. students
+dip_student_count_summary <- dip_student_count_pivoted %>%
+  # Create a new column for total institutes and share of Govt. institutes, rounded to 1 decimal
+  mutate(total_students = Govt. + Pvt.,
+         share_of_govt = round((Govt. / total_students) * 100, 1)) %>%
+  # Select only the necessary columns
+  select(year, total_students, share_of_govt)
+
+
+
+# Student count in ITIs across districts
+#iti_student_dist_count = student_iti_admis %>%
+#  group_by(year,institute_district,typeof_institute,reported_institute) %>%
+#  summarise(student_count = n(), .groups = "drop")
+#view(iti_student_count)
+# Student count in Polytechnics across districts
+#poly_student_dist_count = student_dip_admis %>%
+#  group_by(year,institute_district,typeof_institute,reported_institute) %>%
+#  summarise(student_count = n(), .groups = "drop")
+
+
+# ITI Count
+iti_institutes_count = student_iti_admis %>%
+  group_by(year,typeof_institute) %>%
+  summarise(ITI_count = n_distinct(reported_institute), .groups = "drop")
+
+# Pivot the data wider to have separate columns for Pvt. and Govt. institutes
+iti_institutes_count_pivoted <- iti_institutes_count %>%
+  pivot_wider( 
+    names_from = typeof_institute, 
+    values_from = ITI_count, 
+    values_fill = 0  # Fill missing values with 0
+  )
+
+# Calculate total students and share of Govt. students
+iti_institutes_count_pivoted_summary <- iti_institutes_count_pivoted %>%
+  # Create a new column for total institutes and share of Govt. institutes, rounded to 1 decimal
+  mutate(total_institutes = Govt. + Pvt.,
+         share_of_govt = round((Govt. / total_institutes) * 100, 1)) %>%
+  # Select only the necessary columns
+  select(year, total_institutes, share_of_govt)
+
+# Polytechnics Count
+poly_institutes_count = student_dip_admis %>%
+  group_by(year,typeof_institute) %>%
+  summarise(poly_count = n_distinct(reported_institute), .groups = "drop")
+
+# Pivot the data wider to have separate columns for Pvt. and Govt. institutes
+poly_institutes_count_pivoted <- poly_institutes_count %>%
+  pivot_wider( 
+    names_from = typeof_institute, 
+    values_from = poly_count, 
+    values_fill = 0  # Fill missing values with 0
+  )
+
+# Calculate total students and share of Govt. students
+poly_institutes_count_pivoted_summary <- poly_institutes_count_pivoted %>%
+  # Create a new column for total institutes and share of Govt. institutes, rounded to 1 decimal
+  mutate(total_institutes = Govt. + Pvt.,
+         share_of_govt = round((Govt. / total_institutes) * 100, 1)) %>%
+  # Select only the necessary columns
+  select(year, total_institutes, share_of_govt)
+
+
+
+
+# Poly Count across districts
+#poly_institutes_count = student_dip_admis %>%
+#  group_by(year,institute_district,typeof_institute) %>%
+#  summarise(Polytechnics_count = n_distinct(reported_institute), .groups = "drop")
+
+
+# Plot the district-wise institute count 
+
+# Institutes with highest enrollment 2023
+# ITI
+iti_level_student_count = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  select(reported_institute, student_count, typeof_institute, institute_district) %>%
+    arrange(desc(student_count)) %>%
+    slice_head(n = 10)
+
+# Polytechnics
+poly_level_student_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  select(reported_institute, student_count, typeof_institute, institute_district) %>%
+  arrange(desc(student_count)) %>%
+  slice_head(n = 10)
+
+# Institutes with highest female enrollment 2023
+# ITI
+iti_level_fem_student_count = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
+  summarise(female_students = sum(gender == "Female"), .groups = "drop") %>%
+  select(reported_institute, female_students, typeof_institute, institute_district) %>%
+    arrange(desc(female_students)) %>%
+    slice_head(n = 10)
+
+# Polytechnics
+poly_level_fem_student_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
+  summarise(female_students = sum(gender=="Female"), .groups = "drop") %>%
+  select(reported_institute, female_students, typeof_institute, institute_district) %>%
+  arrange(desc(female_students)) %>%
+  slice_head(n = 10)
+
+
+# count of available trades in ITIs 2023
+iti_trade_count = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, reported_institute, typeof_institute) %>%
+  summarise(trade_count = n_distinct(reported_branch_or_trade), .groups = "drop") %>%
+  arrange(desc(trade_count)) %>% 
+  select(reported_institute, trade_count, typeof_institute,institute_district) %>%
+  slice_head(n = 10)
+
+# count of available trades in ITIs 2023
+poly_trade_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, reported_institute, typeof_institute) %>%
+  summarise(branch_count = n_distinct(reported_branch_or_trade), .groups = "drop") %>%
+  arrange(desc(branch_count)) %>% 
+  select(reported_institute, branch_count, typeof_institute,institute_district) %>%
+  slice_head(n = 10)
+
+
+
+```
+
+
+# Descriptive Tables
+```{r tables, echo=FALSE, results='asis'}
+iti_student_count_summary %>%
+  knitr::kable(caption = "Table _: Count of ITI Students", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+dip_student_count_summary %>%
+  knitr::kable(caption = "Table _: Count of Polytechnic Students", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+iti_institutes_count_pivoted_summary %>%
+  knitr::kable(caption = "Table _: Count of ITIs", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_institutes_count_pivoted_summary  %>%
+  knitr::kable(caption = "Table _: Count of Polytechnics", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+iti_level_student_count  %>%
+  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_level_student_count  %>%
+  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Female Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+iti_level_fem_student_count  %>%
+  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_level_fem_student_count  %>%
+  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Female Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+iti_trade_count  %>%
+  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Number of Trades", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_trade_count  %>%
+  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Number of Branches", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 ```
 
