@@ -31,8 +31,124 @@ The analysis uses data from the Student Academic Management System (SAMS), which
 ## Demographics
 
 ```{r}
+## Social Group compostion in across years
+
+# Function to calculate % for groups
+calculate_percentage <- function(data, x) {
+  data %>%
+    group_by(year, {{x}}) %>%                              # Use the provided variable (x) for grouping
+    summarise(count = n(), .groups = 'drop') %>%
+    group_by(year) %>%                                      # Group by year for calculating percentage within each year
+    mutate(Percentage = count / sum(count) * 100) %>%
+    mutate(Percentage = round(Percentage, 1)) %>%
+    ungroup() %>%
+    select(year, {{x}}, Percentage) %>%
+    pivot_wider(names_from = {{x}}, values_from = Percentage)  # Pivot based on the variable (x)
+}
+
+ITI_soc_grp <- calculate_percentage(student_iti_admis, social_category)
+poly_soc_grp <- calculate_percentage(student_dip_admis, social_category)
+ITI_religion <- calculate_percentage(student_iti_admis, religion_name)
+poly_religion <- calculate_percentage(student_dip_admis, religion_name)
+ITI_income_grp <- calculate_percentage(student_iti_admis, annual_income) %>%
+  select("year", "0-1,00,000", "1,00,000-2,50,000", "2,50,000 - 6,00,000", "Above 6,00,000",  "More than 8,00,000",  "OTHER", "NA")
+poly_income_grp <- calculate_percentage(student_dip_admis, annual_income) %>%
+  select("year", "Upto 2.5 lakh","Between 2.5 To 8 lakh", "Above 8 lakh", "--")
+
+# Function to calculate % for groups within General category
+calculate_percentage_income <- function(data, x) {
+  data %>%
+    filter(social_category == "General") %>%               # Filter for "General" in social_category
+    group_by(year, {{x}}) %>%                              # Group by year and the specified column (income group)
+    summarise(count = n(), .groups = 'drop') %>%
+    group_by(year) %>%                                      # Group by year for calculating percentage
+    mutate(Percentage = count / sum(count) * 100) %>%
+    mutate(Percentage = round(Percentage, 1)) %>%
+    ungroup() %>%
+    select(year, {{x}}, Percentage) %>%
+    pivot_wider(names_from = {{x}}, values_from = Percentage)  # Pivot based on the variable (income group)
+}
+
+iti_general_income = calculate_percentage_income(student_iti_admis, annual_income)  %>%
+  select("year", "0-1,00,000", "1,00,000-2,50,000", "2,50,000 - 6,00,000", "Above 6,00,000",  "More than 8,00,000",  "OTHER", "NA")
+poly_general_income = calculate_percentage_income(student_dip_admis, annual_income) 
+
+# Pivot table ITI for social_group and income_group in the year 2023
+pivot_table_iti_inc_soc_2023 <- student_iti_admis %>%
+  filter(year == 2023) %>%                                  # Filter for the year 2023
+  group_by(social_category, annual_income) %>%               # Group by social_category and income_group
+  summarise(count = n(), .groups = 'drop') %>%              # Count the number of students in each group
+  group_by(social_category) %>%                             # Group by social_category to calculate percentage
+  mutate(percentage = count / sum(count) * 100) %>%         # Calculate percentage for each income_group
+  ungroup() %>%
+  mutate(percentage = round(percentage, 1)) %>%             # Round the percentage to one decimal place
+  select(-count) %>%                                        # Remove the count column
+  pivot_wider(names_from = annual_income,                    # Pivot so that income_group becomes columns
+              values_from = percentage,                     # Use the percentage as values
+              values_fill = list(percentage = 0)) %>%
+  select("social_category", "0-1,00,000", "1,00,000-2,50,000", "2,50,000 - 6,00,000",  "More than 8,00,000",  "OTHER", "NA")           # Fill missing combinations with 0
+               # Fill missing combinations with 0
+
+# Pivot table Polytechnics for social_group and income_group in the year 2023
+pivot_table_dip_inc_soc_2023 <- student_dip_admis %>%
+  filter(year == 2023) %>%                                  # Filter for the year 2023
+  group_by(social_category, annual_income) %>%               # Group by social_category and income_group
+  summarise(count = n(), .groups = 'drop') %>%              # Count the number of students in each group
+  group_by(social_category) %>%                             # Group by social_category to calculate percentage
+  mutate(percentage = count / sum(count) * 100) %>%         # Calculate percentage for each income_group
+  ungroup() %>%
+  mutate(percentage = round(percentage, 1)) %>%             # Round the percentage to one decimal place
+  select(-count) %>%                                        # Remove the count column
+  pivot_wider(names_from = annual_income,                    # Pivot so that income_group becomes columns
+              values_from = percentage,                     # Use the percentage as values
+              values_fill = list(percentage = 0)) %>%
+  select(social_category, `Upto 2.5 lakh`,`Between 2.5 To 8 lakh`, `Above 8 lakh`, `--`)
 
 
+```
+
+# Descriptive Tables
+```{r}
+ITI_soc_grp %>%
+  knitr::kable(caption = "Table _: Social Category Composition ITIs (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+poly_soc_grp %>% 
+  knitr::kable(caption = "Table _: Social Category Composition Polytechnics (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+ITI_religion %>%
+  knitr::kable(caption = "Table _: Religion Composition ITI (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_religion %>%
+  knitr::kable(caption = "Table _: Religion Composition Polytechnics (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+ITI_income_grp %>%
+  knitr::kable(caption = "Table _: Income Group (Annual) Composition ITI (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_income_grp %>%
+  knitr::kable(caption = "Table _: Income Group (Annual) Composition Polytechnics (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+ 
+iti_general_income %>%
+  knitr::kable(caption = "Table _: Income Group Composition Among General Category ITI (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+poly_general_income %>%
+  knitr::kable(caption = "Table _: Income Group Composition Among General Category Polytechnics (%)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+# Note - There is no "General" Category in Polytechnics
+
+pivot_table_iti_inc_soc_2023 %>%
+  knitr::kable(caption = "Table _: Social Category Income Group Matrix ITI in % (2023)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+pivot_table_dip_inc_soc_2023 %>%
+  knitr::kable(caption = "Table _: Social Category Income Group Matrix Polytechnics in % (2023)", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 ```
 
@@ -329,5 +445,9 @@ poly_trade_count  %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 ```
+
+
+
+## Trade/Branch
 
 
