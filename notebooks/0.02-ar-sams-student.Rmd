@@ -439,8 +439,8 @@ Dip_insti_leave_dist = student_dip_admis %>%
 
 ```
 
-
-```{r, results='asis'}
+## Descriptive Tables
+```{r tables, echo=FALSE, results='asis'}
 pipeline_table %>%
   filter(year >= 2017) %>%
   knitr::kable(caption = "Table 1: Vocational Training Pipeline in Odisha", digits = 1) %>%
@@ -454,11 +454,12 @@ pivoted_Dip_gender_leave_dist %>%
   knitr::kable(caption = "Table 3: Diploma Students Leaving Home District", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
+
 ```
 
 
 
-```{r}
+```{r,echo=FALSE, eval=FALSE}
 # Check if the columns are identical 
 are_identical <- identical(student_iti_admis$year, student_iti_admis$academic_year)
 
@@ -467,5 +468,266 @@ print(are_identical)
 
 
 ```
+
+## Replicating Female Share Trends in ITI and Polytechnics
+```{r, echo=FALSE,eval=FALSE}
+# Step 1: Calculate female share per institute per year
+ITI_female_share <- student_iti_admis %>%
+  group_by(year, reported_institute, typeof_institute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(gender == "Female"),
+    female_share = female_students / total_students * 100
+  )
+
+# Calculate the aggregate female share per year for Govt. and Pvt. institutes
+Dip_mean_female_share <- student_iti_admis %>%
+  group_by(year, typeof_institute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(gender == "Female"),
+    aggr_female_share = female_students / total_students * 100
+  )
+
+
+# Calculate mean female share of students 
+#Dip_mean_female_share <- ITI_female_share %>%
+#  group_by(year, typeof_institute) %>%
+#  summarise(
+#    mean_female_share = mean(female_share)
+#  )
+
+Dip_mean_female_share <- Dip_mean_female_share %>%
+  mutate(Year = as.numeric(year))
+
+# Step 4: Combined plot
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_mean_female_share, aes(x = year, y = aggr_female_share, color = typeof_institute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_mean_female_share, aes(x = Year, y = aggr_female_share, color = typeof_institute, group = typeof_institute), 
+            size = 1) +
+  
+  # Labels and theme
+  ylim(0,40) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Aggregate Female Share (%) in Pvt. & Govt. ITIs",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+## Total female students
+ITI_total_female = ITI_female_share %>%
+  group_by(year, typeof_institute) %>%
+  summarise(
+    total_female = sum(female_students)
+  ) %>%
+  mutate(year = as.numeric(year))
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = ITI_total_female, aes(x = year, y = total_female, color = typeof_institute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = ITI_total_female, aes(x = year, y = total_female, color = typeof_institute, group = typeof_institute), 
+            size = 1) +
+  # Labels and theme
+  ylim(0,8000) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Total Female Students in Pvt. & Govt. ITIs",
+    x = "Year",
+    y = "Female Students",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+## Polytechnics
+# Step 1: Calculate female share per institute per year
+Dip_female_share <- student_dip_admis %>%
+  group_by(year, reported_institute, typeof_institute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(gender == "Female"),
+    female_share = female_students / total_students * 100
+  )
+
+# Step 2: Prepare data for difference-in-difference type analysis
+# Define the treatment group (Govt.) and control group (Pvt.)
+did_data <- Dip_female_share %>%
+  mutate(
+    post_2023 = ifelse(year >= 2023, 1, 0),  # Indicator for post-intervention period
+    treatment = ifelse(typeof_institute == "Govt.", 1, 0)  # Treatment group (Govt.)
+  )
+
+# Calculate the aggregate female share per year for Govt. and Pvt. institutes
+Dip_mean_female_share <- student_dip_admis %>%
+  group_by(year, typeof_institute) %>%
+  summarise(
+    total_students = n(),
+    female_students = sum(gender == "Female"),
+    aggr_female_share = female_students / total_students * 100
+  )
+
+
+Dip_mean_female_share <- Dip_mean_female_share %>%
+  mutate(year = as.numeric(year))
+
+# Step 4: Combined plot
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_mean_female_share, aes(x = year, y = aggr_female_share, color = typeof_institute), 
+             size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_mean_female_share, aes(x = year, y = aggr_female_share, color = typeof_institute, group = typeof_institute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Labels and theme
+  ylim(0,40) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1))  +
+  labs(
+    title = "Aggregate Female Share (%) in Pvt. & Govt. Polytechnics",
+    x = "Year",
+    y = "Female Share (%)",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+## Total female students 
+
+Dip_total_female = Dip_female_share %>%
+  group_by(year, typeof_institute) %>%
+  summarise(
+    total_female = sum(female_students)
+  ) %>%
+  mutate(year = as.numeric(year))
+
+ggplot() +
+  # Scatter points for mean female share by year (Govt. vs Pvt.)
+  geom_point(data = Dip_total_female, aes(x = year, y = total_female, color = typeof_institute), size = 2, shape = 17) +  # Change shape to distinguish mean points
+  
+  # Line for aggregate female share by year (Govt. vs Pvt.)
+  geom_line(data = Dip_total_female, aes(x = year, y = total_female, color = typeof_institute, group = typeof_institute), 
+            size = 1) +
+  
+  # Vertical line for intervention year (2023)
+  geom_vline(xintercept = 2023, linetype = "dashed", color = "black") +  # Intervention year
+  
+  # Labels and theme
+  ylim(0,6000) +
+  scale_x_continuous(name = "Year",
+    limits = c(2018, 2024),  # Set the x-axis range
+    breaks = seq(2018, 2024, 1),
+    labels = seq(2018, 2024, 1)  # Labels for each year
+    )  +
+  labs(
+    title = "Total Female Students in Pvt. & Govt. Polytechnics",
+    x = "Year",
+    y = "Female Students",
+    color = "Type of Institute"
+  ) +
+  theme_minimal() +
+  theme(axis.ticks.x = element_line(size = 0.6, colour = "black"), 
+                   axis.ticks.y = element_line(size = 0.6, colour = "black"),
+                   axis.ticks.length = unit(5, "pt"))
+
+
+
+
+
+```
+
+
+## Analysis of Institutes
+```{r, echo=FALSE}
+# Student count in ITIs
+iti_student_count = student_iti_admis %>%
+  group_by(year,institute_district,typeof_institute,reported_institute) %>%
+  summarise(student_count = n(), .groups = "drop")
+view(iti_student_count)
+# Student count in Polytechnics
+poly_student_count = student_dip_admis %>%
+  group_by(year,institute_district,typeof_institute,reported_institute) %>%
+  summarise(student_count = n(), .groups = "drop")
+
+
+# ITI Count
+iti_institutes_count = student_iti_admis %>%
+  group_by(year,institute_district,typeof_institute) %>%
+  summarise(ITI_count = n_distinct(reported_institute), .groups = "drop")
+view(iti_institutes_count)
+
+# Poly Count
+poly_institutes_count = student_dip_admis %>%
+  group_by(year,institute_district,typeof_institute) %>%
+  summarise(Polytechnics_count = n_distinct(reported_institute), .groups = "drop")
+
+
+# Plot the district-wise institute count 
+
+
+# count of available trades in ITIs 2023
+iti_trade_count = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, reported_institute, typeof_institute) %>%
+  summarise(trade_count = n_distinct(reported_branch_or_trade), .groups = "drop") %>%
+  arrange(desc(trade_count))
+
+top_iti_trades
+
+view(iti_trade_count)
+write
+# count of available trades in ITIs 2023
+poly_trade_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, reported_institute) %>%
+  summarise(branch_count = n_distinct(reported_branch_or_trade), .groups = "drop")
+
+
+
+```
+
+
+## Household Characteristics of the students
+```{r}
+# ITI Students
+
+
+# Social Category Distribution across years
+
+
+
+
+
+```
+
+
+
 
 
