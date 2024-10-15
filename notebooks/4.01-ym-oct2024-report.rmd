@@ -27,3 +27,25 @@ Vocational training plays a crucial role in enhancing employability and skill de
 The analysis uses data from the Student Academic Management System (SAMS), which includes variables such as...
 
 # Analysis
+
+## Demographics
+
+```{r}
+
+```
+
+
+## Geography
+
+```{r}
+
+```
+
+
+## Institutions
+
+```{r}
+
+```
+
+
