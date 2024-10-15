@@ -1,48 +1,30 @@
 ---
-title: "SAMS Data Analysis"
+title: "SAMS Data Analysis Draft"
 output: html_document
-date: "2024-10-09"
+date: "`r Sys.Date()`"
 ---
 
-```{r}
+```{r, echo=FALSE}
 install.packages("DBI")
 install.packages("RSQLite")
+install.packages("kableExtra")
 
 ```
 
 # Load the libraries
 
-```{r}
+```{r, echo=FALSE}
 library(RSQLite)
 library(DBI)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
 ```
 
-# Import db file
 
-```{r}
-# Connect to the SQLite database
-con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
-
-# List available tables in the database
-tables <- dbListTables(con)
-print(tables)
-
-# Send the SQL query for one year and one module
-result <- dbSendQuery(con, "SELECT * FROM students WHERE year = '2023' AND module = 'ITI';")
-
-# Fetch the data
-data <- dbFetch(result)
-view(data)
-remove(data)
-
-# Clear the result and disconnect
-dbClearResult(result)
-dbDisconnect(con)
-
-```
 # Application - Enrollment 
 
-```{r}
+```{r, echo=FALSE}
 # Check for disrepencies in applied_status and admission and enrollment
 table(student_data_iti$admission_status,student_data_iti$enrollment_status)
 
@@ -66,16 +48,12 @@ No in applied status probably means those who were not able to complete applying
 To calculate the count who did not get admission - Yes in applied status; No in enrollment_status
 It is not sure among those who did not get admission whether they were rejected or did not accept. 
 
-A categorical dummy can be made indicate rejected applicants and accepted applicants. 
+A categorical dummy can be made to indicate rejected applicants and accepted applicants. 
 After that, a comparison between the two groups can be done based on various variables. 
-
-Y - keep the data where the SAMSCode is there. 
-Multiple Applications (Check). 
-1st graph - The number of people applying. these are the number of people going
 
 
 ## ITI Student Data from 2017 to 2024
-```{r}
+```{r, echo=FALSE}
 con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
 
 # Query data for ITI module for years 2017 to 2023
@@ -91,9 +69,15 @@ student_data_iti <- dbFetch(result)
 dbClearResult(result)
 dbDisconnect(con)
 
+# Admitted students only 
+student_iti_admis = student_data_iti %>%
+  filter(admission_status == "Yes")
 
+```
+
+
+```{r,eval=FALSE}
 ## Check the admission count each year
-student_iti_admis = student_data_iti[!is.na(student_data_iti$sams_code),]
 table(student_iti_admis$year)
 
 student_iti_admis = student_data_iti %>%
@@ -101,20 +85,26 @@ student_iti_admis = student_data_iti %>%
 table(student_iti_admis$year)
 
 
+iti_admis_count = student_iti_admis %>%
+  group_by(year) %>%
+  summarise(Admitted_students_iti = n())
+view(iti_admis_count)
+
+
 # Create the 'final_status' variable
-student_data_iti <- student_data_iti %>%
-  mutate(final_status = case_when(
-    admissionstatus == "Yes" ~ "accepted",
-    admissionstatus == "No" & appliedstatus == "Yes" ~ "rejected",
-    admissionstatus == "No" & appliedstatus == "No" ~ "not applied"
-  ))
+#student_data_iti <- student_data_iti %>%
+#  mutate(final_status = case_when(
+#    admissionstatus == "Yes" ~ "accepted",
+#    admissionstatus == "No" & appliedstatus == "Yes" ~ "rejected",
+#    admissionstatus == "No" & appliedstatus == "No" ~ "not applied"
+#  ))
 
 
 ```
 
 
 ## Diploma Student Data from 2018 to 2024 
-```{r}
+```{r, include=FALSE,echo=FALSE}
 con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
 
 # Query data for ITI module for years 2017 to 2023
@@ -128,12 +118,24 @@ student_data_dip <- dbFetch(result)
 
 # Clear the result
 dbClearResult(result)
+dbDisconnect(con)
 
-table(student_data_dip$admission_status,student_data_dip$applied_status)
+
 
 ## Check the admission count each year
 student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
-table(student_data_dip$year)
+
+
+dip_admis_count = student_dip_admis %>%
+  group_by(year) %>%
+  summarise(Admitted_students_Diploma = n())
+
+```
+
+```{r,eval=FALSE}
+table(student_data_dip$admission_status,student_data_dip$applied_status)
+
+table(student_dip_admis$year)
 
 student_dip_admis = student_data_dip %>%
   filter(admission_status == "Yes")
@@ -141,20 +143,47 @@ table(student_dip_admis$year)
 
 table(student_data_dip$highest_qualification)
 
-student_dip_code_admis = student_data_dip %>%
-  filter(admission_status == "No")
-view(student_dip_code_admis)
-
-remove()
-
 
 ```
 
 
+## Check for duplicates in admission data for ITI and Diploma
+```{r, echo=FALSE}
+## ITI
+iti_duplicates <- student_iti_admis %>%
+  group_by(aadhar_no,year) %>%
+  summarize(num_duplicates = n()) %>%
+  arrange(num_duplicates)
+#head(iti_duplicates)
 
-## Sankey Plot of 10th - ITI/Diploma
-```{r}
-# Exclude 2017 ITI
+duplicate_barcodes <- iti_duplicates %>%
+ filter(num_duplicates > 1) %>%   # Filter rows where num_duplicates are greater than 1
+ select(aadhar_no)           # Select only those Barcodes
+
+
+barcode_dupli_list = student_iti_admis %>% filter(aadhar_no %in% duplicate_barcodes$aadhar_no)
+#head(barcode_dupli_list)
+
+
+## Diploma
+dip_duplicates <- student_dip_admis %>%
+  group_by(aadhar_no,year) %>%
+  summarize(num_duplicates = n()) %>%
+  arrange(num_duplicates)
+#head(dip_duplicates)
+
+duplicate_barcodes <- dip_duplicates %>%
+ filter(num_duplicates > 1) %>%   # Filter rows where num_duplicates are greater than 1
+ select(aadhar_no)           # Select only those Barcodes
+
+
+barcode_dupli_list = student_dip_admis %>% filter(aadhar_no %in% duplicate_barcodes$aadhar_no)
+#head(barcode_dupli_list)
+
+
+```
+
+```{r,eval=FALSE}
 student_data_iti_excl_2017 = student_data_iti %>%
   filter(year != "2017")
 
@@ -184,8 +213,15 @@ diploma_summary <- process_data(student_data_dip)
 iti_2023 <- iti_summary %>% filter(year == 2023)
 diploma_2023 <- diploma_summary %>% filter(year == 2023)
 
+```
+
+
+## Pipeline Table of 10th - +2 - ITI/Diploma
+```{r, echo=FALSE}
+# Exclude 2017 ITI
+
 # Import 10th figures
-tenth_count = read_excel("C:/Users/Admin/Documents/GitHub/sams/data/raw/10th_odisha.xlsx")
+tenth_count = read_excel("C:/Users/Admin/Documents/GitHub/sams/data/raw/tenth_plustwo_odisha.xlsx")
 
 # Summarize the data by year, calculating the total pass, total fail, and total batch count
 total_tenth_count <- tenth_count %>%
@@ -203,13 +239,41 @@ total_tenth_count <- tenth_count %>%
     total_batch = total_pass + total_fail
   )
 view(total_tenth_count)
+
 # Tenth passing batch only 2023
 total_tenth_count_2023 = total_tenth_count %>% filter(Year == 2023)
 
-# Define the admission count for +2 in 2023 from SAMS Dashboard
-Plus_two_admis_2023 =  414794	
+# Import admission count for +2 in from 2011 to 2023 from SAMS Dashboard
+plus_two_admis <- read_excel("C:/Users/Admin/Documents/GitHub/sams/data/raw/tenth_plustwo_odisha.xlsx", 
+    sheet = "plus_two")
+
+plus_two_admis <- plus_two_admis %>% rename(year = Year)
+total_tenth_count <- total_tenth_count %>% rename(year = Year)
+
+total_tenth_count <- total_tenth_count %>% rename(total_tenth_batch = total_batch)
+plus_two_admis <- plus_two_admis %>% rename(total_plus_two_admitted = student_admitted)
+
+view(total_tenth_count)
+# Select only the columns you need from each dataframe
+df1_selected <- plus_two_admis %>% select(year, total_plus_two_admitted)
+df2_selected <- total_tenth_count %>% select(year, total_tenth_batch)
+
+# Perform full_join based on 'Year'
+pipeline_table <- df2_selected %>%
+  full_join(df1_selected, by = "year") %>%
+  full_join(iti_admis_count, by = "year") %>%
+  full_join(dip_admis_count, by = "year") %>%
+  arrange(year) %>%
+  mutate(total_plus_two_admitted = gsub(",", "", total_plus_two_admitted)) %>%
+  mutate(total_plus_two_admitted = as.numeric(total_plus_two_admitted))
 
 
+
+```
+
+
+## Sankey Plot of 10th - ITI/Diploma
+```{r, eval=FALSE, echo=FALSE}
 # Prepare df for Sankey
 sankey_data <- data.frame(
   source = c("10th Batch", "10th Batch", "10th Batch","10th Batch", "Applied ITI", "Applied ITI", "Applied Diploma", "Applied Diploma"),
@@ -247,20 +311,17 @@ str(sankey_data)
 # Plot the Sankey diagram
 sankey
 
-
-
-
 ```
 
 
 ## Migration
-```{r}
+```{r, echo=FALSE}
 # Diagnose 
-table(student_iti_admis$district,student_iti_admis$institute_district)
-table(student_dip_admis$district,student_dip_admis$institute_district)
+#table(student_iti_admis$district,student_iti_admis$institute_district)
+#table(student_dip_admis$district,student_dip_admis$institute_district)
 
-n_distinct(student_dip_admis$district)
-n_distinct(student_data_iti$institute_district)
+#n_distinct(student_dip_admis$district)
+#n_distinct(student_data_iti$institute_district)
 # Number of districts in "institute_district" for ITIs is 30 (The number of districts in Odisha)
 
 
@@ -285,7 +346,125 @@ Dip_leave_dist = student_dip_admis %>%
   summarise(leave_home_dist = sum(district != institute_district)) %>%
   ungroup() 
 
-# How many leave their home district to study in 2023
+## Aggregate - How many leave their home district to study 
+# ITI
+ITI_total_leave_dist = student_iti_admis %>%
+  filter(!district %in% c("Other", "Skill Department (DTET)", "Odisha")) %>% # Exclude these
+  group_by(year) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+print(ITI_total_leave_dist)
+# Diploma
+Dip_total_leave_dist = student_dip_admis %>%
+  filter(district != "Other") %>% # Exclude these
+  group_by(year) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+## Aggregate by Gender - How many leave their home district to study 
+# ITI
+ITI_gender_leave_dist = student_iti_admis %>%
+  filter(!district %in% c("Other", "Skill Department (DTET)", "Odisha")) %>% # Exclude these
+  group_by(year, gender) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+# Pivot the data frame
+pivoted_ITI_gender_leave_dist <- ITI_gender_leave_dist %>%
+  pivot_wider(names_from = gender, values_from = total_leaving_home_dist, values_fill = 0)
+# Remove Transgender
+pivoted_ITI_gender_leave_dist <- pivoted_ITI_gender_leave_dist %>%
+  select(-Transgender)
+# Calculate Female Share
+pivoted_ITI_gender_leave_dist <- pivoted_ITI_gender_leave_dist %>%
+  mutate(Female_Share_Percent = Female / (Male + Female) * 100)
+# Calculate Total Students
+pivoted_ITI_gender_leave_dist <- pivoted_ITI_gender_leave_dist %>%
+  mutate(Total_Students = Male + Female) %>%
+  select(year, Total_Students, Male, Female, Female_Share_Percent)  # Reorder columns
+
+
+# Diploma
+Dip_gender_leave_dist = student_dip_admis %>%
+  filter(district != "Other") %>% # Exclude these
+  group_by(year, gender) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+pivoted_Dip_gender_leave_dist <- Dip_gender_leave_dist %>%
+  pivot_wider(names_from = gender, values_from = total_leaving_home_dist, values_fill = 0)
+# Remove Transgender
+pivoted_Dip_gender_leave_dist <- pivoted_Dip_gender_leave_dist %>%
+  select(-Transgender)
+# Calculate Female Share
+pivoted_Dip_gender_leave_dist <- pivoted_Dip_gender_leave_dist %>%
+  mutate(Female_Share_Percent = Female / (Male + Female) * 100)
+# Calculate Total Students
+pivoted_Dip_gender_leave_dist <- pivoted_Dip_gender_leave_dist %>%
+  mutate(Total_Students = Male + Female) %>%
+  select(year, Total_Students, Male, Female, Female_Share_Percent)  # Reorder columns
+
+
+
+
+## Aggregate by Home District - How many leave their home district to study 
+# ITI
+ITI_home_leave_dist = student_iti_admis %>%
+  filter(!district %in% c("Other", "Skill Department (DTET)", "Odisha")) %>% # Exclude these
+  group_by(year, district) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+# Diploma
+Dip_home_leave_dist = student_dip_admis %>%
+  filter(district != "Other") %>% # Exclude these
+  group_by(year, district) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+## Aggregate by Institute District - How many leave their home district to study 
+# ITI
+ITI_insti_leave_dist = student_iti_admis %>%
+  filter(!district %in% c("Other", "Skill Department (DTET)", "Odisha")) %>% # Exclude these
+  group_by(year, institute_district) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+# Diploma
+Dip_insti_leave_dist = student_dip_admis %>%
+  filter(district != "Other") %>% # Exclude these
+  group_by(year, institute_district) %>%
+  summarise(total_leaving_home_dist = sum(district != institute_district)) %>%
+  ungroup() 
+
+
+```
+
+
+```{r, results='asis'}
+pipeline_table %>%
+  filter(year >= 2017) %>%
+  knitr::kable(caption = "Table 1: Vocational Training Pipeline in Odisha", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+pivoted_ITI_gender_leave_dist %>%
+  knitr::kable(caption = "Table 2: ITI Students Leaving Home District", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+pivoted_Dip_gender_leave_dist %>%
+  knitr::kable(caption = "Table 3: Diploma Students Leaving Home District", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+```
+
+
+
+```{r}
+# Check if the columns are identical 
+are_identical <- identical(student_iti_admis$year, student_iti_admis$academic_year)
+
+# Print result
+print(are_identical)  
+
 
 ```
 
