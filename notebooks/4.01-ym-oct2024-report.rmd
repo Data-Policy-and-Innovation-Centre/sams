@@ -270,6 +270,17 @@ Poly_graduates_same_year <- student_iti_admis %>%
 
 
 ```{r}
+# Count the total number of students from each district across the years
+total_students_district <- student_iti_admis %>%
+  group_by(district, year) %>%  # Group by district and year
+  summarise(total_students = n(), .groups = 'drop')  # Count the number of students
+
+# Count the number of female students from each district in government ITIs across the years
+female_govt_iti_students <- student_iti_admis %>%
+  filter(gender == "Female" & typeof_institute == "Govt") %>%  # Filter for females in govt. ITIs
+  group_by(district, year) %>%  # Group by district and year
+  summarise(female_students = n(), .groups = 'drop')  # Count the number of female students
+
 
 
 ```
@@ -437,7 +448,8 @@ poly_institutes_count_pivoted_summary <- poly_institutes_count_pivoted %>%
 iti_level_student_count = student_iti_admis %>%
   filter(year == 2023) %>%
   group_by(institute_district,typeof_institute,reported_institute) %>%
-  summarise(student_count = n(), .groups = "drop") %>%
+  summarise(student_count = n(), .groups = "drop",
+            ) %>%
   select(reported_institute, student_count, typeof_institute, institute_district) %>%
     arrange(desc(student_count)) %>%
     slice_head(n = 10)
@@ -453,22 +465,46 @@ poly_level_student_count = student_dip_admis %>%
 
 # Institutes with highest female enrollment 2023
 # ITI
+# ITI Level Female Student Count with Total Students and Total Gov ITIs
 iti_level_fem_student_count = student_iti_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district,typeof_institute,reported_institute) %>%
-  summarise(female_students = sum(gender == "Female"), .groups = "drop") %>%
-  select(reported_institute, female_students, typeof_institute, institute_district) %>%
-    arrange(desc(female_students)) %>%
-    slice_head(n = 10)
-
-# Polytechnics
-poly_level_fem_student_count = student_dip_admis %>%
-  filter(year == 2023) %>%
-  group_by(institute_district,typeof_institute,reported_institute) %>%
-  summarise(female_students = sum(gender=="Female"), .groups = "drop") %>%
-  select(reported_institute, female_students, typeof_institute, institute_district) %>%
+  group_by(institute_district, typeof_institute, reported_institute) %>%
+  summarise(female_students = sum(gender == "Female"),
+            total_students = n(),  # Total students (male + female)
+            .groups = "drop") %>%
+  select(reported_institute, female_students, total_students, typeof_institute, institute_district) %>%
   arrange(desc(female_students)) %>%
   slice_head(n = 10)
+
+# Count total number of government ITIs in each district
+total_gov_itis = student_iti_admis %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
+  group_by(institute_district) %>%
+  summarise(total_gov_itis = n_distinct(reported_institute), .groups = "drop")
+
+# Join the government ITI count to the female student count data frame
+iti_level_fem_student_count = iti_level_fem_student_count %>%
+  left_join(total_gov_itis, by = "institute_district") %>%
+  mutate(Female_Share_Percent = round((female_students / total_students) * 100, 1)) %>% # Calculate Female Share (%)
+  select(reported_institute, female_students, total_students, Female_Share_Percent, typeof_institute, institute_district, total_gov_itis)  # Reorder columns
+
+
+# Polytechnics Level Female Student Count with Total Students and Total Gov ITIs
+poly_level_fem_student_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, typeof_institute, reported_institute) %>%
+  summarise(female_students = sum(gender == "Female"),
+            total_students = n(),  # Total students (male + female)
+            .groups = "drop") %>%
+  select(reported_institute, female_students, total_students, typeof_institute, institute_district) %>%
+  arrange(desc(female_students)) %>%
+  slice_head(n = 10)
+
+# Count total number of government Polytechnics in each district for Polytechnics
+total_gov_poly_itis = student_dip_admis %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
+  group_by(institute_district) %>%
+  summarise(total_gov_polytechnics = n_distinct(reported_institute), .groups = "drop")
 
 
 # count of available trades in ITIs 2023
@@ -489,6 +525,23 @@ poly_trade_count = student_dip_admis %>%
   select(reported_institute, branch_count, typeof_institute,institute_district) %>%
   slice_head(n = 10)
 
+view(iti_level_fem_student_count)
+
+ITI_talcher = student_iti_admis %>% 
+  filter(year == 2023) %>% 
+  filter(reported_institute %in% c("ITI Berhampur, Ganjam", "ITI Bhubaneswar, Khurda", "ITI Cuttack", "ITI Barbil, Keonjhar", "Madhusudan ITI, Cuttack", "ITI Talcher, Anugul"))
+
+Talcher_trade = ITI_talcher %>% 
+  group_by(reported_institute, reported_branch_or_trade) %>%
+  summarise(trade_count = n(),
+            female_trade_count = sum(gender == "Female"))
+
+selected_institute_trade_matrix <- Talcher_trade  %>%
+  select(-trade_count) %>%
+  pivot_wider(names_from = reported_institute, values_from = female_trade_count) 
+
+
+print(selected_institute_trade_matrix)
 
 
 ```
@@ -516,12 +569,23 @@ iti_level_student_count  %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 poly_level_student_count  %>%
-  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Female Student Enrollment", digits = 1) %>%
+  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Female Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 iti_level_fem_student_count  %>%
-  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Student Enrollment", digits = 1) %>%
+  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Female Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+selected_institute_trade_matrix %>%
+  knitr::kable(caption = "Table _: Trade Composition Selected Gov. ITIs with High Female Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+# Load reactable
+library(reactable)
+
+# Create an interactive table with sorting
+reactable(selected_institute_trade_matrix, sortable = TRUE, defaultPageSize = 27)
+
 
 poly_level_fem_student_count  %>%
   knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Female Student Enrollment", digits = 1) %>%
@@ -537,8 +601,69 @@ poly_trade_count  %>%
 
 ```
 
+```{r}
+
+
+
+```
 
 
 ## Trade/Branch
 
+```{r}
+## Top 10 trades among Male and Female 2023
+top_trades_gender <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(gender, reported_branch_or_trade, course_period) %>%
+  summarise(student_count = n(), .groups = 'drop') %>%
+  arrange(gender, desc(student_count))
+
+# Step 2: Get top 10 trades for male students
+top_male_trades <- top_trades_gender %>%
+  filter(gender == "Male") %>%
+  top_n(10, student_count)
+
+# Step 3: Get top 10 trades for female students
+top_female_trades <- top_trades_gender %>%
+  filter(gender == "Female") %>%
+  top_n(10, student_count)
+
+# Step 4: Combine results and include 'course_period'
+top_trades_combined_gender <- bind_rows(
+  top_male_trades %>% mutate(gender_group = "Male"),
+  top_female_trades %>% mutate(gender_group = "Female")
+)
+# Pivot the data to have trades as columns and include course_period
+pivoted_result <- top_trades_combined %>%
+  select(gender_group, reported_branch_or_trade, student_count, course_period) %>%  # Select relevant columns
+  distinct() %>%  # Ensure unique rows
+  pivot_wider(names_from = gender_group, values_from = student_count, values_fill = list(student_count = 0)) %>%
+  arrange(gender_group)  # Optional: order by gender
+
+# Display the pivoted result
+print(pivoted_result)
+
+## Top 10 trades among Pvt. and Govt. ITIs 2023
+top_trades_iti <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(typeof_institute, reported_branch_or_trade, course_period) %>%
+  summarise(student_count = n(), .groups = 'drop') %>%
+  arrange(typeof_institute, desc(student_count))
+
+# Step 2: Get top 10 trades for Gov. ITIs
+top_gov_trades <- top_trades_iti %>%
+  filter(typeof_institute == "Gov.") %>%
+  top_n(10, student_count)
+
+# Step 3: Get top 10 trades for Pvt. ITIs
+top_pvt_trades <- top_trades_iti %>%
+  filter(typeof_institute == "Pvt.") %>%
+  top_n(10, student_count)
+
+# Combine results for both Gov. and Pvt. ITIs
+top_trades_combined_type <- bind_rows(
+  top_gov_trades %>% mutate(institute_type = "Gov."),
+  top_pvt_trades %>% mutate(institute_type = "Pvt.")
+)
+```
 
