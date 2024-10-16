@@ -118,59 +118,20 @@ class Institute(Base):
     # Primary columns
     id = Column(Integer, primary_key=True, autoincrement=True)
     sams_code = Column(String, nullable=False)
-
     academic_year = Column(Integer, nullable=False)
     module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
-    institute_name = Column(String)
-    type_of_institute = Column(Enum("Govt.", "Pvt."))
+    institute_name = Column(String, nullable=False)
+    type_of_institute = Column(Enum("Govt.", "Pvt."), nullable=False)
     admission_type = Column(Integer, nullable=True)
+    branch = Column(String, nullable=True)
+    trade = Column(String, nullable=True)
 
     # Nested columns
     strength = Column(JSON)
     cutoff = Column(JSON)
     enrollment = Column(JSON)
 
-
-    # Polymorphic identity for inheritance
-    __mapper_args__ = {"polymorphic_on": module}
-
-
-class ITI(Institute):
-    __tablename__ = "iti"
-    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
-    trade = Column(String)  # Trade is specific to non-PDIS
-    sams_code = Column(String, nullable=False)
-    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
-    academic_year = Column(Integer, nullable=False)
-
-    __mapper_args__ = {
-        "polymorphic_identity": "ITI",
-    }
-
-    # Constraints
-    __table_args__ = (
-        UniqueConstraint(
-            "sams_code",
-            "module",
-            "academic_year",
-            "trade",
-            name="uq_sams_code_module_year_trade",
-        ),
-    )
-
-
-class Diploma(Institute):
-    __tablename__ = "diploma"
-    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
-    branch = Column(String)  
-    trade = Column(String)
-    sams_code = Column(String, nullable=False)
-    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
-    academic_year = Column(Integer, nullable=False)
-    admission_type = Column(Integer, nullable=False)
-
-      # Constraints
-    __table_args__ = (
+    __tableargs__ = (
         UniqueConstraint(
             "sams_code",
             "module",
@@ -178,36 +139,12 @@ class Diploma(Institute):
             "trade",
             "branch",
             "admission_type",
-            name="uq_sams_code_module_year_admission_type_branch_trade",
+            name="uq_sams_code_module_academic_year_trade_branch_admission_type",
+
+
         ),
     )
 
-
-    __mapper_args__ = {
-        "polymorphic_identity": "Diploma",
-    }
-
-
-class PDIS(Institute):
-    __tablename__ = "pdis"
-    id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
-    sams_code = Column(String, nullable=False)
-    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
-    academic_year = Column(Integer, nullable=False) 
-
-    __mapper_args__ = {
-        "polymorphic_identity": "PDIS",
-    }
-
-    # Constraint
-    __table_args__ = (
-        UniqueConstraint(
-            "sams_code",
-            "module",
-            "academic_year",
-            name="uq_sams_code_module_year",
-        ),
-    )
 
 
 class SamsDataLoader:
@@ -236,7 +173,7 @@ class SamsDataLoader:
         Returns:
             None
         """
-        if table_name not in ["institutes", "iti", "diploma", "pdis", "students"]:
+        if table_name not in ["institutes", "students"]:
             raise ValueError(f"Invalid table name: {table_name}")
 
         with tqdm(total=len(data), desc=f"Loading {table_name} data") as pbar:
@@ -266,12 +203,6 @@ class SamsDataLoader:
             Unit = Student
         elif table_name == "institutes":
             Unit = Institute
-        elif table_name == "iti":
-            Unit = ITI
-        elif table_name == "diploma":
-            Unit = Diploma
-        elif table_name == "pdis":
-            Unit = PDIS
         else:
             raise ValueError(f"Invalid table name: {table_name}")
 
@@ -307,7 +238,7 @@ class SamsDataLoader:
         if table_name == "students":
             return self._add_student(data)
         else:
-            return self._add_institute(data, table_name)
+            return self._add_institute(data)
 
     def _add_student(self, data: dict) -> bool:
         """
@@ -356,22 +287,11 @@ class SamsDataLoader:
             session.close()
             return success
 
-    def _add_institute(self, data: dict, table_name: str) -> bool:
+    def _add_institute(self, data: dict) -> bool:
 
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
         
-
-        if table_name == "institutes":
-            Institute = Institute
-        elif table_name == "iti":
-            Institute = ITI
-        elif table_name == "diploma":
-            Institute = Diploma
-        elif table_name == "pdis":
-            Institute = PDIS
-        else:
-            raise ValueError(f"Invalid table name: {table_name}")
         
         session = self.Session()
         data = dict_camel_to_snake_case(data)

@@ -39,9 +39,9 @@ class SamsDataOrchestrator:
                 module, academic_year, admission_type, pandify=False
             )   
         if bulk_add:
-            self.loader.bulk_load(institute_data, str(module).lower())
+            self.loader.bulk_load(institute_data, "institutes")
         else:
-            self.loader.load(institute_data, str(module).lower())
+            self.loader.load(institute_data, "institutes")
         resume_logging_to_console()
 
     def process_data(self, table_name: str, exclude: bool=True, bulk_add: bool = False):
