@@ -3,7 +3,7 @@ title: "Analysis of Trends and Patterns in Vocational Training in Odisha"
 author: "Data, Policy, and Innovation Centre"
 date: "`r Sys.Date()`"
 output: 
-  word_document: 
+  html_document: 
     toc: true
     number_sections: true
 ---
@@ -28,10 +28,83 @@ The analysis uses data from the Student Academic Management System (SAMS), which
 
 # Analysis
 
+## Import ITI and Diploma Data from the database
+
+```{r, echo=FALSE, eval=FALSE}
+install.packages("dplyr")
+install.packages("tidyverse")
+install.packages("knitr")
+install.packages("DBI")
+install.packages("RSQLite")
+install.packages("kableExtra")
+
+```
+
+
+```{r, echo=FALSE}
+# Load the libraries
+library(RSQLite)
+library(DBI)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+
+
+```
+
+## Load the data 
+# ITI Student Data from 2017 to 2024
+```{r, echo=FALSE}
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_iti <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+# Admitted students only 
+student_iti_admis = student_data_iti %>%
+  filter(admission_status == "Yes")
+
+```
+
+# Diploma Student Data from 2018 to 2024 
+```{r, include=FALSE,echo=FALSE}
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db")
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_dip <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+
+
+## Check the admission count each year
+student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
+
+```
+
 ## Demographics
 
-```{r}
-## Social Group compostion in across years
+```{r, echo=FALSE,include=FALSE}
+## Social Group composition in across years
 
 # Function to calculate % for groups
 calculate_percentage <- function(data, x) {
@@ -152,37 +225,61 @@ pivot_table_dip_inc_soc_2023 %>%
 
 ```
 
+## Marks
+```{r,echo=FALSE, include=FALSE}
+library(jsonlite)
+
+# ITI extract two variables from the json_column
+student_iti_admis <- student_iti_admis %>%
+  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
+  mutate(
+    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
+    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
+  ) %>%
+  select(-parsed_json)  # Remove the parsed_json column if not needed
+
+# Polytechnics extract two variables from the json_column
+student_dip_admis <- student_dip_admis %>%
+  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
+  mutate(
+    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
+    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
+  ) %>%
+  select(-parsed_json)  # Remove the parsed_json column if not needed
+
+# Trades for Various Qualifications 2023
+iti_qual_trade_2023 = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(Qualifying_ExamName) %>%
+  summarise(number_of_trade = n_distinct(reported_branch_or_trade)) 
+
+
+ITI_graduates_same_year <- student_iti_admis %>%
+  filter(Qualifying_ExamName != "8th Pass") %>%
+  filter(YearofPassing == year) %>%
+  group_by(year) %>%   # Group by admission year
+  summarise(Admitted_ITI_Students = n())  # Count the number of students
+
+
+Poly_graduates_same_year <- student_iti_admis %>%
+  filter(Qualifying_ExamName != "8th Pass") %>%
+  filter(YearofPassing == year) %>%
+  group_by(year) %>%   # Group by admission year
+  summarise(Admitted_ITI_Students = n())  # Count the number of students
+
+
+```
+
 
 ## Geography
 
 
 ```{r}
 
-```
-
-
-## Import ITI and Diploma Data from the database
-
-```{r, echo=FALSE}
-install.packages("dplyr")
-install.packages("tidyverse")
-install.packages("knitr")
-install.packages("DBI")
-install.packages("RSQLite")
-install.packages("kableExtra")
 
 ```
 
 
-```{r, echo=FALSE}
-# Load the libraries
-library(RSQLite)
-library(DBI)
-library(dplyr)
-library(tidyverse)
-library(kableExtra)
-library(knitr)
-```
 
 
 ```{r, echo=FALSE}
