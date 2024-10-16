@@ -27,6 +27,9 @@ from sams.util import (
     resume_logging_to_console,
 )
 import os
+from numpy import nan
+import warnings
+warnings.filterwarnings("ignore")
 
 Base = declarative_base()
 
@@ -79,7 +82,7 @@ class Student(Base):
     reported_institute = Column(String, nullable=True)
     reported_branch_or_trade = Column(String, nullable=True)
     institute_district = Column(String, nullable=True)
-    typeof_institute = Column(String, nullable=True)
+    type_of_institute = Column(String, nullable=True)
     phase = Column(String, nullable=True)
     year = Column(Integer, nullable=False)
     admission_status = Column(String, nullable=False)
@@ -90,7 +93,7 @@ class Student(Base):
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
-    module = Column(String, nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
     academic_year = Column(Integer, nullable=False)
 
     # Example of a unique constraint if needed
@@ -114,34 +117,71 @@ class Institute(Base):
 
     # Primary columns
     id = Column(Integer, primary_key=True, autoincrement=True)
-    sams_code = Column(Integer, nullable=False)
-    year = Column(Integer, nullable=False)
+    sams_code = Column(String, nullable=False)
+
+    academic_year = Column(Integer, nullable=False)
     module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
-    name = Column(String)
-    funding_source = Column(Enum("Govt.", "Pvt."))
+    institute_name = Column(String)
+    type_of_institute = Column(Enum("Govt.", "Pvt."))
+    admission_type = Column(Integer, nullable=True)
 
     # Nested columns
     strength = Column(JSON)
     cutoff = Column(JSON)
+    enrollment = Column(JSON)
+
 
     # Polymorphic identity for inheritance
     __mapper_args__ = {"polymorphic_on": module}
 
 
 class ITI(Institute):
-    __tablename__ = "itis"
+    __tablename__ = "iti"
     id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
     trade = Column(String)  # Trade is specific to non-PDIS
+    sams_code = Column(String, nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
+    academic_year = Column(Integer, nullable=False)
 
     __mapper_args__ = {
         "polymorphic_identity": "ITI",
     }
 
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "sams_code",
+            "module",
+            "academic_year",
+            "trade",
+            name="uq_sams_code_module_year_trade",
+        ),
+    )
+
 
 class Diploma(Institute):
-    __tablename__ = "diplomas"
+    __tablename__ = "diploma"
     id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
-    trade = Column(String)  # Trade is specific to non-PDIS
+    branch = Column(String)  
+    trade = Column(String)
+    sams_code = Column(String, nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
+    academic_year = Column(Integer, nullable=False)
+    admission_type = Column(Integer, nullable=False)
+
+      # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "sams_code",
+            "module",
+            "academic_year",
+            "trade",
+            "branch",
+            "admission_type",
+            name="uq_sams_code_module_year_admission_type_branch_trade",
+        ),
+    )
+
 
     __mapper_args__ = {
         "polymorphic_identity": "Diploma",
@@ -151,10 +191,23 @@ class Diploma(Institute):
 class PDIS(Institute):
     __tablename__ = "pdis"
     id = Column(Integer, ForeignKey("institutes.id"), primary_key=True)
+    sams_code = Column(String, nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
+    academic_year = Column(Integer, nullable=False) 
 
     __mapper_args__ = {
         "polymorphic_identity": "PDIS",
     }
+
+    # Constraint
+    __table_args__ = (
+        UniqueConstraint(
+            "sams_code",
+            "module",
+            "academic_year",
+            name="uq_sams_code_module_year",
+        ),
+    )
 
 
 class SamsDataLoader:
@@ -172,84 +225,104 @@ class SamsDataLoader:
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
-    def load_institute_data(self, institute_data):
+    def load(self, data: list, table_name: str):
         """
-        Loads the given institute data into the database.
+        Loads the given data into the database.
 
         Args:
-            institute_data (list): List of dictionaries containing institute data.
+            data (list): List of dictionaries containing data.
+            table_name (str): The name of the table to load the data into.
 
         Returns:
             None
         """
-        with tqdm(total=len(institute_data), desc="Loading institute data") as pbar:
-            for data in institute_data:
-                self._add_institute(data)
-                pbar.update(1)
+        if table_name not in ["institutes", "iti", "diploma", "pdis", "students"]:
+            raise ValueError(f"Invalid table name: {table_name}")
 
-    def load_student_data(self, student_data):
-        """
-        Loads the given student data into the database.
-
-        Args:
-            student_data (list): List of dictionaries containing student data.
-
-        Returns:
-            None
-        """
-        with tqdm(total=len(student_data), desc="Loading student data") as pbar:
-            for data in student_data:
+        with tqdm(total=len(data), desc=f"Loading {table_name} data") as pbar:
+            for unit in data:
 
                 # Try to add row to table
-                success = self._add_student(data)
+                success = self._add_data(unit, table_name)
                 if success:
                     pbar.update(1)
 
-    def bulk_add_students(self, student_data):
+    def bulk_load(self, data: list, table_name: str):
         """
         Adds the given student data to the database in bulk.
 
         Args:
-            student_data (list): List of dictionaries containing student data.
+            data (list): List of dictionaries containing student data.
+            table_name (str): The name of the table to load the data into.
 
         Returns:
             None
         """
         session = self.Session()
 
-        student_data = [dict_camel_to_snake_case(student) for student in student_data]
+        data = [dict_camel_to_snake_case(unit) for unit in data]
 
-        with tqdm(total=len(student_data), desc="Loading student data") as pbar:
+        if table_name == "students":
+            Unit = Student
+        elif table_name == "institutes":
+            Unit = Institute
+        elif table_name == "iti":
+            Unit = ITI
+        elif table_name == "diploma":
+            Unit = Diploma
+        elif table_name == "pdis":
+            Unit = PDIS
+        else:
+            raise ValueError(f"Invalid table name: {table_name}")
+
+        with tqdm(total=len(data), desc=f"Loading {table_name} data in bulk") as pbar:
             try:
-                session.bulk_save_objects([Student(**data) for data in student_data])
+                session.bulk_save_objects([Unit(**unit) for unit in data])
                 session.commit()
-                pbar.update(len(student_data))
+                pbar.update(len(data))
             except (OperationalError, IntegrityError, DatabaseError) as e:
                 resume_logging_to_console()
                 logger.error(
-                    f"Error while adding student data in bulk - will try adding individually!"
+                    f"Error while adding data in bulk - will try adding individually!"
                 )
                 stop_logging_to_console(
-                    os.path.join(LOGS, "students_data_download.log")
+                    os.path.join(LOGS, f"{table_name}_data_download.log")
                 )
                 session.rollback()
-                self.load_student_data(student_data)
+                self.load(data, table_name)
             finally:
                 session.close()
 
-    def _add_student(self, data: dict):
+    def _add_data(self, data: dict, table_name: str) -> bool:
+        """
+        Adds the given data to the database.
+
+        Args:
+            data (dict): Dictionary containing data.
+            table_name (str): The name of the table to load the data into.
+
+        Returns:
+            bool: True if data was successfully added, False otherwise.
+        """
+        if table_name == "students":
+            return self._add_student(data)
+        else:
+            return self._add_institute(data, table_name)
+
+    def _add_student(self, data: dict) -> bool:
         """
         Adds the given student data to the database.
 
         Args:
             data (dict): Dictionary containing student data.
+            table_name (str): The name of the table to load the data into.
 
         Returns:
             bool: True if student data was successfully added, False otherwise.
         """
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
-
+        
         data = dict_camel_to_snake_case(data)
         session = self.Session()
         success = False
@@ -283,12 +356,32 @@ class SamsDataLoader:
             session.close()
             return success
 
-    def _add_institute(self, data):
+    def _add_institute(self, data: dict, table_name: str) -> bool:
+
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary")
+        
+
+        if table_name == "institutes":
+            Institute = Institute
+        elif table_name == "iti":
+            Institute = ITI
+        elif table_name == "diploma":
+            Institute = Diploma
+        elif table_name == "pdis":
+            Institute = PDIS
+        else:
+            raise ValueError(f"Invalid table name: {table_name}")
+        
         session = self.Session()
+        data = dict_camel_to_snake_case(data)
+        success = False
+
         try:
             institute = Institute(**data)
             session.add(institute)
             session.commit()
+            success = True
         except IntegrityError as e:
             if "UNIQUE constraint failed" in str(e):
                 session.rollback()
@@ -310,6 +403,92 @@ class SamsDataLoader:
 
         finally:
             session.close()
+            return success
+        
+    def get_existing_modules(self, table_name: str) -> list:
+        
+        if table_name not in ["students", "institutes"]:
+            raise ValueError(f"Table name not supported: {table_name}")
+        
+        if table_name == "students":
+            return self._get_student_modules()
+        else:
+            return self._get_institute_modules()
+    
+    def _get_student_modules(self):
+
+        session = self.Session()
+        expected_counts = self._get_counts("students")
+
+        student_modules = (
+            session.query(Student.module, Student.academic_year, func.count(Student.id))
+            .group_by(Student.module, Student.academic_year)
+            .all()
+        )
+
+        existing_modules = [
+            (module, year)
+            for module, year, count in student_modules
+            if count >= expected_counts.loc[(expected_counts["module"] == module) & (expected_counts["academic_year"] == year), "count"].iloc[0]
+        ]
+
+        excess_modules = [
+            (module, year, count)
+            for module, year, count in student_modules
+            if count > expected_counts.loc[(expected_counts["module"] == module) & (expected_counts["academic_year"] == year), "count"].iloc[0]
+        ]
+
+        if excess_modules:
+            logger.warning(
+                f"Modules with excess records than expected found: {excess_modules}"
+            )
+
+        return existing_modules
+
+    def _get_institute_modules(self):
+        
+        session = self.Session()
+        counts = self._get_counts("institutes")
+        counts.replace({nan:0}, inplace=True)
+
+        institute_modules = (
+            session.query(Institute.module, Institute.academic_year, Institute.admission_type, func.count(Institute.id))
+            .group_by(Institute.module, Institute.academic_year, Institute.admission_type)
+            .all()
+        )
+        institute_modules = pd.DataFrame(institute_modules,columns=["module","academic_year","admission_type","count"])
+        institute_modules.replace({nan:0, None:0}, inplace=True)
+
+        existing_modules = [
+            (module, year, admission_type)
+            for module, year, admission_type, count in institute_modules.itertuples(index=False)
+            if count >= counts.loc[(counts["module"] == module) & (counts["academic_year"] == year) & (counts["admission_type"] == admission_type), "count"].iloc[0]
+        ]
+
+        excess_modules = [
+            (module, year, admission_type, count)
+            for module, year, admission_type, count in institute_modules.itertuples(index=False)
+            if count > counts.loc[(counts["module"] == module) & (counts["academic_year"] == year) & (counts["admission_type"] == admission_type), "count"].iloc[0]
+        ]
+
+        if excess_modules:
+            logger.warning(
+                f"Modules with excess records than expected found: {excess_modules}"
+            )
+
+        return existing_modules        
+
+
+    def _get_counts(self, table_name: str) -> pd.DataFrame:
+
+        counts_path = os.path.join(LOGS,  f"{table_name}_count.csv")
+
+        if not os.path.exists(counts_path):
+            return []
+
+        counts = pd.read_csv(counts_path) 
+
+        return counts
 
     def remove(
         self, table_name: str, module: str, year: str, admission_type: int = None
@@ -373,9 +552,10 @@ class SamsDataLoaderPandas(SamsDataLoader):
 
 
 def main():
-
+    
     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
-    loader.remove("students", "ITI", "2017")
+    print(loader.get_existing_modules("institutes"))
+    #print(loader.get_existing_modules("students"))
     # loader.remove("students", "Diploma", "2019")
 
 
