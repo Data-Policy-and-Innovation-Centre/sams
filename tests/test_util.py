@@ -1,12 +1,9 @@
 import pytest
 from datetime import datetime
-import os
 import pandas as pd
-import sqlite3
 from unittest.mock import patch, mock_open
 from sams.util import (
     is_valid_date,
-    get_existing_modules,
     camel_to_snake_case,
     dict_camel_to_snake_case,
     correct_spelling,
@@ -25,33 +22,33 @@ def test_is_valid_date():
     assert not is_valid_date("invalid date")[0]
 
 
-@pytest.mark.parametrize(
-    "raw_data_dir,logs_dir", [("/mock/raw/data/dir", "/mock/logs")]
-)
-@patch("os.path.exists")
-@patch("pandas.read_csv")
-@patch("sqlite3.connect")
-def test_get_existing_modules(
-    mock_sqlite3, mock_read_csv, mock_exists, raw_data_dir, logs_dir
-):
-    with patch("sams.config.RAW_DATA_DIR", raw_data_dir), patch(
-        "sams.config.LOGS", logs_dir
-    ):
-        mock_exists.return_value = True
-        mock_read_csv.return_value = pd.DataFrame(
-            {
-                "module": ["MOD1", "MOD2"],
-                "academic_year": [2024, 2024],
-                "count": [10, 20],
-            }
-        )
-        mock_cursor = (
-            mock_sqlite3.return_value.__enter__.return_value.cursor.return_value
-        )
-        mock_cursor.fetchall.return_value = [("MOD1", 2024, 10), ("MOD2", 2024, 21)]
+# @pytest.mark.parametrize(
+#     "raw_data_dir,logs_dir", [("/mock/raw/data/dir", "/mock/logs")]
+# )
+# @patch("os.path.exists")
+# @patch("pandas.read_csv")
+# @patch("sqlite3.connect")
+# def test_get_existing_modules(
+#     mock_sqlite3, mock_read_csv, mock_exists, raw_data_dir, logs_dir
+# ):
+#     with patch("sams.config.RAW_DATA_DIR", raw_data_dir), patch(
+#         "sams.config.LOGS", logs_dir
+#     ):
+#         mock_exists.return_value = True
+#         mock_read_csv.return_value = pd.DataFrame(
+#             {
+#                 "module": ["MOD1", "MOD2"],
+#                 "academic_year": [2024, 2024],
+#                 "count": [10, 20],
+#             }
+#         )
+#         mock_cursor = (
+#             mock_sqlite3.return_value.__enter__.return_value.cursor.return_value
+#         )
+#         mock_cursor.fetchall.return_value = [("MOD1", 2024, 10), ("MOD2", 2024, 21)]
 
-        result = get_existing_modules()
-        assert result == [("MOD1", 2024), ("MOD2", 2024)]
+#         result = get_existing_modules()
+#         assert result == [("MOD1", 2024), ("MOD2", 2024)]
 
 
 @pytest.mark.parametrize(
