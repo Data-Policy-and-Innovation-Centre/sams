@@ -39,6 +39,7 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
         "graduation",
         "bcam",
         "pg",
+        "post graduate"
     ]
     diploma_names = ["diploma", "jbt/ett"]
 
@@ -69,23 +70,21 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     return x
 
-
-def _make_float(x: pd.Series) -> pd.Series:
-    pass
-
-
-def _make_int(x: pd.Series) -> pd.Series:
-    pass
-
-
-def preprocess_iti_students_enrolmentdata(df: pd.DataFrame) -> pd.DataFrame:
+def _preprocess_enrollments(x: pd.DataFrame) -> pd.DataFrame:
     df = _make_null(df)
     df["dob"] = _make_date(df["dob"])
-    df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
+    df['date_of_application'] = _make_date(df['date_of_application'])
+    bool_vars = ['had_two_year_full_time_work_exp_after_tenth', 'gc', 'ph', 'es',
+       'sports', 'national_cadet_corps', 'pm_care', 'orphan']
+    df[bool_vars] = df[bool_vars].apply(_make_bool)
+    return df    
+
+def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = _preprocess_enrollments(df)
     return df
 
 
-def preprocess_students_markdata(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     pass
 
 

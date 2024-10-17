@@ -14,8 +14,12 @@ rm(pkg)
 library(reticulate)
 use_condaenv("skills", required=TRUE)
 
+# Import the necessary Python standard library
+importlib <- import("importlib")
+
 # Configure using python configuration file
 config <- import_from_path("sams.config")
+importlib$reload(config)
 
 # Load figure constants
 optfig.labfontsize = 20 + 8

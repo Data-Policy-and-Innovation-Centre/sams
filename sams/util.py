@@ -29,61 +29,6 @@ def is_valid_date(date_string):
 
     return False, None  # No formats matched, date is invalid
 
-
-def get_existing_modules(
-    table_name: str = "students", db_path=f"{RAW_DATA_DIR}/sams.db"
-) -> list:
-
-    if table_name not in ["students", "institutes"]:
-        raise ValueError(f"Invalid table name: {table_name}")
-
-    counts_path = os.path.join(LOGS, table_name + "_count.csv")
-
-    if not os.path.exists(db_path):
-        return []
-
-    if not os.path.exists(counts_path):
-        return []
-
-    counts = pd.read_csv(counts_path)
-
-    if table_name == "students":
-        query = """SELECT module, academic_year, COUNT(*) AS num_observations 
-                    FROM students 
-                    GROUP BY module, academic_year"""
-        with sqlite3.connect(db_path) as conn:
-            cur = conn.cursor()
-            cur.execute(query)
-            existing_modules = cur.fetchall()
-
-        existing_modules = [list(row) for row in existing_modules]
-        modules_with_duplicates = [
-            (module, year, num_obs)
-            for module, year, num_obs in existing_modules
-            if num_obs
-            > counts[(counts["module"] == module) & (counts["academic_year"] == year)][
-                "count"
-            ].values[0]
-        ]
-        if modules_with_duplicates:
-            logger.warning(
-                f"Modules with excess records than expected found: {modules_with_duplicates}"
-            )
-        existing_modules = [
-            (module, year)
-            for module, year, num_obs in existing_modules
-            if num_obs
-            >= counts[(counts["module"] == module) & (counts["academic_year"] == year)][
-                "count"
-            ].values[0]
-        ]
-
-        return existing_modules
-
-    else:
-        return []
-
-
 def camel_to_snake_case(text: str):
 
     # Step 0: All caps to be converted to lower case
@@ -114,6 +59,10 @@ def correct_spelling(text: str):
         text = text.replace("Tength", "Tenth").replace("tength", "tenth")
     if "OR" in text:
         text = text.replace("OR", "Or")
+    if text == "TypeofInstitute":
+        text = "type_of_institute"
+    if text == "cuttoff":
+        text = "cutoff"
     return text
 
 
