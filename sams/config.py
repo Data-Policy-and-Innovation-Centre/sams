@@ -22,6 +22,12 @@ FIGURES_DIR = OUTPUT_DIR / "figures"
 
 # Data file names
 SAMS_DB = RAW_DATA_DIR / "sams.db"
+ITI_ENROLLMENTS = INTERIM_DATA_DIR / "iti_enrollments.pq"
+DIPLOMA_ENROLLMENTS = INTERIM_DATA_DIR / "diploma_enrollments.pq"
+PDIS_ENROLLMENTS = INTERIM_DATA_DIR / "pdis_enrollments.pq"
+ITI_MARKS = INTERIM_DATA_DIR / "iti_marks.pq"
+DIPLOMA_MARKS = INTERIM_DATA_DIR / "diploma_marks.pq"
+PDIS_MARKS = INTERIM_DATA_DIR / "pdis_marks.pq"
 
 # Verify that all the directories exist
 for path in [
