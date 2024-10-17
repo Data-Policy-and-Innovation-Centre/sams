@@ -1,6 +1,8 @@
 import pandas as pd
 import re
 import numpy as np
+import json
+from sams.util import dict_camel_to_snake_case
 
 
 def _make_date(x: pd.Series) -> pd.Series:
@@ -70,6 +72,15 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     return x
 
+def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd.Series:
+    # Use list comprehension to make this faster
+    filtered_dfs = [
+        pd.DataFrame(json.loads(marks))[lambda df: df[key] == value]
+        for marks in x
+    ]
+    return pd.concat(filtered_dfs)[varnames]
+   
+    
 def _preprocess_students(df: pd.DataFrame) -> pd.DataFrame:
     df = _make_null(df)
     df["dob"] = _make_date(df["dob"])
@@ -85,11 +96,23 @@ def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(["id","student_name", "nationality", "domicile", "s_domicile_category",
                   "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
                   "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
+    df = df.dropna(subset=["sams_code"])
     return df
 
+def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = _preprocess_students(df)
+    df['tenth_passing_year'] = _extract_mark_data(df['mark_data'], 'ExamName', '10th', ['YearofPassing'])
+    df = df.drop(["id","student_name", "nationality", "domicile", "s_domicile_category", "highest_qualification",
+                  "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
+                  "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
+    df = df.dropna(subset='sams_code')
+    return df
+    
 
 def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
-    pass
+    return pd.DataFrame([[dict_camel_to_snake_case({**mark, 'aadhar_no': aadhar, 'academic_year': academic_year}) for mark in json.loads(marks)] 
+                         for aadhar, marks, academic_year in df[['aadhar_no','mark_data', 'academic_year']].values])
+
 
 
 def preprocess_institutes(df: pd.DataFrame) -> pd.DataFrame:
