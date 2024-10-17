@@ -70,7 +70,7 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     return x
 
-def _preprocess_enrollments(x: pd.DataFrame) -> pd.DataFrame:
+def _preprocess_students(df: pd.DataFrame) -> pd.DataFrame:
     df = _make_null(df)
     df["dob"] = _make_date(df["dob"])
     df['date_of_application'] = _make_date(df['date_of_application'])
@@ -80,7 +80,11 @@ def _preprocess_enrollments(x: pd.DataFrame) -> pd.DataFrame:
     return df    
 
 def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
-    df = _preprocess_enrollments(df)
+    df = _preprocess_students(df)
+    df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
+    df = df.drop(["id","student_name", "nationality", "domicile", "s_domicile_category",
+                  "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
+                  "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
     return df
 
 
