@@ -43,11 +43,15 @@ library(dplyr)
 library(tidyverse)
 library(kableExtra)
 library(knitr)
-
+library(reactable)
+library(htmltools)
+library(maps)
+library(tmap)
+library(jsonlite)
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE,include=FALSE}
 con <- dbConnect(RSQLite::SQLite(), file.path(config$SAMS_DB))
 
 # Query data for ITI module for years 2017 to 2023
@@ -171,7 +175,7 @@ pivot_table_dip_inc_soc_2023 <- student_dip_admis %>%
 
 ```
 
-```{r}
+```{r,include=FALSE}
 ITI_soc_grp %>%
   knitr::kable(caption = "Table _: Social Category Composition ITIs (%)", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
@@ -216,8 +220,7 @@ pivot_table_dip_inc_soc_2023 %>%
 ```
 
 ## Marks
-```{r,echo=FALSE, include=FALSE}
-library(jsonlite)
+```{r include=FALSE}
 
 # ITI extract two variables from the json_column
 student_iti_admis <- student_iti_admis %>%
@@ -264,12 +267,210 @@ Poly_graduates_same_year <- student_iti_admis %>%
 ## Geography
 
 
-```{r}
+```{r include=FALSE}
+# Count the total number of students from each district across the years
+total_students_district <- student_iti_admis %>%
+  group_by(district, year) %>%  # Group by district and year
+  summarise(Students_from_District = n(), .groups = 'drop')  # Count the number of students
+
+# Count the number of female students from each district in government ITIs across the years
+female_govt_iti_students <- student_iti_admis %>%
+  filter(gender == "Female" & typeof_institute == "Govt.") %>%  # Filter for females in govt. ITIs
+  group_by(district, year) %>%  # Group by district and year
+  summarise(female_students_home_dist = n(), .groups = 'drop')  # Count the number of female students
+
+# Count the number of female students in institute district in government ITIs across the years
+female_insti_govt_iti_students <- student_iti_admis %>%
+  filter(gender == "Female" & typeof_institute == "Govt.") %>%  # Filter for females in govt. ITIs
+  group_by(institute_district, year) %>%  # Group by district and year
+  summarise(female_students_iti_district = n(), .groups = 'drop')  # Count the number of female students
+
+# Students from each district 2023
+total_students_district_2023 <- total_students_district %>%
+  filter(year == 2023)
+
+female_govt_iti_students_2023 <- female_govt_iti_students %>%
+  filter(year == 2023) 
+
+female_insti_govt_iti_students_2023 <-  female_insti_govt_iti_students %>%
+  filter(year == 2023)
+
+# Rename institute_district in the second dataframe to match with the district
+female_insti_govt_iti_students_2023 <- female_insti_govt_iti_students_2023 %>%
+  rename(district = institute_district)
+
+# Perform the full join by 'district' and 'year'
+combined_female_students_dist_2023 <- full_join(female_govt_iti_students_2023, 
+                                      female_insti_govt_iti_students_2023, 
+                                      by = c("district", "year"))
 
 
 ```
 
 
+```{r echo=FALSE}
+
+# Load the shapefile of Odisha districts
+# Replace with the actual path to your shapefile
+odisha_districts <- st_read("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external/odisha.kml")
+
+# Load the district population 
+india_districts_census_2011 <- read_csv("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external/india-districts-census-2011.csv")
+odisha_pop_dist_2011 <- india_districts_census_2011 %>%
+  filter(`State name` == "ORISSA")
+
+odisha_pop_dist_2011 <- odisha_pop_dist_2011 %>% mutate(`District name` = toupper(`District name`))
+
+odisha_pop_dist_2011 <- odisha_pop_dist_2011 %>%
+  mutate(`District name` = case_when(
+    `District name` == "BARGARH" ~ "BARAGARH",
+    `District name` == "BALANGIR" ~ "BOLANGIR (BALANGIR)",
+    `District name` == "BALESHWAR" ~ "BALASORE (BALESHWAR)",
+    `District name` == "DEBAGARH" ~ "DEOGARH",
+    `District name` == "KENDRAPARA" ~ "KENDRAPARHA",
+    `District name` == "KENDUJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    `District name` == "JAGATSINGHAPUR" ~ "JAGATSINGHPUR",
+    `District name` == "NUAPADA" ~"NUAPARHA",
+    `District name` == "RAYAGADA" ~"RAYAGARHA",
+    `District name` == "BAUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ `District name`  # Keep other district names unchanged
+  ))
+
+combined_female_students_dist_2023 <- combined_female_students_dist_2023 %>% mutate(district = toupper(district))
+
+combined_female_students_dist_2023 <- combined_female_students_dist_2023 %>%
+  mutate(district = case_when(
+    district == "ANGUL" ~ "ANUGUL",
+    district == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    district == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    district == "JAJPUR" ~ "JAJAPUR",
+    district == "KENDRAPARA" ~ "KENDRAPARHA",
+    district == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    district == "KHURDA" ~ "KHORDHA",
+    district == "NAWARANGPUR" ~"NABARANGAPUR",
+    district == "NUAPADA" ~"NUAPARHA",
+    district == "RAYAGADA" ~"RAYAGARHA",
+    district == "SONEPUR" ~"SUBARNAPUR",
+    district == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ district  # Keep other district names unchanged
+  ))
+
+total_students_district_2023 <- total_students_district_2023 %>% mutate(district = toupper(district))
+
+total_students_district_2023 <- total_students_district_2023 %>%
+  mutate(district = case_when(
+    district == "ANGUL" ~ "ANUGUL",
+    district == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    district == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    district == "JAJPUR" ~ "JAJAPUR",
+    district == "KENDRAPARA" ~ "KENDRAPARHA",
+    district == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    district == "KHURDA" ~ "KHORDHA",
+    district == "NAWARANGPUR" ~"NABARANGAPUR",
+    district == "NUAPADA" ~"NUAPARHA",
+    district == "RAYAGADA" ~"RAYAGARHA",
+    district == "SONEPUR" ~"SUBARNAPUR",
+    district == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ district  # Keep other district names unchanged
+  ))
+
+# Step 4: Merge the ITI count data with the Odisha districts shapefile
+odisha_districts <- odisha_districts %>%
+  left_join(combined_female_students_dist_2023, by = c("Name" = "district"))
+
+odisha_districts <- odisha_districts %>%
+  left_join(odisha_pop_dist_2011, by = c("Name" = "District name"))
+
+odisha_districts <- odisha_districts %>%
+  left_join(total_students_district_2023, by = c("Name" = "district"))
+
+# Calculate Girls from ITI Districts per Lakh population
+odisha_districts$female_students_home_dist_per_lakh = odisha_districts$female_students_home_dist/odisha_districts$Population*100000
+
+# Calculate Students from ITI Districts per Lakh population
+odisha_districts$Students_from_District_per_lakh = odisha_districts$Students_from_District/odisha_districts$Population*100000
+
+
+# Plotting Students Map
+tmap_mode("view")  # Change to "view" for interactive mode
+map_student <- tm_shape(odisha_districts) +
+  tm_polygons("Students_from_District", 
+              title = "Number of Students in ITIs by Home District (2023)", 
+              palette = "Blues", 
+              n = 5) +
+  tm_layout(main.title = "Number of Students in ITIs by Home District (2023)",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"),  # Attempting bottom right
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white", # Optional: Adds a background to legend for better visibility
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black")
+
+# Add the interactive tooltip
+map_student + tm_view(view.legend.position = c("right", "bottom"))
+
+
+tmap_mode("view")  # Change to "view" for interactive mode
+map_student_per_lakh <- tm_shape(odisha_districts) +
+  tm_polygons("Students_from_District_per_lakh", 
+              title = "Number of Students in ITIs by Home District (2023) Per Lakh Pop", 
+              palette = "Blues", 
+              n = 4) +
+  tm_layout(main.title = "Number of Girls in ITIs by Home District (2023) Per Lakh Pop",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"),  # Attempting bottom right
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white", # Optional: Adds a background to legend for better visibility
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black")
+
+# Add the interactive tooltip
+map_student_per_lakh + tm_view(view.legend.position = c("right", "bottom"))
+
+
+
+# Plotting with tmap Female Students
+tmap_mode("view")  # Change to "view" for interactive mode
+map <- tm_shape(odisha_districts) +
+  tm_polygons("female_students_home_dist", 
+              title = "Number of Girls in Govt ITIs by Home District (2023)", 
+              palette = "Blues", 
+              n = 5) +
+  tm_layout(main.title = "Number of Girls in Govt ITIs by Home District (2023)",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"),  # Attempting bottom right
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white", # Optional: Adds a background to legend for better visibility
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black")
+
+# Add the interactive tooltip
+map + tm_view(view.legend.position = c("right", "bottom"))
+
+
+tmap_mode("view")  # Change to "view" for interactive mode
+map_per_lakh <- tm_shape(odisha_districts) +
+  tm_polygons("female_students_home_dist_per_lakh", 
+              title = "Number of Girls in Govt ITIs by Home District (2023) Per Lakh Pop", 
+              palette = "Blues", 
+              n = 4) +
+  tm_layout(main.title = "Number of Girls in Govt ITIs by Home District (2023) Per Lakh Pop",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"),  # Attempting bottom right
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white", # Optional: Adds a background to legend for better visibility
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black")
+
+# Add the interactive tooltip
+map_per_lakh + tm_view(view.legend.position = c("right", "bottom"))
+
+
+```
 
 
 ## Institutions
@@ -406,6 +607,7 @@ poly_level_student_count = student_dip_admis %>%
 
 # Institutes with highest female enrollment 2023
 # ITI
+# ITI Level Female Student Count with Total Students and Total Gov ITIs
 iti_level_fem_student_count = student_iti_admis %>%
   filter(year == 2023) %>%
   group_by(institute_district,type_of_institute,reported_institute) %>%
@@ -422,6 +624,36 @@ poly_level_fem_student_count = student_dip_admis %>%
   select(reported_institute, female_students, type_of_institute, institute_district) %>%
   arrange(desc(female_students)) %>%
   slice_head(n = 10)
+
+# Count total number of government ITIs in each district
+total_gov_itis = student_iti_admis %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
+  group_by(institute_district) %>%
+  summarise(total_gov_itis = n_distinct(reported_institute), .groups = "drop")
+
+# Join the government ITI count to the female student count data frame
+iti_level_fem_student_count = iti_level_fem_student_count %>%
+  left_join(total_gov_itis, by = "institute_district") %>%
+  mutate(Female_Share_Percent = round((female_students / total_students) * 100, 1)) %>% # Calculate Female Share (%)
+  select(reported_institute, female_students, total_students, Female_Share_Percent, typeof_institute, institute_district, total_gov_itis)  # Reorder columns
+
+
+# Polytechnics Level Female Student Count with Total Students and Total Gov ITIs
+poly_level_fem_student_count = student_dip_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district, typeof_institute, reported_institute) %>%
+  summarise(female_students = sum(gender == "Female"),
+            total_students = n(),  # Total students (male + female)
+            .groups = "drop") %>%
+  select(reported_institute, female_students, total_students, typeof_institute, institute_district) %>%
+  arrange(desc(female_students)) %>%
+  slice_head(n = 10)
+
+# Count total number of government Polytechnics in each district for Polytechnics
+total_gov_poly_itis = student_dip_admis %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
+  group_by(institute_district) %>%
+  summarise(total_gov_polytechnics = n_distinct(reported_institute), .groups = "drop")
 
 
 # count of available trades in ITIs 2023
@@ -443,11 +675,24 @@ poly_trade_count = student_dip_admis %>%
   slice_head(n = 10)
 
 
+ITI_talcher = student_iti_admis %>% 
+  filter(year == 2023) %>% 
+  filter(reported_institute %in% c("ITI Berhampur, Ganjam", "ITI Bhubaneswar, Khurda", "ITI Cuttack", "ITI Barbil, Keonjhar", "Madhusudan ITI, Cuttack", "ITI Talcher, Anugul"))
+
+Talcher_trade = ITI_talcher %>% 
+  group_by(reported_institute, reported_branch_or_trade) %>%
+  summarise(trade_count = n(),
+            female_trade_count = sum(gender == "Female"))
+
+selected_institute_trade_matrix <- Talcher_trade  %>%
+  select(-trade_count) %>%
+  pivot_wider(names_from = reported_institute, values_from = female_trade_count) 
+
 
 ```
 
 
-```{r tables, echo=FALSE, results='asis'}
+```{r tables_institutions, echo=FALSE, results='asis'}
 iti_student_count_summary %>%
   knitr::kable(caption = "Table _: Count of ITI Students", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
@@ -469,16 +714,38 @@ iti_level_student_count  %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 poly_level_student_count  %>%
-  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Female Student Enrollment", digits = 1) %>%
+  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 iti_level_fem_student_count  %>%
-  knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Student Enrollment", digits = 1) %>%
+  knitr::kable(caption = "Table _: Top 10 ITIs with Highest Female Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 poly_level_fem_student_count  %>%
   knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Female Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+selected_institute_trade_matrix %>%
+  knitr::kable(caption = "Table _: Trade Composition Selected Gov. ITIs with High Female Student Enrollment", digits = 1) %>%
+  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+reactable_selected_institute_trade_matrix <- reactable(
+  selected_institute_trade_matrix, 
+  sortable = TRUE, 
+  defaultPageSize = 27,
+  theme = reactableTheme(
+    style = list(fontFamily = "Arial, sans-serif", fontSize = "14px")  # Change the font and size
+  )
+)
+
+# Add the caption using htmlwidgets::prependContent, with custom font styling
+htmlwidgets::prependContent(
+  reactable_selected_institute_trade_matrix,
+  tags$h3(
+    style = "font-family: 'Arial', serif; font-size: 20px; font-weight: bold; color: black;",
+    "Top 10 Trades Female Students in Selected ITIs (2023)"
+  )
+)
 
 iti_trade_count  %>%
   knitr::kable(caption = "Table _: Top 10 ITIs with Highest Number of Trades", digits = 1) %>%
@@ -490,8 +757,196 @@ poly_trade_count  %>%
 
 ```
 
+```{r}
+
+
+
+```
 
 
 ## Trade/Branch
+```{r,echo=FALSE,include=FALSE}
+## Top 10 trades among Male and Female 2023
+top_trades_gender <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(gender, reported_branch_or_trade, course_period) %>%
+  summarise(student_count = n(), .groups = 'drop') %>%
+  arrange(gender, desc(student_count))
 
+# Step 2: Get top 10 trades for male students
+top_male_trades <- top_trades_gender %>%
+  filter(gender == "Male") %>%
+  top_n(10, student_count)
+
+# Step 3: Get top 10 trades for female students
+top_female_trades <- top_trades_gender %>%
+  filter(gender == "Female") %>%
+  top_n(10, student_count)
+
+# Step 4: Combine results and include 'course_period'
+top_trades_combined_gender <- bind_rows(
+  top_male_trades %>% mutate(gender = "Male"),
+  top_female_trades %>% mutate(gender = "Female")
+)
+# Pivot the data to have trades as columns and include course_period
+pivoted_result <- top_trades_combined_gender %>%
+  select(gender, reported_branch_or_trade, student_count, course_period) %>%  # Select relevant columns
+  distinct() %>%  # Ensure unique rows
+  pivot_wider(names_from = gender, values_from = student_count) %>%
+  select(reported_branch_or_trade, Male, Female, course_period)
+
+
+
+## Top 10 trades among Pvt. and Govt. ITIs 2023
+top_trades_iti <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(typeof_institute, reported_branch_or_trade, course_period) %>%
+  summarise(student_count = n(), .groups = 'drop') %>%
+  arrange(typeof_institute, desc(student_count))
+
+# Step 2: Get top 10 trades for Gov. ITIs
+top_gov_trades <- top_trades_iti %>%
+  filter(typeof_institute == "Govt.") %>%
+  top_n(10, student_count)
+
+# Step 3: Get top 10 trades for Pvt. ITIs
+top_pvt_trades <- top_trades_iti %>%
+  filter(typeof_institute == "Pvt.") %>%
+  top_n(10, student_count)
+
+# Combine results for both Gov. and Pvt. ITIs
+top_trades_combined_type <- bind_rows(
+  top_gov_trades %>% mutate(typeof_institute = "Govt."),
+  top_pvt_trades %>% mutate(typeof_institute = "Pvt.")
+)
+
+# Pivot the data so that each trade has Govt and Pvt columns with student counts
+pivot_top_trades <- top_trades_combined_type %>%
+  pivot_wider(
+    names_from = typeof_institute,  # Create columns based on 'institute_type' (Gov and Pvt)
+    values_from = student_count  # Use 'student_count' as the values for the new columns
+  ) %>%
+  select(reported_branch_or_trade,`Govt.`,`Pvt.`,course_period)
+
+
+## Top trades in Social Categories over time
+trade_count_by_social_category <- student_iti_admis %>%
+  group_by(year, social_category, reported_branch_or_trade) %>%
+  summarise(trade_count = n(), .groups = 'drop') %>%
+  arrange(year, social_category, desc(trade_count)) # Arrange for top trades selection
+
+# Select the top 5 trades within each social category in each year
+top_trades_within_social_categories <- trade_count_by_social_category %>%
+  group_by(year, social_category) %>%
+  slice_head(n = 5) %>%  # Select top 5 trades
+  ungroup() # Ungroup to remove grouping after selection
+
+# Filter out the year 2017
+top_trades_within_social_categories <- top_trades_within_social_categories %>%
+  filter(year != 2017 & year != 2024)
+
+## Top trades in Gender over time
+trade_count_by_gender <- student_iti_admis %>%
+  group_by(year, gender, reported_branch_or_trade) %>%
+  summarise(trade_count = n(), .groups = 'drop') %>%
+  arrange(year, gender, desc(trade_count)) # Arrange for top trades selection
+
+# Select the top 5 trades within each social category in each year
+top_trades_within_gender <- trade_count_by_gender %>%
+  group_by(year, gender) %>%
+  slice_head(n = 5) %>%  # Select top 5 trades
+  ungroup() # Ungroup to remove grouping after selection
+
+# Filter out the year 2017
+top_trades_within_gender <- top_trades_within_gender %>%
+  filter(year != 2017 & year != 2024) %>%
+  filter(gender != "Transgender")
+
+
+```
+
+
+```{r tables_trade, echo=FALSE,include=FALSE, results='asis'}
+## Top Trades in 2023 In Govt. & Pvt. Institutes 
+# Create an interactive table with sorting
+reactable_table_trade_insti <- reactable(
+  pivot_top_trades, 
+  sortable = TRUE, 
+  defaultPageSize = 27,
+  theme = reactableTheme(
+    style = list(fontFamily = "Arial, sans-serif", fontSize = "14px")  # Change the font and size
+  )
+)
+
+# Add the caption using htmlwidgets::prependContent, with custom font styling
+htmlwidgets::prependContent(
+  reactable_table_trade_insti,
+  tags$h3(
+    style = "font-family: 'Arial', serif; font-size: 20px; font-weight: bold; color: black;",
+    "Top 10 Trades by Student Count in Government and Private ITIs (2023)"
+  )
+)
+
+# Top Trades in Top 10 Among Male & Female
+reactable_table_trade_gender <- reactable(
+  pivoted_result, 
+  sortable = TRUE, 
+  defaultPageSize = 27,
+  theme = reactableTheme(
+    style = list(fontFamily = "Arial, sans-serif", fontSize = "14px")  # Change the font and size
+  )
+)
+
+# Add the caption using htmlwidgets::prependContent, with custom font styling
+htmlwidgets::prependContent(
+  reactable_table_trade_gender,
+  tags$h3(
+    style = "font-family: 'Arial', serif; font-size: 20px; font-weight: bold; color: black;",
+    "Top 10 Trades by Student Count by Gender (2023)"
+  )
+)
+
+# Create the line chart
+ggplot(top_trades_within_social_categories, aes(x = year, y = trade_count, color = reported_branch_or_trade, group = reported_branch_or_trade)) +
+  geom_line(size = 1) + # Draw lines for each trade
+  geom_point(size = 2) + # Add points at each year for better visibility
+  facet_wrap(~ social_category, scales = "free_y") + # Create a separate plot for each social category
+  labs(
+    title = "Top 5 Trades by Social Category Over the Years (Excluding 2017)",
+    x = "Year",
+    y = "Trade Count",
+    color = "Trade"
+  ) +
+  theme_minimal() + # Use a minimal theme for a clean look
+  theme(
+    text = element_text(size = 12), # Adjust text size for better readability
+    legend.position = "bottom", # Position legend at the bottom
+    legend.title = element_text(size = 10), # Adjust legend title size
+    legend.text = element_text(size = 8), # Adjust legend text size
+    legend.key.size = unit(0.5, "cm") # Reduce the size of the legend keys
+  ) +
+  guides(color = guide_legend(ncol = 3)) # Arrange legend items in three columns
+
+# Create the line chart
+ggplot(top_trades_within_gender, aes(x = year, y = trade_count, color = reported_branch_or_trade, group = reported_branch_or_trade)) +
+  geom_line(size = 1) + # Draw lines for each trade
+  geom_point(size = 2) + # Add points at each year for better visibility
+  facet_wrap(~ gender, scales = "free_y") + # Create a separate plot for each social category
+  labs(
+    title = "Top 5 Trades by Gender Over the Years (Excluding 2017)",
+    x = "Year",
+    y = "Trade Count",
+    color = "Trade"
+  ) +
+  theme_minimal() + # Use a minimal theme for a clean look
+  theme(
+    text = element_text(size = 12), # Adjust text size for better readability
+    legend.position = "bottom", # Position legend at the bottom
+    legend.title = element_text(size = 10), # Adjust legend title size
+    legend.text = element_text(size = 8), # Adjust legend text size
+    legend.key.size = unit(0.5, "cm") # Reduce the size of the legend keys
+  ) +
+  guides(color = guide_legend(ncol = 3)) # Arrange legend items in three columns
+
+```
 
