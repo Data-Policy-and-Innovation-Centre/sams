@@ -117,7 +117,10 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks = [[dict_camel_to_snake_case({**mark, 'aadhar_no': aadhar, 'academic_year': academic_year}) for mark in json.loads(marks)] 
                          for aadhar, marks, academic_year in df[['aadhar_no','mark_data', 'academic_year']].values]
     
-    return pd.DataFrame(flatten(marks))
+    marks = pd.DataFrame(flatten(marks))
+    marks.drop_duplicates(subset=['aadhar_no','academic_year'], keep='first', inplace=True)
+    
+    return marks
 
 
 
