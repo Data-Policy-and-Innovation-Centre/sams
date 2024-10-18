@@ -47,6 +47,12 @@ sams_db:
 	@echo "Running build_sams_db.py with PYTHONPATH=$(PYTHONPATH)"
 	$(PYTHON_INTERPRETER) $(BUILD_SAMS_SCRIPT)
 
+# Preprocessing
+preprocess:
+	@ echo "Running preprocess_data.py..."
+	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/preprocess_data.py
+
+
 # Tests
 tests:
 	@echo "Running tests..."
@@ -63,5 +69,5 @@ test_client:
 	pytest tests/test_client.py
 	
 
-.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client
+.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client preprocess
 
