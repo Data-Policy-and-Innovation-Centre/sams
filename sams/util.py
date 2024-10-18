@@ -97,6 +97,9 @@ def hours_since_creation(path: str):
         return (time.time() - os.path.getmtime(path)) / 3600
     return float("inf")
 
+def flatten(nested_list: list):
+    return [item for sublist in nested_list for item in sublist]
+
 
 if __name__ == "__main__":
     pass

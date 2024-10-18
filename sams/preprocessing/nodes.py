@@ -2,7 +2,7 @@ import pandas as pd
 import re
 import numpy as np
 import json
-from sams.util import dict_camel_to_snake_case
+from sams.util import dict_camel_to_snake_case, flatten
 
 
 def _make_date(x: pd.Series) -> pd.Series:
@@ -114,8 +114,10 @@ def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFram
     
 
 def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame([[dict_camel_to_snake_case({**mark, 'aadhar_no': aadhar, 'academic_year': academic_year}) for mark in json.loads(marks)] 
-                         for aadhar, marks, academic_year in df[['aadhar_no','mark_data', 'academic_year']].values])
+    marks = [[dict_camel_to_snake_case({**mark, 'aadhar_no': aadhar, 'academic_year': academic_year}) for mark in json.loads(marks)] 
+                         for aadhar, marks, academic_year in df[['aadhar_no','mark_data', 'academic_year']].values]
+    
+    return pd.DataFrame(flatten(marks))
 
 
 
