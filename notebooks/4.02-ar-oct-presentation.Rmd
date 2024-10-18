@@ -1,0 +1,45 @@
+---
+title: "4.02-ar-oct-presentation"
+output: html_document
+date: "2024-10-18"
+---
+
+```{r, echo=FALSE, include=FALSE}
+# Load the libraries
+library(RSQLite)
+library(DBI)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(knitr)
+library(reactable)
+library(htmltools)
+library(maps)
+library(tmap)
+library(jsonlite)
+library(sf)
+library(readxl)
+library(arrow)
+
+```
+
+## Load the data
+```{r}
+diploma_marks <- read_parquet("C:/Users/Admin/Documents/GitHub/sams/data/interim/diploma_marks.pq")
+
+view(diploma_marks)
+```
+
+
+## Odisha Vocational Pipeline
+
+```{r}
+
+
+
+
+
+```
+
+
+
