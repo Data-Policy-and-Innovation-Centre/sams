@@ -78,7 +78,11 @@ def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd
         pd.DataFrame(json.loads(marks))[lambda df: df[key] == value]
         for marks in x
     ]
-    return pd.concat(filtered_dfs)[varnames]
+    filtered_dfs = [df if not df.empty else pd.DataFrame({col: np.nan for col in df.columns},index=[0]) for df in filtered_dfs]
+    
+    col = pd.concat(filtered_dfs)[varnames]
+    col.reset_index(drop=True, inplace=True)
+    return col
    
     
 def _preprocess_students(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,7 +97,7 @@ def _preprocess_students(df: pd.DataFrame) -> pd.DataFrame:
 def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df)
     df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
-    df = df.drop(["id","student_name", "nationality", "domicile", "s_domicile_category",
+    df = df.drop(["student_name", "nationality", "domicile", "s_domicile_category",
                   "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
                   "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
     df = df.dropna(subset=["sams_code"])
@@ -102,10 +106,10 @@ def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
 def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df)
     df['tenth_passing_year'] = _extract_mark_data(df['mark_data'], 'ExamName', '10th', ['YearofPassing'])
-    df = df.drop(["id","student_name", "nationality", "domicile", "s_domicile_category", "highest_qualification",
+    df = df.drop(["student_name", "nationality", "domicile", "s_domicile_category", "highest_qualification",
                   "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
                   "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
-    df = df.dropna(subset='sams_code')
+    df = df.dropna(subset=['sams_code'])
     return df
     
 
