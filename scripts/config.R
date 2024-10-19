@@ -1,5 +1,6 @@
 packages <- c("tidyverse","RSQLite","rprojroot","knitr",
-              "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate")
+              "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate",
+              "map","tmap")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
