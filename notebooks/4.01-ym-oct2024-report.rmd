@@ -145,6 +145,14 @@ ITI_graduates_same_year <- student_iti_admis %>%
   filter(YearofPassing == year) %>%
   group_by(year) %>%   # Group by admission year
   summarise(Admitted_ITI_Students = n())  # Count the number of students
+
+Dip_graduates_same_year <- student_dip_admis_dt_distinct %>%
+  filter(exam_name == "10th") %>%
+  filter(yearof_passing == year) %>%
+  group_by(year) %>%
+  summarise(Admitted_Dip_Students = n())  # Count the number of students
+
+
  
 
 # Import 10th figures
@@ -182,15 +190,25 @@ df1_selected <- plus_two_admis %>% select(year, total_plus_two_admitted)
 df2_selected <- total_tenth_count %>% select(year, total_tenth_batch)
 
 # Perform full_join based on 'Year'
-#pipeline_table <- df2_selected %>%
-#  full_join(df1_selected, by = "year") %>%
-#  full_join(ITI_graduates_same_year, by = "year") %>%
-#  full_join(_, by = "year") %>%
-#  arrange(year) %>%
-#  mutate(total_plus_two_admitted = gsub(",", "", total_plus_two_admitted)) %>%
-#  mutate(total_plus_two_admitted = as.numeric(total_plus_two_admitted)) 
+pipeline_table <- df2_selected %>%
+  full_join(df1_selected, by = "year") %>%
+  full_join(ITI_graduates_same_year, by = "year") %>%
+  full_join(Dip_graduates_same_year, by = "year") %>%
+  arrange(year) %>%
+  mutate(total_plus_two_admitted = gsub(",", "", total_plus_two_admitted)) %>%
+  mutate(total_plus_two_admitted = as.numeric(total_plus_two_admitted)) 
 
-# pipeline_table$residual = pipeline_table$total_tenth_batch - pipeline_table$total_plus_two_admitted - pipeline_table$Admitted_ITI_Students - pipeline_table
+
+remove(pipeline_table)
+
+pipeline_table$residual = pipeline_table$total_tenth_batch - pipeline_table$total_plus_two_admitted - pipeline_table$Admitted_ITI_Students - pipeline_table$Admitted_Dip_Students
+
+pipeline_table
+
+
+# Replace 'df' with the name of your DataFrame and specify the file path
+write.xlsx(pipeline_table, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/pipeline_all_year.xlsx")
+
 
 student_iti_admis$diff_year_yearpassing = student_iti_admis$year - as.numeric(student_iti_admis$YearofPassing)  
 
@@ -200,6 +218,56 @@ ggplot(student_iti_admis, aes(x = diff_year_yearpassing)) +
   scale_x_continuous(limits = c(0, 30), 
                      breaks = seq(0, 30, by = 1))
 ```
+
+
+# Students in ITIs
+```{r}
+## Total students in ITIs - Pvt vs Govt
+iti_total_students = student_iti_admis %>%
+  filter(year != 2017) %>%
+  group_by(year, typeof_institute) %>%
+  summarise(total_students = n(), .groups = "drop") %>%
+  # Step 2: Spread the data into separate columns for Pvt and Gov
+  pivot_wider(names_from = typeof_institute, values_from = total_students, values_fill = 0) %>%
+  # Step 3: Calculate total students, share of Pvt and Gov
+  mutate(total_students = `Govt.` + `Pvt.`,
+         share_of_pvt = (`Pvt.` / total_students) * 100,
+         share_of_gov = (`Govt.` / total_students) * 100) %>%
+  # Step 4: Select relevant columns
+  select(year, total_students, share_of_pvt, share_of_gov) %>%
+  arrange(year)
+
+print(iti_total_students)
+
+
+```
+
+
+```{r}
+for_pie_highest_qualification_ITI = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(highest_qualification) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  arrange(desc(student_count))
+
+# Replace 'path/to/output.xlsx' with the desired file path
+write.xlsx(for_pie_highest_qualification_ITI, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/highest_qual_ITI_2023_pie.xlsx")
+  
+
+for_pie_highest_qualification_Diploma = student_dip_admis_dt_distinct %>%
+  filter(year == 2023) %>%
+  group_by(highest_qualification_board_exam_name) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  arrange(desc(student_count))
+
+print(student_dip_admis_dt_distinct)
+print(for_pie_highest_qualification_Diploma)
+# Replace 'path/to/output.xlsx' with the desired file path
+write.xlsx(for_pie_highest_qualification_Diploma, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/highest_qual_Diploma_2023_pie.xlsx")
+  
+
+```
+
 
 
 ```{r tables, echo=FALSE,include=FALSE, results='asis'}
@@ -396,7 +464,7 @@ odisha_districts <- st_read("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external
 india_districts_census_2011 <- read_csv("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external/india-districts-census-2011.csv")
 odisha_pop_dist_2011 <- india_districts_census_2011 %>%
   filter(`State name` == "ORISSA")
-
+view(odisha_pop_dist_2011)
 odisha_pop_dist_2011 <- odisha_pop_dist_2011 %>% mutate(`District name` = toupper(`District name`))
 
 odisha_pop_dist_2011 <- odisha_pop_dist_2011 %>%
@@ -432,6 +500,8 @@ combined_female_students_dist_2023 <- combined_female_students_dist_2023 %>%
     district == "BOUDH" ~"BAUDH (BAUDA)",
     TRUE ~ district  # Keep other district names unchanged
   ))
+
+
 
 total_students_district_2023 <- total_students_district_2023 %>% mutate(district = toupper(district))
 
