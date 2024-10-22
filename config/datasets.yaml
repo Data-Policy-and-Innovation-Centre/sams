@@ -1,0 +1,35 @@
+datasets:
+  sams:
+    type: SQLite
+    path: "data/raw/sams.db"
+    layer: raw
+
+  iti_enrollments:
+    type: parquet
+    path: "data/interim/iti_enrollments.pq"
+    layer: interim
+
+  iti_marks:
+    type: parquet
+    path: "data/interim/iti_marks.pq"
+    layer: interim
+
+  diploma_enrollments:
+    type: parquet
+    path: "data/interim/diploma_enrollments.pq"
+    layer: interim
+
+  diploma_marks:
+    type: parquet
+    path: "data/interim/diploma_marks.pq"
+    layer: interim
+
+  pdis_enrollments:
+    type: parquet
+    path: "data/interim/pdis_enrollments.pq"
+    layer: interim
+
+  pdis_marks:
+    type: parquet
+    path: "data/interim/pdis_marks.pq"
+    layer: interim

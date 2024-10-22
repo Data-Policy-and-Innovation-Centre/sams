@@ -24,6 +24,7 @@ dependencies:
   - pip:
     - python-dotenv
     - mkdocs
+    - pyyaml
     - polars[all]
     - openpyxl
     - pytest

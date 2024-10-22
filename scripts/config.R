@@ -1,6 +1,6 @@
 packages <- c("tidyverse","RSQLite","rprojroot","knitr",
               "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate",
-              "map","tmap")
+              "map","tmap","fs","yaml","here")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -10,17 +10,17 @@ for (pkg in packages) {
   }
 }
 rm(pkg)
+library(yaml)
+library(fs)
 
-# Load python env
-library(reticulate)
-use_condaenv("skills", required=TRUE)
+# Load data catalog
+catalog <- yaml.load_file(file.path(here(),"config","datasets.yaml"))
+datasets <- catalog$datasets
 
-# Import the necessary Python standard library
-importlib <- import("importlib")
 
-# Configure using python configuration file
-config <- import_from_path("sams.config")
-importlib$reload(config)
+get_path <- function(name) {
+  file.path(here(),datasets[[name]]$path)
+}
 
 # Load figure constants
 optfig.labfontsize = 20 + 8

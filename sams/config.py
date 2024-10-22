@@ -2,6 +2,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 import os
+import yaml
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -19,15 +20,7 @@ LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
-
-# Data file names
-SAMS_DB = RAW_DATA_DIR / "sams.db"
-ITI_ENROLLMENTS = INTERIM_DATA_DIR / "iti_enrollments.pq"
-DIPLOMA_ENROLLMENTS = INTERIM_DATA_DIR / "diploma_enrollments.pq"
-PDIS_ENROLLMENTS = INTERIM_DATA_DIR / "pdis_enrollments.pq"
-ITI_MARKS = INTERIM_DATA_DIR / "iti_marks.pq"
-DIPLOMA_MARKS = INTERIM_DATA_DIR / "diploma_marks.pq"
-PDIS_MARKS = INTERIM_DATA_DIR / "pdis_marks.pq"
+CONFIG = PROJ_ROOT / "config" 
 
 # Verify that all the directories exist
 for path in [
@@ -44,6 +37,18 @@ for path in [
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
+
+# Data catalog
+with open(CONFIG / "datasets.yaml") as f:
+    datasets = yaml.safe_load(f)
+    datasets = datasets["datasets"]
+
+SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
+
+
+def get_path(name: str) -> Path:
+    return PROJ_ROOT / Path(datasets[name]["path"])
+
 
 # Auth
 USERNAME = os.getenv("SAMSAPI_USERNAME")
