@@ -50,6 +50,7 @@ library(tmap)
 library(jsonlite)
 library(sf)
 library(readxl)
+library(stringdist)
 
 ```
 
@@ -1184,29 +1185,18 @@ map_count_iti_cap + tm_view(view.legend.position = c("right", "bottom"))
 
 
 ```{r}
-# Block-level in 2023
-blocks_iti_2023 = unique(df_ITI_2023$Block)
-view(blocks_iti_2023)
-iti_2023_block_level <- student_iti_admis %>%
-  filter(year == 2023) %>%
-  group_by(block) %>%
-  summarise(student_count = n(), .groups = "drop")
   
 # Replace the path with the actual path to your .shp file
 path <- "C:/Users/Admin/Desktop/block_shapefiles"
 odisha_blocks <- st_read(file.path(path,"Odisha_Admin_Block_BND_2021.shp"))
 
-view(iti_2023_block_level)
-
+view(odisha_blocks)
 geometry_file <- student_iti_admis %>% 
   select(district) %>% 
   distinct()
 
-dist_not_in_master_block <- geometry_file %>%
-  anti_join(block_name_list_master, by = c("district" = "district_n"))
 
-# Display the result
-print(dist_not_in_master_block)
+
 
 geometry_file <- geometry_file %>%
   mutate(district_2 = case_when(
@@ -1225,20 +1215,56 @@ geometry_file <- geometry_file %>%
 student_iti_admis <- student_iti_admis %>%
   left_join(geometry_file %>% select(district, district_2), by = "district")
 
-view(student_iti_admis)
 
+#dist_not_in_master_block <- geometry_file %>%
+#  anti_join(block_name_list_master, by = c("district" = "district_n"))
 
 
 student_iti_admis <- student_iti_admis %>% 
-  select(block) %>% 
   mutate(block_name_normalized = str_remove(block, "\\s*\\(.*?\\)")) %>% 
-  mutate(block_name_normalized = tolower(block_name_normalized)) %>% 
-  distinct()
+  mutate(block_name_normalized = tolower(block_name_normalized))
+
+table(student_iti_admis$block,student_iti_admis$block_name_normalized)
 
 odisha_blocks <- odisha_blocks %>% 
-  select(block_name, district_n) %>% 
   mutate(block_name_normalized = str_remove(block_name, "\\s*\\(.*?\\)")) %>% 
   mutate(block_name_normalized = tolower(block_name_normalized))
+
+student_iti_admis <- student_iti_admis %>%
+  mutate(block_name_normalized = str_remove_all(block_name_normalized, "\\s*\\(?(S|s)adar\\)?"))
+
+odisha_blocks <- odisha_blocks %>% 
+  mutate(block_name_normalized = str_remove_all(block_name_normalized, "\\s*\\(?(S|s)adar\\)?"))
+
+view(odisha_blocks$block_name_normalized)
+view(unique(student_iti_admis$block_name_normalized))
+
+n_distinct(student_iti_admis$block_name_normalized)
+
+# Block-level students count in 2023
+iti_2023_block_level <- student_iti_admis %>%
+  filter(!is.na(district_2)) %>%
+  filter(year == 2023) %>%
+  group_by(block_name_normalized) %>%
+  summarise(student_count = n(), .groups = "drop")
+
+
+
+blocks_not_in_master_block <- iti_2023_block_level %>%
+  anti_join(odisha_blocks, by = c("block_name_normalized" = "block_name_normalized"))
+
+
+
+
+iti_block_with_special_chars_or_multiple_words <- blocks_not_in_master_block %>%
+  filter(grepl("\\s", block_name_normalized) | grepl("[[:punct:]]", block_name_normalized))
+view(iti_block_with_special_chars_or_multiple_words)
+
+shp_block_with_special_chars_or_multiple_words <- odisha_blocks %>%
+  filter(grepl("\\s", block_name_normalized) | grepl("[[:punct:]]", block_name_normalized))
+view(shp_block_with_special_chars_or_multiple_words)
+
+districts_from_iti <- 
 
 
 
@@ -1256,7 +1282,22 @@ fuzzy_match_blocks <- function(student_block,master_block,threshold = 3) {
   return(match_results)
 }
 
+iti_2023_block_level <- iti_2023_block_level %>%
+  mutate(matched_block = fuzzy_match_blocks(block_name_normalized, odisha_blocks$block_name_normalized, threshold = 3))
+view(iti_2023_block_level)
 
+view(odisha_blocks$block_name)
+
+view(odisha_blocks)
+    block == 
+    block == 
+    block_name_normalized == "balasore" ~ "baleswar",
+    block == 
+    block == 
+
+view(odisha_blocks)
+    
+      
 fuzzy_matches <-   
   
 ```
