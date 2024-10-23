@@ -45,9 +45,16 @@ with open(CONFIG / "datasets.yaml") as f:
 
 SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
 
-
 def get_path(name: str) -> Path:
     return PROJ_ROOT / Path(datasets[name]["path"])
+
+
+def get_layer(name: str) -> str:
+    return datasets[name]["layer"]
+
+
+def get_type(name: str) -> str:
+    return datasets[name]["type"]
 
 
 # Auth
