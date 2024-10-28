@@ -1,8 +1,8 @@
 import pandas as pd
-import re
 import numpy as np
 import json
 from sams.util import dict_camel_to_snake_case, flatten
+from geopy.geocoders import Nominatim
 
 
 def _make_date(x: pd.Series) -> pd.Series:
@@ -41,7 +41,7 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
         "graduation",
         "bcam",
         "pg",
-        "post graduate"
+        "post graduate",
     ]
     diploma_names = ["diploma", "jbt/ett"]
 
@@ -72,57 +72,115 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     return x
 
+
 def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd.Series:
     # Use list comprehension to make this faster
     filtered_dfs = [
-        pd.DataFrame(json.loads(marks))[lambda df: df[key] == value]
-        for marks in x
+        pd.DataFrame(json.loads(marks))[lambda df: df[key] == value] for marks in x
     ]
-    filtered_dfs = [df if not df.empty else pd.DataFrame({col: np.nan for col in df.columns},index=[0]) for df in filtered_dfs]
-    
+    filtered_dfs = [
+        (
+            df
+            if not df.empty
+            else pd.DataFrame({col: np.nan for col in df.columns}, index=[0])
+        )
+        for df in filtered_dfs
+    ]
+
     col = pd.concat(filtered_dfs)[varnames]
     col.reset_index(drop=True, inplace=True)
     return col
-   
-    
+
+
 def _preprocess_students(df: pd.DataFrame) -> pd.DataFrame:
     df = _make_null(df)
     df["dob"] = _make_date(df["dob"])
-    df['date_of_application'] = _make_date(df['date_of_application'])
-    bool_vars = ['had_two_year_full_time_work_exp_after_tenth', 'gc', 'ph', 'es',
-       'sports', 'national_cadet_corps', 'pm_care', 'orphan']
+    df["date_of_application"] = _make_date(df["date_of_application"])
+    bool_vars = [
+        "had_two_year_full_time_work_exp_after_tenth",
+        "gc",
+        "ph",
+        "es",
+        "sports",
+        "national_cadet_corps",
+        "pm_care",
+        "orphan",
+    ]
     df[bool_vars] = df[bool_vars].apply(_make_bool)
-    return df    
+    return df
+
 
 def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df)
     df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
-    df = df.drop(["student_name", "nationality", "domicile", "s_domicile_category",
-                  "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
-                  "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
+    df = df.drop(
+        [
+            "student_name",
+            "nationality",
+            "domicile",
+            "s_domicile_category",
+            "outside_odisha_applicant_state_name",
+            "odia_applicant_living_outside_odisha_state_name",
+            "tenth_exam_school_address",
+            "eighth_exam_school_address",
+            "had_two_year_full_time_work_exp_after_tenth",
+            "national_cadet_corps",
+            "pm_care",
+            "tfw",
+        ],
+        axis=1,
+    )
     df = df.dropna(subset=["sams_code"])
     return df
 
+
 def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df)
-    df['tenth_passing_year'] = _extract_mark_data(df['mark_data'], 'ExamName', '10th', ['YearofPassing'])
-    df = df.drop(["student_name", "nationality", "domicile", "s_domicile_category", "highest_qualification",
-                  "outside_odisha_applicant_state_name","odia_applicant_living_outside_odisha_state_name","tenth_exam_school_address",
-                  "eighth_exam_school_address","had_two_year_full_time_work_exp_after_tenth", "national_cadet_corps", "pm_care", "tfw"],axis=1)
-    df = df.dropna(subset=['sams_code'])
+    df["tenth_passing_year"] = _extract_mark_data(
+        df["mark_data"], "ExamName", "10th", ["YearofPassing"]
+    )
+    df = df.drop(
+        [
+            "student_name",
+            "nationality",
+            "domicile",
+            "s_domicile_category",
+            "highest_qualification",
+            "outside_odisha_applicant_state_name",
+            "odia_applicant_living_outside_odisha_state_name",
+            "tenth_exam_school_address",
+            "eighth_exam_school_address",
+            "had_two_year_full_time_work_exp_after_tenth",
+            "national_cadet_corps",
+            "pm_care",
+            "tfw",
+        ],
+        axis=1,
+    )
+    df = df.dropna(subset=["sams_code"])
     return df
-    
+
 
 def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
-    marks = [[dict_camel_to_snake_case({**mark, 'aadhar_no': aadhar, 'academic_year': academic_year}) for mark in json.loads(marks)] 
-                         for aadhar, marks, academic_year in df[['aadhar_no','mark_data', 'academic_year']].values]
-    
+    marks = [
+        [
+            dict_camel_to_snake_case(
+                {**mark, "aadhar_no": aadhar, "academic_year": academic_year}
+            )
+            for mark in json.loads(marks)
+        ]
+        for aadhar, marks, academic_year in df[
+            ["aadhar_no", "mark_data", "academic_year"]
+        ].values
+    ]
+
     marks = pd.DataFrame(flatten(marks))
-    marks.drop_duplicates(subset=['aadhar_no','academic_year'], keep='first', inplace=True)
-    
+    marks.drop_duplicates(
+        subset=["aadhar_no", "academic_year"], keep="first", inplace=True
+    )
+
     return marks
 
 
-
-def preprocess_institutes(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess_institutes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
     pass

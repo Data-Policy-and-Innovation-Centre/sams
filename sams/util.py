@@ -29,6 +29,7 @@ def is_valid_date(date_string):
 
     return False, None  # No formats matched, date is invalid
 
+
 def camel_to_snake_case(text: str):
 
     # Step 0: All caps to be converted to lower case
@@ -96,6 +97,7 @@ def hours_since_creation(path: str):
     if os.path.exists(path):
         return (time.time() - os.path.getmtime(path)) / 3600
     return float("inf")
+
 
 def flatten(nested_list: list):
     return [item for sublist in nested_list for item in sublist]

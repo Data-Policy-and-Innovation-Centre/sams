@@ -29,6 +29,7 @@ from sams.util import (
 import os
 from numpy import nan
 import warnings
+
 warnings.filterwarnings("ignore")
 
 Base = declarative_base()
@@ -140,11 +141,8 @@ class Institute(Base):
             "branch",
             "admission_type",
             name="uq_sams_code_module_academic_year_trade_branch_admission_type",
-
-
         ),
     )
-
 
 
 class SamsDataLoader:
@@ -253,7 +251,7 @@ class SamsDataLoader:
         """
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
-        
+
         data = dict_camel_to_snake_case(data)
         session = self.Session()
         success = False
@@ -291,8 +289,7 @@ class SamsDataLoader:
 
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
-        
-        
+
         session = self.Session()
         data = dict_camel_to_snake_case(data)
         success = False
@@ -324,17 +321,17 @@ class SamsDataLoader:
         finally:
             session.close()
             return success
-        
+
     def get_existing_modules(self, table_name: str) -> list:
-        
+
         if table_name not in ["students", "institutes"]:
             raise ValueError(f"Table name not supported: {table_name}")
-        
+
         if table_name == "students":
             return self._get_student_modules()
         else:
             return self._get_institute_modules()
-    
+
     def _get_student_modules(self):
 
         session = self.Session()
@@ -349,13 +346,23 @@ class SamsDataLoader:
         existing_modules = [
             (module, year)
             for module, year, count in student_modules
-            if count >= expected_counts.loc[(expected_counts["module"] == module) & (expected_counts["academic_year"] == year), "count"].iloc[0]
+            if count
+            >= expected_counts.loc[
+                (expected_counts["module"] == module)
+                & (expected_counts["academic_year"] == year),
+                "count",
+            ].iloc[0]
         ]
 
         excess_modules = [
             (module, year, count)
             for module, year, count in student_modules
-            if count > expected_counts.loc[(expected_counts["module"] == module) & (expected_counts["academic_year"] == year), "count"].iloc[0]
+            if count
+            > expected_counts.loc[
+                (expected_counts["module"] == module)
+                & (expected_counts["academic_year"] == year),
+                "count",
+            ].iloc[0]
         ]
 
         if excess_modules:
@@ -366,29 +373,55 @@ class SamsDataLoader:
         return existing_modules
 
     def _get_institute_modules(self):
-        
+
         session = self.Session()
         counts = self._get_counts("institutes")
-        counts.replace({nan:0}, inplace=True)
+        counts.replace({nan: 0}, inplace=True)
 
         institute_modules = (
-            session.query(Institute.module, Institute.academic_year, Institute.admission_type, func.count(Institute.id))
-            .group_by(Institute.module, Institute.academic_year, Institute.admission_type)
+            session.query(
+                Institute.module,
+                Institute.academic_year,
+                Institute.admission_type,
+                func.count(Institute.id),
+            )
+            .group_by(
+                Institute.module, Institute.academic_year, Institute.admission_type
+            )
             .all()
         )
-        institute_modules = pd.DataFrame(institute_modules,columns=["module","academic_year","admission_type","count"])
-        institute_modules.replace({nan:0, None:0}, inplace=True)
+        institute_modules = pd.DataFrame(
+            institute_modules,
+            columns=["module", "academic_year", "admission_type", "count"],
+        )
+        institute_modules.replace({nan: 0, None: 0}, inplace=True)
 
         existing_modules = [
             (module, year, admission_type)
-            for module, year, admission_type, count in institute_modules.itertuples(index=False)
-            if count >= counts.loc[(counts["module"] == module) & (counts["academic_year"] == year) & (counts["admission_type"] == admission_type), "count"].iloc[0]
+            for module, year, admission_type, count in institute_modules.itertuples(
+                index=False
+            )
+            if count
+            >= counts.loc[
+                (counts["module"] == module)
+                & (counts["academic_year"] == year)
+                & (counts["admission_type"] == admission_type),
+                "count",
+            ].iloc[0]
         ]
 
         excess_modules = [
             (module, year, admission_type, count)
-            for module, year, admission_type, count in institute_modules.itertuples(index=False)
-            if count > counts.loc[(counts["module"] == module) & (counts["academic_year"] == year) & (counts["admission_type"] == admission_type), "count"].iloc[0]
+            for module, year, admission_type, count in institute_modules.itertuples(
+                index=False
+            )
+            if count
+            > counts.loc[
+                (counts["module"] == module)
+                & (counts["academic_year"] == year)
+                & (counts["admission_type"] == admission_type),
+                "count",
+            ].iloc[0]
         ]
 
         if excess_modules:
@@ -396,17 +429,16 @@ class SamsDataLoader:
                 f"Modules with excess records than expected found: {excess_modules}"
             )
 
-        return existing_modules        
-
+        return existing_modules
 
     def _get_counts(self, table_name: str) -> pd.DataFrame:
 
-        counts_path = os.path.join(LOGS,  f"{table_name}_count.csv")
+        counts_path = os.path.join(LOGS, f"{table_name}_count.csv")
 
         if not os.path.exists(counts_path):
             return []
 
-        counts = pd.read_csv(counts_path) 
+        counts = pd.read_csv(counts_path)
 
         return counts
 
@@ -472,10 +504,10 @@ class SamsDataLoaderPandas(SamsDataLoader):
 
 
 def main():
-    
+
     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
     print(loader.get_existing_modules("institutes"))
-    #print(loader.get_existing_modules("students"))
+    # print(loader.get_existing_modules("students"))
     # loader.remove("students", "Diploma", "2019")
 
 

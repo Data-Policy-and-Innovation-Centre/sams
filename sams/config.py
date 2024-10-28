@@ -20,7 +20,7 @@ LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
-CONFIG = PROJ_ROOT / "config" 
+CONFIG = PROJ_ROOT / "config"
 
 # Verify that all the directories exist
 for path in [
@@ -44,6 +44,7 @@ with open(CONFIG / "datasets.yaml") as f:
     datasets = datasets["datasets"]
 
 SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
+
 
 def get_path(name: str) -> Path:
     return PROJ_ROOT / Path(datasets[name]["path"])
