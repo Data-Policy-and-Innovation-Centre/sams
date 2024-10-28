@@ -28,4 +28,5 @@ dependencies:
     - polars[all]
     - openpyxl
     - pytest
+    - geopy
     - -e .
