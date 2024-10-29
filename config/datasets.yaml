@@ -4,6 +4,11 @@ datasets:
     path: "data/raw/sams.db"
     layer: raw
 
+  geocodes:
+    type: parquet
+    path: "data/interim/geocodes.pq"
+    layer: interim 
+
   iti_enrollments:
     type: parquet
     path: "data/interim/iti_enrollments.pq"

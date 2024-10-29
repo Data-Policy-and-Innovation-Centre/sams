@@ -1,12 +1,29 @@
 from datetime import datetime
 from loguru import logger
-from sams.config import RAW_DATA_DIR, LOGS
+from sams.config import GEOCODES, geocode
 import os
 import time
-import sqlite3
-import pandas as pd
 import re
 from tqdm import tqdm
+from geopy.exc import GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut
+from geopy import Location
+
+
+def geocode_pincode(pincode: str) -> Location | None:
+
+    if pincode in GEOCODES:
+        return GEOCODES[pincode]
+    else:
+        try:
+            location = geocode(f"{pincode}, India")
+            GEOCODES[pincode] = location
+            return location
+        except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:
+            logger.error(f"Error geocoding pincode {pincode})")
+            return None
+        except Exception as e:
+            logger.error(f"Error geocoding pincode {pincode}: {e}")
+            return None
 
 
 def is_valid_date(date_string):

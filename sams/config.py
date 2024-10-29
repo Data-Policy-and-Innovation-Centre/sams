@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 from loguru import logger
 import os
 import yaml
+import pickle
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -21,6 +24,7 @@ MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 CONFIG = PROJ_ROOT / "config"
+CACHE = PROJ_ROOT / "cache"
 
 # Verify that all the directories exist
 for path in [
@@ -33,6 +37,7 @@ for path in [
     FIGURES_DIR,
     LOGS,
     MISSING_VALUES,
+    CACHE,
 ]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
@@ -61,6 +66,18 @@ def get_type(name: str) -> str:
 # Auth
 USERNAME = os.getenv("SAMSAPI_USERNAME")
 PASSWORD = os.getenv("SAMSAPI_PASSWORD")
+
+# ===== CACHE =====
+# Geocodes
+geolocator = Nominatim(user_agent="sams")
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+GEOCODES_CACHE = CACHE / "geocodes.pkl"
+if "GEOCODES" not in globals():
+    if os.path.exists(GEOCODES_CACHE):
+        with open(GEOCODES_CACHE, "rb") as f:
+            GEOCODES = pickle.load(f)
+    else:
+        GEOCODES = {}
 
 # Error constants
 ERRMAX = 3
