@@ -34,13 +34,14 @@ update_env:
 remove_env:
 	conda env remove -n $(PROJECT_NAME)
 
-# Delete all compiled Python files
+# Delete all compiled Python files and interim datasets
 clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type f -name '*.log' -exec rm -f {} +
 	find . -type f -name '*.db' -exec rm -f {} +
 	find . -type f -name '*.db-journal' -exec rm -f {} +
+	rm -rf cache/
 
 # Build raw sams database
 sams_db:
