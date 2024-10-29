@@ -1,7 +1,7 @@
 ---
-title: "4.02-ar-oct-presentation"
+title: "Analysis of SAMS Data"
 output: html_document
-date: "2024-10-18"
+date: "`r Sys.Date()`"
 ---
 
 ```{r, echo=FALSE, include=FALSE}
@@ -20,26 +20,231 @@ library(jsonlite)
 library(sf)
 library(readxl)
 library(arrow)
-
+library(data.table)
 ```
 
-## Load the data
-```{r}
+
+```{r, echo=FALSE,include=FALSE}
 diploma_marks <- read_parquet("C:/Users/Admin/Documents/GitHub/sams/data/interim/diploma_marks.pq")
 
-view(diploma_marks)
+
+diploma_marks_dt <- as.data.table(diploma_marks)
+student_dip_admis_dt <- as.data.table(student_dip_admis)
+
+diploma_marks_dt_distinct <- diploma_marks_dt %>%
+  distinct(aadhar_no, .keep_all = TRUE)
+
+student_dip_admis_dt_distinct <- student_dip_admis_dt %>%
+  distinct(aadhar_no, .keep_all = TRUE)
+
+student_dip_admis_dt_distinct <- student_dip_admis_dt_distinct %>% 
+  left_join(diploma_marks_dt_distinct, by = "aadhar_no")
+
 ```
 
+```{r, echo=FALSE,include=FALSE}
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_iti <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+# Admitted students only 
+student_iti_admis = student_data_iti %>%
+  filter(admission_status == "Yes")
+
+student_iti_admis <- student_iti_admis %>%
+  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
+  mutate(
+    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variables
+    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing),
+    ExaminationType = sapply(parsed_json, function(x) x$ExaminationType),
+    TotalMarks = sapply(parsed_json, function(x) x$TotalMarks),
+    SecuredMarks = sapply(parsed_json, function(x) x$SecuredMarks),
+    HighestQualExamBoard =  sapply(parsed_json, function(x) x$HighestQualificationExamBoard)
+  ) %>%
+  select(-parsed_json)  # Remove the parsed_json column if not needed
+
+
+student_iti_admis <- student_iti_admis %>%
+  mutate(
+    SecuredMarks = as.numeric(as.character(SecuredMarks)),
+    TotalMarks = as.numeric(as.character(TotalMarks))
+  )
+# If CGPA then multiple by 9.5 otherwise the usual method
+student_iti_admis <- student_iti_admis %>%
+  mutate(MarksPercentage = if_else(TotalMarks == 10, SecuredMarks * 9.5, SecuredMarks / TotalMarks * 100))
+
+
+```
 
 ## Odisha Vocational Pipeline
 
 ```{r}
-
-
+# 2023
+dip_tenth_graduates_2023 <- student_dip_admis_dt_distinct %>%
+  filter(exam_name == "10th") %>%
+  filter(yearof_passing == year) %>%
+  filter(year == 2023) %>%
+  summarise(Admitted_Dip_Students_Male = sum(gender == "Male"),
+            Admitted_Dip_Students_Female = sum(gender == "Female") )  # Count the number of students
+print(dip_tenth_graduates_2023) 
+table(student_dip_admis_dt_distinct$exam_name)
+# All Years
 
 
 
 ```
+
+
+## Motivations Behind Choosing Vocational Training 
+```{r}
+
+
+
+```
+
+
+## Preferences for Government vs. Private ITIs 
+```{r}
+
+
+# Top trades by academic history (10th fail, 10th pass, 12th pass, and higher)
+acad_trades <- student_iti_admis %>%
+  filter(year %in% c(2021,2022,2023)) %>%
+  group_by(year,reported_branch_or_trade,highest_qualification) %>%
+  summarise(Total_Students = n(), .groups = 'drop') %>%  # Summarize the total number of students
+  group_by(year,highest_qualification) %>%  # Group by year to calculate percentages
+  mutate(Percentage_in_qualification = Total_Students / sum(Total_Students) * 100)  # Calculate percentage
+
+# Get top 10 trades 2023 by total enrollment
+top_acad_trades_list_2023 <- acad_trades %>%
+  filter(year == 2023) %>%
+  filter(highest_qualification %in% c("10th","12th")) %>% # If reqd: "Graduate and above", "Diploma"
+  group_by(highest_qualification) %>%
+  slice_max(order_by = Total_Students, n = 10) %>%  # Select top 10 for each qualification
+  select(reported_branch_or_trade)
+
+# Filter the enrollment data to include only the top 10 trades in 2023
+top_acad_trades_2023 <- acad_trades %>%
+  filter(year == 2023) %>%
+  filter(highest_qualification %in% c("10th","12th")) %>% # If reqd: "Graduate and above", "Diploma"
+  semi_join(top_acad_trades_list_2023, by = "reported_branch_or_trade")
+view(top_acad_trades_2023)
+# Create a pivot table
+pivot_table_acad_trades <- top_acad_trades_2023 %>%
+  select(highest_qualification, reported_branch_or_trade, Percentage_in_qualification) %>%
+  pivot_wider(names_from = highest_qualification, values_from = Percentage_in_qualification, values_fill = NA)  # Fill missing values with 0
+
+# View the pivot table
+view(pivot_table_acad_trades)
+
+```
+
+
+## Gender and Vocational Training 
+```{r echo=FALSE}
+gender_trade_ITI <- student_iti_admis %>%
+  group_by(year, reported_branch_or_trade, gender) %>%
+  summarise(TotalEnrollment = n(), .groups = 'drop')
+
+# Calculate total enrollment per trade
+total_gender_trade_ITI <- gender_trade_ITI %>%
+  group_by(year, reported_branch_or_trade) %>%
+  summarise(TotalTradeEnrollment = sum(TotalEnrollment), .groups = 'drop')
+
+# Get top 10 trades 2023 by total enrollment
+top_trades <- total_gender_trade_ITI %>%
+  filter(year == 2023) %>%
+  top_n(10, TotalTradeEnrollment) %>%
+  select(reported_branch_or_trade)
+
+# Filter the enrollment data to include only the top 10 trades in 2023
+gender_trade_ITI_top <- gender_trade_ITI %>%
+  semi_join(top_trades, by = "reported_branch_or_trade")
+
+gender_trade_ITI_top <- gender_trade_ITI_top %>%
+  group_by(year, reported_branch_or_trade) %>%
+  mutate(Proportion = TotalEnrollment / sum(TotalEnrollment)) 
+
+
+gender_trade_ITI_top <- gender_trade_ITI_top %>%
+  mutate(reported_branch_or_trade = ifelse(reported_branch_or_trade == "Computer Operator and Programming Assistant (NSQF)", "COPA (NSQF)", reported_branch_or_trade))
+
+gender_trade_ITI_top <- gender_trade_ITI_top %>%
+  mutate(gender = factor(gender, levels = c("Female", "Male")))
+
+gender_trade_ITI_top <- gender_trade_ITI_top %>%
+  mutate(Proportion = Proportion * 100)  # Convert proportions to percentage
+view(gender_trade_ITI_top)
+
+# Create a bar chart of total enrolled in each trade 2023
+top_trades_ITI_2023 <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(reported_branch_or_trade) %>%
+  summarise(TotalEnrollment = n()) %>%
+  arrange(desc(TotalEnrollment)) %>%
+  slice_max(TotalEnrollment, n = 10)
+
+top_trades_ITI_2023 <- top_trades_ITI_2023 %>%
+  mutate(reported_branch_or_trade = ifelse(reported_branch_or_trade == "Computer Operator and Programming Assistant (NSQF)", "COPA (NSQF)", reported_branch_or_trade))
+
+
+# Factorize reported_branch_or_trade to order bars by descending TotalEnrollment
+top_trades_ITI_2023 <- top_trades_ITI_2023 %>%
+  mutate(reported_branch_or_trade = factor(reported_branch_or_trade, 
+                                           levels = unique(reported_branch_or_trade[order(TotalEnrollment)])))
+
+# Plot
+ggplot(data = top_trades_ITI_2023, aes(x = reported_branch_or_trade, y = TotalEnrollment)) +
+  geom_bar(stat = "identity", fill = "#4B9CD3", color = "#2C3E50", width = 0.7) +
+  coord_flip() +  # Make it horizontal for readability
+  ylim(0, 30000) +  # Set the y-axis range from 0 to 30000
+  labs(title = "Total ITI Enrollments per Trade (2023)",
+       x = "Trade",
+       y = "Total Enrollment") +
+  theme_minimal(base_size = 14) +  # Use a minimal theme with a base font size
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),  # Center title and bold it
+    axis.text.y = element_text(size = 10, color = "#34495E"),  # Customize y-axis text
+    axis.text.x = element_text(size = 10, color = "#34495E"),  # Customize x-axis text
+    panel.grid.major.x = element_blank(),  # Remove major gridlines on the x-axis
+    panel.grid.minor = element_blank()  # Remove minor gridlines
+  ) +
+  geom_text(aes(label = TotalEnrollment),  # Display total enrollment numbers
+            hjust = -0.2, size = 3.5, color = "#2C3E50", fontface = "italic")  # Customize label appearance
+
+
+gender_trade_ITI_top_2023 <- gender_trade_ITI_top %>%
+  filter(year == 2023) %>%
+  mutate(reported_branch_or_trade = fct_reorder(reported_branch_or_trade, TotalEnrollment, .desc = TRUE))
+
+
+# Creating the 100% stacked bar chart for top 10 trades
+ggplot(data = gender_trade_ITI_top_2023, aes(x = reported_branch_or_trade, y = Proportion, fill = gender)) +
+  geom_bar(stat = "identity") +  # Use position = "fill" for 100% stacking
+  coord_flip() +  # Flip coordinates for horizontal bars
+  labs(title = "Top 10 ITI Enrollments by Gender across Major Trades (2023)",
+       x = "Trade",
+       y = "Proportion of Enrollments (%)") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +  
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +  # Optional: Use a color palette
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+
 
 
 
