@@ -7,14 +7,54 @@ This document provides a diagnostics of SAMS data - API access - CSM.
 
 
 
-# Import the .parquest datafile
+# Import the datafile from db
 ```{r}
 source("paths.r")
-library(arrow)
+
+# Import ITI
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_iti <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+# Admitted students only 
+df_ITI = student_data_iti %>%
+  filter(admission_status == "Yes")
+
+```
+
+```{r, include=FALSE,echo=FALSE}
+## Import Diploma
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_dip <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
 
 
-# Replace 'your_file.parquet' with the path to your Parquet file
-df <- read_parquet(file.path(raw_data,"student_data.parquet"))
+
+## Check the admission count each year
+df_Diploma = student_data_dip[!is.na(student_data_dip$sams_code),]
+
 
 ```
 
@@ -190,11 +230,6 @@ print(paste("Number of correct rows:", num_correct))
 # "Percentage" Distribution Visuals
 ```{r}
 library(ggplot2)
-
-# Subset to module 
-df_ITI = df %>% filter(df$module == "ITI")
-df_Diploma = df %>% filter(df$module == "Diploma")
-df_PDIS = df %>% filter(df$module == "PDIS")
 
 
 # Custom function to create the histogram
@@ -867,7 +902,7 @@ filtered_sams_student = sams_student_data %>% filter(State == "Others")
 # Number of ITIs and Total Students in it by Gender
 ```{r}
 # Create file path
-file_path = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\ITI_descriptives.xlsx"
+file_path = "C:\\Users\\Admin\\Box\\Amitav\\Skills\\SAMS\\output\\ITI_descriptives.xlsx"
 # Create a new workbook
 wb_ITI_proof <- createWorkbook()
 
@@ -886,7 +921,6 @@ count_females_ITI <- df_ITI %>%
     Female_Percentage = (Female_Students / Total_Students) * 100
   ) %>%
   mutate(Female_Percentage = round(Female_Percentage, 1))
-view(count_females_ITI)
 
 addWorksheet(wb_ITI_proof, "Students in ITIs by Year")
 writeData(wb_ITI_proof, "Students in ITIs by Year", count_females_ITI)
@@ -1020,6 +1054,10 @@ top_10_female_ITI_pvt = top_female_ITI_pvt %>%
 addWorksheet(wb_ITI_proof, "Top Pvt ITIs by Female Students")
 writeData(wb_ITI_proof, "Top Pvt ITIs by Female Students", top_10_female_ITI_pvt)
 
+# Save the workbook to the specified directory
+saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
+
+
 
 # Identify the top 5 institutes by number of female students in 2023
 top_5_institutes <- top_female_ITI_gov %>%
@@ -1029,7 +1067,6 @@ top_5_institutes <- top_female_ITI_gov %>%
 
 ts_top_5_female_ITI_gov <- df_summary_gov %>%
   filter(ReportedInstitute %in% top_5_institutes)   
-view(ts_top_5_female_ITI_gov)
 
 ## Calculate female share for aggregate in Gov ITI only
 aggregated_data <- df_ITI_gov %>%
@@ -1084,12 +1121,14 @@ ggplot() +
 
 
   
-# Save the workbook to the specified directory
-saveWorkbook(wb_ITI_proof, file = file_path, overwrite = TRUE)
 
 
 
-# Step 3: Create the horizontal bar chart
+```
+
+# Visualize top 10 institutes
+```{r}
+# Create the horizontal bar chart
 ggplot(top_10_institutes, aes(x = reorder(ReportedInstitute, student_count), y = student_count, fill = Gender)) +
   geom_bar(stat = "identity") +
   coord_flip() +
@@ -1136,6 +1175,8 @@ ggplot(top_10_institutes_female, aes(x = reorder(ReportedInstitute, female_stude
   )
 
 ```
+
+
 The districts in which the 10 institutes (total students) are situated are - 
 Ganjam, Cuttack, Balasore, Khurda, Mayurbhanj and Keonjhar (East Odisha);
 Sundergarh & Sambalpur (West Odisha).  
@@ -1149,6 +1190,9 @@ Angul (Central)
 ```{r}
 ## Social Group
 # All ITIs
+df_ITI_2023 <- df_ITI %>%
+  filter(year == 2023)
+
 ITI_soc_grp = df_ITI_2023 %>%
   group_by(SocialCategory) %>%
   summarise(count = n(), .groups = 'drop') %>%
@@ -1760,7 +1804,7 @@ count_ITI = df_ITI %>%
     pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
   ) %>%
   arrange(Year)
-view(count_ITI)
+
 
 count_Poly = df_Diploma %>%
   group_by(Year) %>%
@@ -1770,7 +1814,7 @@ count_Poly = df_Diploma %>%
     pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
   ) %>%
   arrange(Year)
-view(count_Poly)
+
 
 count_PDIS = df_PDIS %>%
   group_by(Year) %>%
@@ -1780,7 +1824,6 @@ count_PDIS = df_PDIS %>%
     pvt_institutes = n_distinct(ReportedInstitute[TypeofInstitute == "Pvt."])
   ) %>%
   arrange(Year)
-view(count_PDIS)
 
 
 # Export institute count to an excel file
@@ -1795,10 +1838,11 @@ addWorksheet(count_wb, "PDIS")
 writeData(count_wb, "PDIS", count_PDIS)
 
 # Save the workbook to a file
-saveWorkbook(count_wb, file = "C:\\Users\\Admin\\Documents\\GitHub\\sams\\output\\Institute Count.xlsx", overwrite = TRUE)
+saveWorkbook(count_wb, file = "C:\\Users\\Admin\\Box\\Amitav\\Skills\\SAMS\\output\\Institute Count.xlsx", overwrite = TRUE)
 
 
 ```
+
 # Pre-post plot for ITIs
 ```{r}
 # Step 1: Calculate female share per institute per year

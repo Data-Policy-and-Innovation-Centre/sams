@@ -37,6 +37,7 @@ The analysis uses data from the Student Academic Management System (SAMS), which
 
 ```{r, echo=FALSE, include=FALSE}
 # Load the libraries
+# Load the libraries
 library(RSQLite)
 library(DBI)
 library(dplyr)
@@ -45,14 +46,14 @@ library(kableExtra)
 library(knitr)
 library(reactable)
 library(htmltools)
-library(sf)
 library(maps)
 library(tmap)
 library(jsonlite)
 library(sf)
 library(readxl)
+library(arrow)
+library(data.table)
 library(stringdist)
-
 ```
 
 ```{r, echo=FALSE,include=FALSE}
@@ -98,6 +99,23 @@ dbDisconnect(con)
 ## Check the admission count each year
 student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
 
+diploma_marks <- read_parquet("C:/Users/Admin/Documents/GitHub/sams/data/interim/diploma_marks.pq")
+
+
+diploma_marks_dt <- as.data.table(diploma_marks)
+student_dip_admis_dt <- as.data.table(student_dip_admis)
+
+diploma_marks_dt_distinct <- diploma_marks_dt %>%
+  distinct(aadhar_no, .keep_all = TRUE)
+
+student_dip_admis_dt_distinct <- student_dip_admis_dt %>%
+  distinct(aadhar_no, .keep_all = TRUE)
+
+student_dip_admis_dt_distinct <- student_dip_admis_dt_distinct %>% 
+  left_join(diploma_marks_dt_distinct, by = "aadhar_no")
+
+
+
 ```
 
 ## Vocational Temp
@@ -121,8 +139,12 @@ print(ITI_tenth_graduates_2023)
 student_iti_admis <- student_iti_admis %>%
   mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
   mutate(
-    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
-    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
+    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variables
+    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing),
+    ExaminationType = sapply(parsed_json, function(x) x$ExaminationType),
+    TotalMarks = sapply(parsed_json, function(x) x$TotalMarks),
+    SecuredMarks = sapply(parsed_json, function(x) x$SecuredMarks),
+    HighestQualExamBoard =  sapply(parsed_json, function(x) x$HighestQualificationExamBoard)
   ) %>%
   select(-parsed_json)  # Remove the parsed_json column if not needed
 
@@ -426,13 +448,13 @@ total_students_insti_district <- student_iti_admis %>%
 
 # Count the number of female students from each district in government ITIs across the years
 female_govt_iti_students <- student_iti_admis %>%
-  filter(gender == "Female" & type_of_institute == "Govt.") %>%  # Filter for females in govt. ITIs
+  filter(gender == "Female" & typeof_institute == "Govt.") %>%  # Filter for females in govt. ITIs
   group_by(district, year) %>%  # Group by district and year
   summarise(female_students_home_dist = n(), .groups = 'drop')  # Count the number of female students
 
 # Count the number of female students in institute district in government ITIs across the years
 female_insti_govt_iti_students <- student_iti_admis %>%
-  filter(gender == "Female" & type_of_institute == "Govt.") %>%  # Filter for females in govt. ITIs
+  filter(gender == "Female" & typeof_institute == "Govt.") %>%  # Filter for females in govt. ITIs
   group_by(institute_district, year) %>%  # Group by district and year
   summarise(female_students_iti_district = n(), .groups = 'drop')  # Count the number of female students
 
@@ -980,7 +1002,6 @@ iti_level_student_count = student_iti_admis %>%
     slice_head(n = 10)
 
 
-write.xlsx(iti_level_student_count, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/top_10_ITIs_by_student_enrollment_2023.xlsx")
 # Polytechnics
 poly_level_student_count = student_dip_admis %>%
   filter(year == 2023) %>%
@@ -1012,7 +1033,7 @@ poly_level_fem_student_count = student_dip_admis %>%
 
 # Count total number of government ITIs in each district
 total_gov_itis = student_iti_admis %>%
-  filter(year == 2023, type_of_institute == "Govt.") %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
   group_by(institute_district) %>%
   summarise(total_gov_itis = n_distinct(reported_institute), .groups = "drop")
 
@@ -1020,23 +1041,23 @@ total_gov_itis = student_iti_admis %>%
 iti_level_fem_student_count = iti_level_fem_student_count %>%
   left_join(total_gov_itis, by = "institute_district") %>%
   mutate(Female_Share_Percent = round((female_students / total_students) * 100, 1)) %>% # Calculate Female Share (%)
-  select(reported_institute, female_students, total_students, Female_Share_Percent, type_of_institute, institute_district, total_gov_itis)  # Reorder columns
+  select(reported_institute, female_students, total_students, Female_Share_Percent, typeof_institute, institute_district, total_gov_itis)  # Reorder columns
 
 
 # Polytechnics Level Female Student Count with Total Students and Total Gov ITIs
 poly_level_fem_student_count = student_dip_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district, type_of_institute, reported_institute) %>%
+  group_by(institute_district, typeof_institute, reported_institute) %>%
   summarise(female_students = sum(gender == "Female"),
             total_students = n(),  # Total students (male + female)
             .groups = "drop") %>%
-  select(reported_institute, female_students, total_students, type_of_institute, institute_district) %>%
+  select(reported_institute, female_students, total_students, typeof_institute, institute_district) %>%
   arrange(desc(female_students)) %>%
   slice_head(n = 10)
 
 # Count total number of government Polytechnics in each district for Polytechnics
 total_gov_poly_itis = student_dip_admis %>%
-  filter(year == 2023, type_of_institute == "Govt.") %>%
+  filter(year == 2023, typeof_institute == "Govt.") %>%
   group_by(institute_district) %>%
   summarise(total_gov_polytechnics = n_distinct(reported_institute), .groups = "drop")
 
@@ -1184,7 +1205,7 @@ map_count_iti_cap + tm_view(view.legend.position = c("right", "bottom"))
 
 ```
 
-
+# Block level enrollment (Work in Progress)
 ```{r}
   
 # Replace the path with the actual path to your .shp file
@@ -1297,9 +1318,12 @@ view(odisha_blocks)
     block == 
 
 view(odisha_blocks)
-    
+
+table(student_iti_admis$tenth)    
       
 fuzzy_matches <-   
+  
+  
   
 ```
 
@@ -1340,30 +1364,30 @@ pivoted_result <- top_trades_combined_gender %>%
 ## Top 10 trades among Pvt. and Govt. ITIs 2023
 top_trades_iti <- student_iti_admis %>%
   filter(year == 2023) %>%
-  group_by(type_of_institute, reported_branch_or_trade, course_period) %>%
+  group_by(typeof_institute, reported_branch_or_trade, course_period) %>%
   summarise(student_count = n(), .groups = 'drop') %>%
-  arrange(type_of_institute, desc(student_count))
+  arrange(typeof_institute, desc(student_count))
 
 # Step 2: Get top 10 trades for Gov. ITIs
 top_gov_trades <- top_trades_iti %>%
-  filter(type_of_institute == "Govt.") %>%
+  filter(typeof_institute == "Govt.") %>%
   top_n(10, student_count)
 
 # Step 3: Get top 10 trades for Pvt. ITIs
 top_pvt_trades <- top_trades_iti %>%
-  filter(type_of_institute == "Pvt.") %>%
+  filter(typeof_institute == "Pvt.") %>%
   top_n(10, student_count)
 
 # Combine results for both Gov. and Pvt. ITIs
 top_trades_combined_type <- bind_rows(
-  top_gov_trades %>% mutate(type_of_institute = "Govt."),
-  top_pvt_trades %>% mutate(type_of_institute = "Pvt.")
+  top_gov_trades %>% mutate(typeof_institute = "Govt."),
+  top_pvt_trades %>% mutate(typeof_institute = "Pvt.")
 )
 
 # Pivot the data so that each trade has Govt and Pvt columns with student counts
 pivot_top_trades <- top_trades_combined_type %>%
   pivot_wider(
-    names_from = type_of_institute,  # Create columns based on 'institute_type' (Gov and Pvt)
+    names_from = typeof_institute,  # Create columns based on 'institute_type' (Gov and Pvt)
     values_from = student_count  # Use 'student_count' as the values for the new columns
   ) %>%
   select(reported_branch_or_trade,`Govt.`,`Pvt.`,course_period)
@@ -1493,4 +1517,102 @@ ggplot(top_trades_within_gender, aes(x = year, y = trade_count, color = reported
   guides(color = guide_legend(ncol = 3)) # Arrange legend items in three columns
 
 ```
+
+## Why do students choose vocational training - ITI? 
+
+# Is it due to poor marks in 10th?
+```{r}
+## Distribution of marks in 10th for ITI students
+
+# Calculate Percentage Marks
+student_iti_admis <- student_iti_admis %>%
+  mutate(
+    SecuredMarks = as.numeric(as.character(SecuredMarks)),
+    TotalMarks = as.numeric(as.character(TotalMarks))
+  )
+# If CGPA then multiple by 9.5 otherwise the usual method
+student_iti_admis <- student_iti_admis %>%
+  mutate(MarksPercentage = if_else(TotalMarks == 10, SecuredMarks * 9.5, SecuredMarks / TotalMarks * 100))
+
+# Density plot ITI for only year 2023
+ggplot(student_iti_admis %>% filter(year == 2023, social_category == "General",Qualifying_ExamName != "8th Pass"), aes(x = MarksPercentage, fill = typeof_institute)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("blue", "red")) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 33, y = 0, label = "33", color = "red", vjust = 1.5, size = 2) +
+  labs(title = "Density of Marks Percentage for Year 2023 (ITI)",
+       x = "Marks Percentage",
+       y = "Density") +
+  coord_cartesian(xlim = c(0, 100)) + 
+  theme_minimal()
+
+ggplot(student_iti_admis %>% filter(year == 2023, social_category == "OBC/SEBC",Qualifying_ExamName != "8th Pass"), aes(x = MarksPercentage, fill = typeof_institute)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("blue", "red")) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 33, y = 0, label = "33", color = "red", vjust = 1.5, size = 2) +
+  labs(title = "Density of Marks Percentage for Year 2023 (ITI)",
+       x = "Marks Percentage",
+       y = "Density") +
+  coord_cartesian(xlim = c(0, 100)) + 
+  theme_minimal()
+
+ggplot(student_iti_admis %>% filter(year == 2023, social_category == "Schedule Caste (SC)",Qualifying_ExamName != "8th Pass"), aes(x = MarksPercentage, fill = typeof_institute)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("blue", "red")) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 33, y = 0, label = "33", color = "red", vjust = 1.5, size = 2) +
+  labs(title = "Density of Marks Percentage for Year 2023 (ITI)",
+       x = "Marks Percentage",
+       y = "Density") +
+  coord_cartesian(xlim = c(0, 100)) + 
+  theme_minimal()
+
+
+ggplot(student_iti_admis %>% filter(year == 2023, social_category == "Schedule Tribe (ST)",Qualifying_ExamName != "8th Pass"), aes(x = MarksPercentage, fill = typeof_institute)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("blue", "red")) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 33, y = 0, label = "33", color = "red", vjust = 1.5, size = 2) +
+  labs(title = "Density of Marks Percentage for Year 2023 (ITI)",
+       x = "Marks Percentage",
+       y = "Density") +
+  coord_cartesian(xlim = c(0, 100)) + 
+  theme_minimal()
+
+
+
+# Density plot ITI filter by CBSE only for year 2023
+ggplot(student_iti_admis %>% filter(year == 2023, HighestQualExamBoard == "Central Board of Secondary Education, 02-Community Centre, Shaiksha Kendra, Preet Vihar, Delhi-110301"), aes(x = MarksPercentage)) +
+  geom_density(fill = "skyblue", alpha = 0.5) +
+  geom_vline(xintercept = 33, linetype = "dashed", color = "red", size = 1) +
+  annotate("text", x = 33, y = 0, label = "33", color = "red", vjust = 1.5, size = 2) +
+  labs(title = "Density of Marks Percentage for Year 2023 (ITI)",
+       x = "Marks Percentage",
+       y = "Density") +
+  theme_minimal()
+
+## Distribution of marks for Diploma students
+
+
+
+student_iti_admis_2023 <- student_iti_admis %>% filter(year == 2023)
+
+
+
+min_marks_df <- student_iti_admis_2023 %>%
+  group_by(Qualifying_ExamName) %>%
+  summarize(MaxMarksPercentage = max(MarksPercentage, na.rm = TRUE)) %>%
+  ungroup()
+
+
+
+```
+
+```{r}
+
+```
+
+
+
 
