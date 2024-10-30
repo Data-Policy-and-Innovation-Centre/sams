@@ -1,0 +1,54 @@
+---
+title: "SAMS Data Analysis"
+author: "Data, Policy, and Innovation Centre"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  word_document:
+    reference_docx: "template.docx"
+    toc: true
+    toc_depth: 3
+    fig_caption: true
+    keep_md: false           # Choose whether to keep the intermediate .md file
+    df_print: paged         # Prints data frames as paginated tables
+---
+
+```{r Load configuration, include=FALSE, eval=FALSE, echo=FALSE}
+library(here)
+rm(list = ls())
+
+here::i_am("README.md")
+source(file.path(here(),"scripts","config.R"))
+
+```
+
+```{r Libraries, include=FALSE, echo=FALSE}
+library(tidyverse)
+library(arrow)
+library(ggplot2)
+```
+
+```{r Load data, include=FALSE, echo=FALSE}
+iti_enrollments <- read_parquet(get_path("iti_enrollments"))
+iti_marks <- read_parquet(get_path("iti_marks"))
+
+
+```
+
+\newpage
+
+# Introduction
+
+```{r Figure 1, echo=FALSE, warning=FALSE, fig.cap="Marks"}
+ggplot(iti_marks, aes(x = percentage)) +
+  geom_histogram(binwidth = 0.5, fill = "skyblue", color = "black") +
+  labs(title = "Histogram of 10th marks of ITI matriculants", x = "Marks", y = "Frequency") +
+  theme_classic()
+
+
+
+```
+
+
+
+
+
