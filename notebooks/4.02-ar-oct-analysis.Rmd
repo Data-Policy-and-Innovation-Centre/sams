@@ -25,6 +25,26 @@ library(data.table)
 
 
 ```{r, echo=FALSE,include=FALSE}
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
+
+# Query data for ITI module for years 2017 to 2023
+query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
+
+# Send query to the database
+result <- dbSendQuery(con, query)
+
+# Fetch the relevant data
+student_data_dip <- dbFetch(result)
+
+# Clear the result
+dbClearResult(result)
+dbDisconnect(con)
+
+
+## Check the admission count each year
+student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
+
+
 diploma_marks <- read_parquet("C:/Users/Admin/Documents/GitHub/sams/data/interim/diploma_marks.pq")
 
 
@@ -87,23 +107,6 @@ student_iti_admis <- student_iti_admis %>%
 
 ```
 
-## Odisha Vocational Pipeline
-
-```{r}
-# 2023
-dip_tenth_graduates_2023 <- student_dip_admis_dt_distinct %>%
-  filter(exam_name == "10th") %>%
-  filter(yearof_passing == year) %>%
-  filter(year == 2023) %>%
-  summarise(Admitted_Dip_Students_Male = sum(gender == "Male"),
-            Admitted_Dip_Students_Female = sum(gender == "Female") )  # Count the number of students
-print(dip_tenth_graduates_2023) 
-table(student_dip_admis_dt_distinct$exam_name)
-# All Years
-
-
-
-```
 
 
 ## Motivations Behind Choosing Vocational Training 
@@ -114,7 +117,7 @@ table(student_dip_admis_dt_distinct$exam_name)
 ```
 
 
-## Preferences for Government vs. Private ITIs 
+## Profile of 12th Pass and Above in ITIs 
 ```{r}
 
 
