@@ -28,6 +28,7 @@ dependencies:
     - pyyaml
     - polars[all]
     - openpyxl
+    - plotnine
     - pytest
     - geopy
     - -e .
