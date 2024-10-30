@@ -342,6 +342,19 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
         subset=["aadhar_no", "academic_year"], keep="first", inplace=True
     )
 
+    # Coerce numeric variables
+    marks["secured_marks"] = pd.to_numeric(marks["secured_marks"], errors="coerce")
+    marks["total_marks"] = pd.to_numeric(marks["total_marks"], errors="coerce")
+    marks["percentage"] = marks["secured_marks"] / marks["total_marks"] * 100
+    marks['yearof_passing'].rename('year_of_passing', inplace=True)
+
+    # Drop with nonsensical values
+    marks["percentage"] = marks["percentage"].apply(lambda x: np.nan if x > 100 else x)
+
+    # Gen. purpose cleaning
+    marks = _make_null(marks)
+    marks["compartmental_status"] = _make_bool(marks["compartmental_status"])
+
     return marks
 
 
