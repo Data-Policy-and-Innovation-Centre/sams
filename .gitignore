@@ -1,6 +1,7 @@
 data/*
 output/*
 docs/*
+cache/*
 !*.keep
 !data/raw/*.keep
 *.swp

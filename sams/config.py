@@ -2,6 +2,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 import os
+import yaml
+import pickle
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -19,9 +23,8 @@ LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
-
-# Data file names
-SAMS_DB = RAW_DATA_DIR / "sams.db"
+CONFIG = PROJ_ROOT / "config"
+CACHE = PROJ_ROOT / "cache"
 
 # Verify that all the directories exist
 for path in [
@@ -34,14 +37,47 @@ for path in [
     FIGURES_DIR,
     LOGS,
     MISSING_VALUES,
+    CACHE,
 ]:
     if not path.exists():
         logger.info(f"Creating directory {path}")
         path.mkdir(parents=True, exist_ok=True)
 
+# Data catalog
+with open(CONFIG / "datasets.yaml") as f:
+    datasets = yaml.safe_load(f)
+    datasets = datasets["datasets"]
+
+SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
+
+
+def get_path(name: str) -> Path:
+    return PROJ_ROOT / Path(datasets[name]["path"])
+
+
+def get_layer(name: str) -> str:
+    return datasets[name]["layer"]
+
+
+def get_type(name: str) -> str:
+    return datasets[name]["type"]
+
+
 # Auth
 USERNAME = os.getenv("SAMSAPI_USERNAME")
 PASSWORD = os.getenv("SAMSAPI_PASSWORD")
+
+# ===== CACHE =====
+# Geocodes
+geolocator = Nominatim(user_agent="sams")
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+GEOCODES_CACHE = CACHE / "geocodes.pkl"
+if "GEOCODES" not in globals():
+    if os.path.exists(GEOCODES_CACHE):
+        with open(GEOCODES_CACHE, "rb") as f:
+            GEOCODES = pickle.load(f)
+    else:
+        GEOCODES = {}
 
 # Error constants
 ERRMAX = 3

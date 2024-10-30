@@ -414,7 +414,10 @@ def main():
     """
     Main function that downloads student data from the SAMS API and saves it to an Excel file.
     """
-    pass
+
+    downloader = SamsDataDownloader()
+    df = downloader.fetch_institutes("ITI", 2020, pandify=True)
+    print(df.columns)
 
 
 if __name__ == "__main__":

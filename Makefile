@@ -34,18 +34,25 @@ update_env:
 remove_env:
 	conda env remove -n $(PROJECT_NAME)
 
-# Delete all compiled Python files
+# Delete all compiled Python files and interim datasets
 clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type f -name '*.log' -exec rm -f {} +
 	find . -type f -name '*.db' -exec rm -f {} +
 	find . -type f -name '*.db-journal' -exec rm -f {} +
+	rm -rf cache/
 
 # Build raw sams database
 sams_db:
 	@echo "Running build_sams_db.py with PYTHONPATH=$(PYTHONPATH)"
 	$(PYTHON_INTERPRETER) $(BUILD_SAMS_SCRIPT)
+
+# Preprocessing
+preprocess:
+	@ echo "Running preprocess_data.py..."
+	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/preprocess_data.py
+
 
 # Tests
 tests:
@@ -63,5 +70,5 @@ test_client:
 	pytest tests/test_client.py
 	
 
-.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client
+.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client preprocess
 

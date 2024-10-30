@@ -34,17 +34,21 @@ class SamsDataOrchestrator:
         admission_type: int = None,
         bulk_add: bool = False,
     ):
-        stop_logging_to_console(os.path.join(LOGS, f"{module.lower()}_data_download.log"))
+        stop_logging_to_console(
+            os.path.join(LOGS, f"{module.lower()}_data_download.log")
+        )
         institute_data = self.downloader.fetch_institutes(
-                module, academic_year, admission_type, pandify=False
-            )   
+            module, academic_year, admission_type, pandify=False
+        )
         if bulk_add:
             self.loader.bulk_load(institute_data, "institutes")
         else:
             self.loader.load(institute_data, "institutes")
         resume_logging_to_console()
 
-    def process_data(self, table_name: str, exclude: bool=True, bulk_add: bool = False):
+    def process_data(
+        self, table_name: str, exclude: bool = True, bulk_add: bool = False
+    ):
 
         # Add a new log handler for downloading student data
         log_file_id = logger.add(
@@ -68,7 +72,9 @@ class SamsDataOrchestrator:
             for module, metadata in STUDENT.items():
                 for year in range(metadata["yearmin"], metadata["yearmax"] + 1):
                     if (module, year) not in excluded_modules:
-                        logger.info(f"Downloading student module: {module}, year: {year}")
+                        logger.info(
+                            f"Downloading student module: {module}, year: {year}"
+                        )
                         self.download_and_add_student_data(module, year, bulk_add)
 
         else:
@@ -79,17 +85,25 @@ class SamsDataOrchestrator:
                             logger.info(
                                 f"Downloading institute module: {module}, year: {year}, entry: Fresh"
                             )
-                            self.download_and_add_institute_data(module, year, 1, bulk_add)
+                            self.download_and_add_institute_data(
+                                module, year, 1, bulk_add
+                            )
 
                         if (module, year, 2) not in excluded_modules:
                             logger.info(
                                 f"Downloading institute module: {module}, year: {year}, entry: Lateral"
                             )
-                            self.download_and_add_institute_data(module, year, 2, bulk_add)
+                            self.download_and_add_institute_data(
+                                module, year, 2, bulk_add
+                            )
                     else:
                         if (module, year, 0) not in excluded_modules:
-                            logger.info(f"Downloading institute module: {module}, year: {year}")
-                            self.download_and_add_institute_data(module, year, None, bulk_add)
+                            logger.info(
+                                f"Downloading institute module: {module}, year: {year}"
+                            )
+                            self.download_and_add_institute_data(
+                                module, year, None, bulk_add
+                            )
 
 
 def main():

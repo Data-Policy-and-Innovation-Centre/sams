@@ -1,3 +1,5 @@
+rm(list = ls())
+
 # Set the working directory to the script's directory if running via Rscript
 install.packages("here")
 

@@ -1,12 +1,29 @@
 from datetime import datetime
 from loguru import logger
-from sams.config import RAW_DATA_DIR, LOGS
+from sams.config import GEOCODES, geocode
 import os
 import time
-import sqlite3
-import pandas as pd
 import re
 from tqdm import tqdm
+from geopy.exc import GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut
+from geopy import Location
+
+
+def geocode_pincode(pincode: str) -> Location | None:
+
+    if pincode in GEOCODES:
+        return GEOCODES[pincode]
+    else:
+        try:
+            location = geocode(f"{pincode}, India")
+            GEOCODES[pincode] = location
+            return location
+        except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:
+            logger.error(f"Error geocoding pincode {pincode})")
+            return None
+        except Exception as e:
+            logger.error(f"Error geocoding pincode {pincode}: {e}")
+            return None
 
 
 def is_valid_date(date_string):
@@ -28,6 +45,7 @@ def is_valid_date(date_string):
             continue  # Try the next format
 
     return False, None  # No formats matched, date is invalid
+
 
 def camel_to_snake_case(text: str):
 
@@ -96,6 +114,10 @@ def hours_since_creation(path: str):
     if os.path.exists(path):
         return (time.time() - os.path.getmtime(path)) / 3600
     return float("inf")
+
+
+def flatten(nested_list: list):
+    return [item for sublist in nested_list for item in sublist]
 
 
 if __name__ == "__main__":
