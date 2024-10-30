@@ -73,7 +73,7 @@ class SamsDataDownloader:
 
     def fetch_institutes(
         self, module: str, academic_year: int, admission_type: int = None, pandify=False
-    ) -> list:
+    ) -> pd.DataFrame | list:
 
         academic_year = self._check_institute_data_params(
             academic_year, module, admission_type
@@ -416,6 +416,8 @@ def main():
     """
 
     downloader = SamsDataDownloader()
+    df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
+    print(df_students.columns)
     df = downloader.fetch_institutes("ITI", 2020, pandify=True)
     print(df.columns)
 
