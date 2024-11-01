@@ -346,7 +346,7 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks["secured_marks"] = pd.to_numeric(marks["secured_marks"], errors="coerce")
     marks["total_marks"] = pd.to_numeric(marks["total_marks"], errors="coerce")
     marks["percentage"] = marks["secured_marks"] / marks["total_marks"] * 100
-    marks['yearof_passing'].rename('year_of_passing', inplace=True)
+    marks["yearof_passing"].rename("year_of_passing", inplace=True)
 
     # Drop with nonsensical values
     marks["percentage"] = marks["percentage"].apply(lambda x: np.nan if x > 100 else x)
