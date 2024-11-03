@@ -4,6 +4,11 @@ datasets:
     path: "data/raw/sams.db"
     layer: raw
 
+  iti_addresses:
+    type: csv
+    path: "data/external/iti_addresses.csv"
+    layer: external
+
   geocodes:
     type: parquet
     path: "data/interim/geocodes.pq"
@@ -37,4 +42,9 @@ datasets:
   pdis_marks:
     type: parquet
     path: "data/interim/pdis_marks.pq"
+    layer: interim
+
+  institutes_strength:
+    type: parquet
+    path: "data/interim/institutes_strength.pq"
     layer: interim
