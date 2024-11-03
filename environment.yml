@@ -27,6 +27,9 @@ dependencies:
     - pyyaml
     - polars[all]
     - openpyxl
+    - graphviz
+    - sf-hamilton[visualization]
+    - plotnine
     - pytest
     - geopy
     - -e .
