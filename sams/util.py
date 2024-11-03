@@ -26,7 +26,7 @@ def save_data(df: pd.DataFrame, metadata: dict):
         df.to_feather(path)
     else:
         raise ValueError(f"Invalid file type: {file_type}")
-    
+
     logger.info(f"Data saved to {path}")
 
 
@@ -38,7 +38,13 @@ def geocode(addr: str) -> Location | None:
             location = _geocode(f"{addr}, India")
             if location is None:
                 location = _gmaps_geocode(f"{addr}, India")
-                logger.debug(f"Geocoded {addr} using Google Maps API: {location}") if location is not None else logger.debug(f"Geocoding {addr} using Google Maps API failed") and logger.debug(location)
+                logger.debug(
+                    f"Geocoded {addr} using Google Maps API: {location}"
+                ) if location is not None else logger.debug(
+                    f"Geocoding {addr} using Google Maps API failed"
+                ) and logger.debug(
+                    location
+                )
             GEOCODES[addr] = location
             return location
         except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:

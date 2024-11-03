@@ -72,7 +72,6 @@ def count_null_values(data: list, table_name: str = "students") -> None:
 
 
 def validate(data: list, table_name: str = "students") -> None:
-
     count_null_values(data, table_name)
 
 

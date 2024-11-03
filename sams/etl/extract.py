@@ -73,8 +73,7 @@ class SamsDataDownloader:
 
     def fetch_institutes(
         self, module: str, academic_year: int, admission_type: int = None, pandify=False
-    ) -> list:
-
+    ) -> list | pd.DataFrame:
         academic_year = self._check_institute_data_params(
             academic_year, module, admission_type
         )
@@ -337,7 +336,6 @@ class SamsDataDownloader:
     def _update_total_records(
         self, counter: pd.DataFrame, metadict: dict, table_name: str
     ) -> pd.DataFrame:
-
         if table_name not in ["students", "institutes"]:
             raise ValueError("type must be either 'students' or 'institutes'")
 
@@ -421,5 +419,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()

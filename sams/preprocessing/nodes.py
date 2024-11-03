@@ -24,7 +24,9 @@ def _make_date(x: pd.Series) -> pd.Series:
     return pd.to_datetime(x, errors="coerce")
 
 
-def _lat_long(df: pd.DataFrame, address_col: str = "pin_code", noisy: bool = True) -> pd.DataFrame:
+def _lat_long(
+    df: pd.DataFrame, address_col: str = "pin_code", noisy: bool = True
+) -> pd.DataFrame:
     """
     Create longitude and latitude columns from pin_code column in a DataFrame
 
@@ -384,15 +386,18 @@ def extract_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
     5. Remove leading underscores from the category names
     """
     strength_df = pd.DataFrame(df["strength"].apply(json.loads).apply(pd.Series))
-    strength_df = pd.concat([df[["sams_code", "trade", "branch", "module", "academic_year"]], strength_df], axis=1)
+    strength_df = pd.concat(
+        [df[["sams_code", "trade", "branch", "module", "academic_year"]], strength_df],
+        axis=1,
+    )
     strength_df = strength_df.melt(
         id_vars=["sams_code", "trade", "branch", "module", "academic_year"],
         var_name="category",
         value_name="strength",
     )
     strength_df["category"] = strength_df["category"].str.replace("Strength", "")
-    strength_df["category"] = strength_df["category"].str.lstrip('_')
-    
+    strength_df["category"] = strength_df["category"].str.lstrip("_")
+
     return strength_df
 
 
@@ -401,19 +406,27 @@ def extract_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
     cutoffs_df = cutoffs_df.apply(pd.to_numeric)
     cutoffs_df = pd.concat([df[["sams_code", "trade", "branch"]], cutoffs_df], axis=1)
 
+
 def preprocess_iti_addresses(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=str.lower)
     df.columns = df.columns.str.replace(" ", "_")
     df = df[["iti_code", "address", "state", "district"]]
     df.rename(columns={"iti_code": "ncvtmis_code"}, inplace=True)
-    df["address"] = df.apply(lambda row: f"{row['address']}, {row['district']}, {row['state']}", axis=1)
+    df["address"] = df.apply(
+        lambda row: f"{row['address']}, {row['district']}, {row['state']}", axis=1
+    )
     return df
 
-def preprocess_institutes(institutes_df: pd.DataFrame, ) -> pd.DataFrame:
+
+def preprocess_institutes(
+    institutes_df: pd.DataFrame,
+) -> pd.DataFrame:
     pass
 
 
-def preprocess_geocodes(dfs: list[pd.DataFrame], address_col: list[str]) -> pd.DataFrame:
+def preprocess_geocodes(
+    dfs: list[pd.DataFrame], address_col: list[str]
+) -> pd.DataFrame:
     """
     Concatenate the pincode columns of the input DataFrames and add longitude and latitude columns to the result
 
@@ -432,10 +445,17 @@ def preprocess_geocodes(dfs: list[pd.DataFrame], address_col: list[str]) -> pd.D
     if len(dfs) != len(address_col):
         with open(GEOCODES_CACHE, "wb") as f:
             pickle.dump(GEOCODES, f)
-        raise ValueError("The number of input DataFrames must be equal to the number of address columns")
+        raise ValueError(
+            "The number of input DataFrames must be equal to the number of address columns"
+        )
 
     try:
-        data = flatten([df[col].drop_duplicates().reset_index(drop=True).to_list() for df, col in zip(dfs,address_col)])
+        data = flatten(
+            [
+                df[col].drop_duplicates().reset_index(drop=True).to_list()
+                for df, col in zip(dfs, address_col)
+            ]
+        )
         df = pd.DataFrame({"address": data})
         df = _lat_long(df, address_col="address", noisy=True)
     except KeyError:

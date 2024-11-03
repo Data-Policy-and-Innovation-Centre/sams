@@ -34,9 +34,7 @@ class SamsDataOrchestrator:
         admission_type: int = None,
         bulk_add: bool = False,
     ):
-        stop_logging_to_console(
-            os.path.join(LOGS, f"{module.lower()}_data_download.log")
-        )
+        stop_logging_to_console(os.path.join(LOGS, f"institutes_data_download.log"))
         institute_data = self.downloader.fetch_institutes(
             module, academic_year, admission_type, pandify=False
         )
@@ -49,7 +47,6 @@ class SamsDataOrchestrator:
     def process_data(
         self, table_name: str, exclude: bool = True, bulk_add: bool = False
     ):
-
         # Add a new log handler for downloading student data
         log_file_id = logger.add(
             os.path.join(LOGS, f"{table_name}_data_download.log"),

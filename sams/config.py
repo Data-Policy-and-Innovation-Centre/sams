@@ -62,7 +62,7 @@ PASSWORD = os.getenv("SAMSAPI_PASSWORD")
 # Geocodes
 geolocator = Nominatim(user_agent="sams")
 google_geolocator = GoogleV3(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
-_gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1/50)
+_gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1 / 50)
 _geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 GEOCODES_CACHE = CACHE / "geocodes.pkl"
 if "GEOCODES" not in globals():
@@ -70,7 +70,7 @@ if "GEOCODES" not in globals():
         with open(GEOCODES_CACHE, "rb") as f:
             GEOCODES = pickle.load(f)
             logger.info(f"Loaded {len(GEOCODES)} geocodes from cache")
-            
+
     else:
         GEOCODES = {}
 

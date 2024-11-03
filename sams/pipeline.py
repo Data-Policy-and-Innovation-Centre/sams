@@ -5,7 +5,7 @@ from hamilton.function_modifiers import (
     source,
     value,
     load_from,
-    save_to
+    save_to,
 )
 from hamilton.io import utils
 import pandas as pd
@@ -19,23 +19,22 @@ from sams.preprocessing.nodes import (
     preprocess_diploma_students_enrollment_data,
     preprocess_students_marks_data,
     preprocess_geocodes,
-    preprocess_iti_addresses
+    preprocess_iti_addresses,
 )
 from loguru import logger
 
 
 def sams_db(build: bool = True) -> sqlite3.Connection:
-
     if Path(SAMS_DB).exists() and not build:
         logger.info(f"Using existing database at {SAMS_DB}")
         return sqlite3.connect(SAMS_DB)
 
     if build:
         logger.info(f"Building database at {SAMS_DB} from SAMS API ")
-    
+
         if not Path(PROJ_ROOT / ".env").exists():
             raise FileNotFoundError(f".env file not found at {PROJ_ROOT}/.env")
-        
+
         downloader = SamsDataDownloader()
 
         if (
@@ -60,6 +59,7 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
     else:
         raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
+
 @parameterize(
     iti_raw=dict(sams_db=source("sams_db"), module=value("ITI")),
     diploma_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
@@ -69,10 +69,12 @@ def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFra
     df = pd.read_sql_query(query, sams_db)
     return df
 
+
 def sams_institutes_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
     query = "SELECT * FROM institutes;"
     df = pd.read_sql_query(query, sams_db)
     return df
+
 
 @load_from.csv(path=datasets["iti_addresses"]["path"])
 def iti_addresses_df(iti_address_raw_df: pd.DataFrame) -> pd.DataFrame:
@@ -101,9 +103,13 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
         NotImplemented
 
 
-def geocodes_df(sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame) -> pd.DataFrame:
+def geocodes_df(
+    sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame
+) -> pd.DataFrame:
     logger.info("Preprocessing geocodes")
-    return preprocess_geocodes([sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"])
+    return preprocess_geocodes(
+        [sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"]
+    )
 
 
 @parameterize(
