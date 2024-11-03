@@ -119,6 +119,7 @@ class Institute(Base):
     # Primary columns
     id = Column(Integer, primary_key=True, autoincrement=True)
     sams_code = Column(String, nullable=False)
+    ncvtmis_code = Column(String, nullable=True)
     academic_year = Column(Integer, nullable=False)
     module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
     institute_name = Column(String, nullable=False)
@@ -176,7 +177,6 @@ class SamsDataLoader:
 
         with tqdm(total=len(data), desc=f"Loading {table_name} data") as pbar:
             for unit in data:
-
                 # Try to add row to table
                 success = self._add_data(unit, table_name)
                 if success:
@@ -286,7 +286,6 @@ class SamsDataLoader:
             return success
 
     def _add_institute(self, data: dict) -> bool:
-
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
 
@@ -323,7 +322,6 @@ class SamsDataLoader:
             return success
 
     def get_existing_modules(self, table_name: str) -> list:
-
         if table_name not in ["students", "institutes"]:
             raise ValueError(f"Table name not supported: {table_name}")
 
@@ -333,7 +331,6 @@ class SamsDataLoader:
             return self._get_institute_modules()
 
     def _get_student_modules(self):
-
         session = self.Session()
         expected_counts = self._get_counts("students")
 
@@ -373,7 +370,6 @@ class SamsDataLoader:
         return existing_modules
 
     def _get_institute_modules(self):
-
         session = self.Session()
         counts = self._get_counts("institutes")
         counts.replace({nan: 0}, inplace=True)
@@ -432,7 +428,6 @@ class SamsDataLoader:
         return existing_modules
 
     def _get_counts(self, table_name: str) -> pd.DataFrame:
-
         counts_path = os.path.join(LOGS, f"{table_name}_count.csv")
 
         if not os.path.exists(counts_path):
@@ -504,7 +499,6 @@ class SamsDataLoaderPandas(SamsDataLoader):
 
 
 def main():
-
     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
     print(loader.get_existing_modules("institutes"))
     # print(loader.get_existing_modules("students"))
