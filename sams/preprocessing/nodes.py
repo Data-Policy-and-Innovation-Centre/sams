@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
-from sams.util import dict_camel_to_snake_case, flatten, geocode_pincode
+from sams.util import dict_camel_to_snake_case, flatten, geocode
 from loguru import logger
 from sams.config import GEOCODES, GEOCODES_CACHE
 import pickle
@@ -24,7 +24,7 @@ def _make_date(x: pd.Series) -> pd.Series:
     return pd.to_datetime(x, errors="coerce")
 
 
-def _lat_long(df: pd.DataFrame, noisy: bool = True) -> pd.DataFrame:
+def _lat_long(df: pd.DataFrame, address_col: str = "pin_code", noisy: bool = True) -> pd.DataFrame:
     """
     Create longitude and latitude columns from pin_code column in a DataFrame
 
@@ -40,21 +40,21 @@ def _lat_long(df: pd.DataFrame, noisy: bool = True) -> pd.DataFrame:
     pd.DataFrame
         DataFrame with longitude and latitude columns
     """
-    pin_codes = df["pin_code"].drop_duplicates()
+    addresses = df[address_col].drop_duplicates()
     if noisy:
-        logger.info(f"Number of unique pin codes: {len(pin_codes)}")
+        logger.info(f"Number of unique addresses: {len(addresses)}")
 
-    locations = {pin: geocode_pincode(f"{pin}") for pin in pin_codes}
-    locations = {pin: loc for pin, loc in locations.items() if loc is not None}
+    locations = {addr: geocode(f"{addr}") for addr in addresses}
+    locations = {addr: loc for addr, loc in locations.items() if loc is not None}
 
     if noisy:
-        logger.info(f"Number of successfully geocoded pin codes: {len(locations)}")
+        logger.info(f"Number of successfully geocoded addresses: {len(locations)}")
 
-    df["longitude"] = df["pin_code"].map(
-        lambda pin: locations[pin].longitude if pin in locations.keys() else np.nan
+    df["longitude"] = df[address_col].map(
+        lambda addr: locations[addr].longitude if addr in locations.keys() else np.nan
     )
-    df["latitude"] = df["pin_code"].map(
-        lambda pin: locations[pin].latitude if pin in locations.keys() else np.nan
+    df["latitude"] = df[address_col].map(
+        lambda addr: locations[addr].latitude if addr in locations.keys() else np.nan
     )
     return df
 
@@ -267,10 +267,8 @@ def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     return df
 
 
-def preprocess_iti_students_enrollment_data(
-    df: pd.DataFrame, geocode=True
-) -> pd.DataFrame:
-    df = _preprocess_students(df, geocode=geocode)
+def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = _preprocess_students(df, geocode=False)
     df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
     df = df.drop(
         [
@@ -294,10 +292,8 @@ def preprocess_iti_students_enrollment_data(
     return df
 
 
-def preprocess_diploma_students_enrollment_data(
-    df: pd.DataFrame, geocode=True
-) -> pd.DataFrame:
-    df = _preprocess_students(df, geocode=geocode)
+def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = _preprocess_students(df, geocode=False)
     df["tenth_passing_year"] = _extract_mark_data(
         df["mark_data"], "ExamName", "10th", ["YearofPassing"]
     )
@@ -325,6 +321,26 @@ def preprocess_diploma_students_enrollment_data(
 
 
 def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preprocess students marks data
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Students data
+
+    Returns
+    -------
+    pd.DataFrame
+        Preprocessed students marks data
+
+    Notes
+    -----
+    1. Extract marks data from "mark_data" column
+    2. Each mark is a dictionary with keys: "SubjectName", "TotalMarks", "SecuredMarks", "Percentage"
+    3. Add "aadhar_no" and "academic_year" columns to the marks data
+    4. Drop duplicate rows based on "aadhar_no" and "academic_year" columns, keeping the first occurrence
+    """
     marks = [
         [
             dict_camel_to_snake_case(
@@ -345,30 +361,83 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     return marks
 
 
-def preprocess_institutes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+def extract_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Extract strength data from "strength" column
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Institute data
+
+    Returns
+    -------
+    pd.DataFrame
+        Extracted strength data
+
+    Notes
+    -----
+    1. Extract strength data from "strength" column
+    2. Add "sams_code", "trade", "branch", "module", and "academic_year" columns to the strength data
+    3. Melt the strength data into a long format with "category" and "strength" columns
+    4. Remove "Strength" from the beginning of the category names
+    5. Remove leading underscores from the category names
+    """
+    strength_df = pd.DataFrame(df["strength"].apply(json.loads).apply(pd.Series))
+    strength_df = pd.concat([df[["sams_code", "trade", "branch", "module", "academic_year"]], strength_df], axis=1)
+    strength_df = strength_df.melt(
+        id_vars=["sams_code", "trade", "branch", "module", "academic_year"],
+        var_name="category",
+        value_name="strength",
+    )
+    strength_df["category"] = strength_df["category"].str.replace("Strength", "")
+    strength_df["category"] = strength_df["category"].str.lstrip('_')
+    
+    return strength_df
+
+
+def extract_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
+    cutoffs_df = pd.DataFrame(df["cutoffs"].apply(json.loads).apply(pd.Series))
+    cutoffs_df = cutoffs_df.apply(pd.to_numeric)
+    cutoffs_df = pd.concat([df[["sams_code", "trade", "branch"]], cutoffs_df], axis=1)
+
+def preprocess_iti_addresses(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.rename(columns=str.lower)
+    df.columns = df.columns.str.replace(" ", "_")
+    df = df[["iti_code", "address", "state", "district"]]
+    df.rename(columns={"iti_code": "ncvtmis_code"}, inplace=True)
+    df["address"] = df.apply(lambda row: f"{row['address']}, {row['district']}, {row['state']}", axis=1)
+    return df
+
+def preprocess_institutes(institutes_df: pd.DataFrame, ) -> pd.DataFrame:
     pass
 
 
-def preprocess_geocodes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+def preprocess_geocodes(dfs: list[pd.DataFrame], address_col: list[str]) -> pd.DataFrame:
     """
     Concatenate the pincode columns of the input DataFrames and add longitude and latitude columns to the result
 
     Parameters
     ----------
     dfs : list[pd.DataFrame]
-        List of DataFrames containing a 'pin_code' column
+        List of DataFrames containing an address column
+    address_col : list[str]
+        The column name of the address
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with pincode, longitude and latitude columns
+        DataFrame with address, longitude and latitude columns
     """
+    if len(dfs) != len(address_col):
+        with open(GEOCODES_CACHE, "wb") as f:
+            pickle.dump(GEOCODES, f)
+        raise ValueError("The number of input DataFrames must be equal to the number of address columns")
+
     try:
-        df = pd.concat(
-            [df["pin_code"].drop_duplicates().reset_index(drop=True) for df in dfs],
-            axis=0,
-        )
-        df = _lat_long(pd.DataFrame(df))
+        data = flatten([df[col].drop_duplicates().reset_index(drop=True).to_list() for df, col in zip(dfs,address_col)])
+        df = pd.DataFrame({"address": data})
+        df = _lat_long(df, address_col="address", noisy=True)
     except KeyError:
         logger.error("No 'pin_code' column found in input DataFrames")
     except Exception as e:
