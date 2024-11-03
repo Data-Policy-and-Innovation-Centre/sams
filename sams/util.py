@@ -1,6 +1,7 @@
 from datetime import datetime
 from loguru import logger
-from sams.config import GEOCODES, geocode
+from sams.config import GEOCODES, _geocode, _gmaps_geocode
+import pandas as pd
 import os
 import time
 import re
@@ -9,24 +10,46 @@ from geopy.exc import GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedO
 from geopy import Location
 
 
-def geocode_pincode(pincode: str) -> Location | None:
+def save_data(df: pd.DataFrame, metadata: dict):
+    path = metadata["path"]
+    file_type = metadata["type"]
 
-    if pincode in GEOCODES:
-        return GEOCODES[pincode]
+    if file_type == "csv":
+        df.to_csv(path, index=False)
+    elif file_type == "excel":
+        df.to_excel(path, index=False)
+    elif file_type == "parquet":
+        df.to_parquet(path, index=False)
+    elif file_type == "json":
+        df.to_json(path, orient="records")
+    elif file_type == "feather":
+        df.to_feather(path)
+    else:
+        raise ValueError(f"Invalid file type: {file_type}")
+    
+    logger.info(f"Data saved to {path}")
+
+
+def geocode(addr: str) -> Location | None:
+    if addr in GEOCODES:
+        return GEOCODES[addr]
     else:
         try:
-            location = geocode(f"{pincode}, India")
-            GEOCODES[pincode] = location
+            location = _geocode(f"{addr}, India")
+            if location is None:
+                location = _gmaps_geocode(f"{addr}, India")
+                logger.debug(f"Geocoded {addr} using Google Maps API: {location}") if location is not None else logger.debug(f"Geocoding {addr} using Google Maps API failed") and logger.debug(location)
+            GEOCODES[addr] = location
             return location
         except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:
-            logger.error(f"Error geocoding pincode {pincode})")
+            logger.error(f"Error geocoding address {addr})")
             return None
         except Exception as e:
-            logger.error(f"Error geocoding pincode {pincode}: {e}")
+            logger.error(f"Error geocoding address {addr}: {e}")
             return None
 
 
-def is_valid_date(date_string):
+def is_valid_date(date_string: str) -> tuple[bool, datetime | None]:
     formats = [
         "%Y-%m-%d",  # Format 1: 2024-08-26
         "%d-%m-%Y",  # Format 2: 26-08-2024
@@ -47,8 +70,7 @@ def is_valid_date(date_string):
     return False, None  # No formats matched, date is invalid
 
 
-def camel_to_snake_case(text: str):
-
+def camel_to_snake_case(text: str) -> str:
     # Step 0: All caps to be converted to lower case
     if text.isupper():
         text = text.lower()
@@ -68,11 +90,11 @@ def camel_to_snake_case(text: str):
     return "_".join(convert_part(part) for part in parts)
 
 
-def dict_camel_to_snake_case(d: dict):
+def dict_camel_to_snake_case(d: dict) -> dict:
     return {camel_to_snake_case(k): v for k, v in d.items()}
 
 
-def correct_spelling(text: str):
+def correct_spelling(text: str) -> str:
     if "Tength" in text or "tength" in text:
         text = text.replace("Tength", "Tenth").replace("tength", "tenth")
     if "OR" in text:
@@ -85,7 +107,6 @@ def correct_spelling(text: str):
 
 
 def stop_logging_to_console(filename: str, mode: str = "a"):
-
     # Remove all handlers
     for handler_id in list(logger._core.handlers.keys()):
         logger.remove(handler_id)

@@ -4,7 +4,7 @@ from loguru import logger
 import os
 import yaml
 import pickle
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, GoogleV3
 from geopy.extra.rate_limiter import RateLimiter
 
 # Load environment variables from .env file if it exists
@@ -50,17 +50,8 @@ with open(CONFIG / "datasets.yaml") as f:
 
 SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
 
-
-def get_path(name: str) -> Path:
-    return PROJ_ROOT / Path(datasets[name]["path"])
-
-
-def get_layer(name: str) -> str:
-    return datasets[name]["layer"]
-
-
-def get_type(name: str) -> str:
-    return datasets[name]["type"]
+for name in datasets:
+    datasets[name]["path"] = PROJ_ROOT / Path(datasets[name]["path"])
 
 
 # Auth
@@ -70,12 +61,16 @@ PASSWORD = os.getenv("SAMSAPI_PASSWORD")
 # ===== CACHE =====
 # Geocodes
 geolocator = Nominatim(user_agent="sams")
-geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+google_geolocator = GoogleV3(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
+_gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1/50)
+_geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 GEOCODES_CACHE = CACHE / "geocodes.pkl"
 if "GEOCODES" not in globals():
     if os.path.exists(GEOCODES_CACHE):
         with open(GEOCODES_CACHE, "rb") as f:
             GEOCODES = pickle.load(f)
+            logger.info(f"Loaded {len(GEOCODES)} geocodes from cache")
+            
     else:
         GEOCODES = {}
 
