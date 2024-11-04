@@ -1,6 +1,6 @@
 from datetime import datetime
 from loguru import logger
-from sams.config import GEOCODES, _geocode, _gmaps_geocode
+from sams.config import GEOCODES, gmaps_geocode, novatim_geocode
 import pandas as pd
 import os
 import time
@@ -36,9 +36,9 @@ def geocode(addr: str, google_maps: bool) -> Location | None:
     else:
         try:
             if google_maps:
-                location = _gmaps_geocode(f"{addr}, India")
+                location = gmaps_geocode(f"{addr}, India")
             else:
-                location = _geocode(f"{addr}, India")
+                location = novatim_geocode(f"{addr}, India")
             GEOCODES[addr] = location
             return location
         except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:
