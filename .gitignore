@@ -181,3 +181,4 @@ cython_debug/
 *.ipynb
 scripts/.Rhistory
 profile.html
+/.hamilton_cache
