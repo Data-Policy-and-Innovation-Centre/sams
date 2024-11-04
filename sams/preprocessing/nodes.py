@@ -135,9 +135,11 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     degree_names = [
         "ba",
+        "ba passed",
         "ma",
         "bped",
         "mtech",
+        "graduate",
         "btech",
         "bsc",
         "msc",
@@ -150,6 +152,7 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
         "bba",
         "mba",
         "bcom",
+        "b com",
         "mcom",
         "bed",
         "med",
@@ -157,8 +160,9 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
         "bcam",
         "pg",
         "post graduate",
+        "graduate and above"
     ]
-    diploma_names = ["diploma", "jbt/ett"]
+    diploma_names = ["diploma", "jbt/ett", "cped"]
 
     # Standardize format
     x = x.str.lower()
@@ -167,14 +171,15 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
     x = x.str.strip()
 
     # Standardize qual names using aggregations
-    x = x.apply(lambda x: "graduate and above" if x in degree_names else x)
-    x = x.apply(lambda x: "diploma" if x in diploma_names else x)
+    x = x.apply(lambda x: "Graduate and above" if x in degree_names else x)
+    x = x.apply(lambda x: "Diploma" if x in diploma_names else x)
 
     # Fix qual with misc. and non-standard spellings
-    x = x.apply(lambda x: "graduate and above" if "graduation" in str(x) else x)
-    x = x.apply(lambda x: "graduate and above" if "degree" in str(x) else x)
-    x = x.apply(lambda x: "diploma" if "diploma" in str(x) or "dped" in str(x) else x)
-    x = x.apply(lambda x: "diploma" if "iti" in str(x) else x)
+    x = x.apply(lambda x: "Graduate and above" if "graduation" in str(x) else x)
+    x = x.apply(lambda x: "Graduate and above" if "degree" in str(x) else x)
+    x = x.apply(lambda x: "Diploma" if "diploma" in str(x) or "dped" in str(x) else x)
+    x = x.apply(lambda x: "ITI" if "iti" in str(x) else x)
+    x = x.apply(lambda x: "COE" if "coe" in str(x) else x)
     x = x.apply(lambda x: "10th" if "10" in str(x) else x)
     x = x.apply(lambda x: "10th" if "matric" in str(x) else x)
     x = x.apply(lambda x: "10th" if "bse" in str(x) else x)
@@ -187,6 +192,58 @@ def _fix_qual_names(x: pd.Series) -> pd.Series:
 
     return x
 
+def _extract_highest_qualification(x: pd.Series) -> pd.Series:
+    
+    """
+    Extract highest qualification from a series of marksheet JSONs.
+
+    Parameters
+    ----------
+    x : pd.Series
+        Series of marksheet JSONs.
+
+    Returns
+    -------
+    pd.Series
+        Series of highest qualifications.
+
+    Notes
+    -----
+    The highest qualification is determined by the order of appearance in the
+    following list: "10th", "ITI" or "COE", "12th", "Diploma", and any other
+    qualification.
+
+    Examples
+    --------
+    >>> s = pd.Series(['[{"ExamName": "10th"}, {"ExamName": "12th"}]',
+    ...                 '[{"ExamName": "ITI"}, {"ExamName": "10th"}]'])
+    >>> _extract_highest_qualification(s)
+    0      12th
+    1       ITI
+    dtype: object
+    """
+    
+    marks = [json.loads(marks) for marks in x]
+    exam_names = [
+    [
+        marksheet["ExamName"].strip().split(" ")[0].replace("+2","12th") for marksheet in person
+    ]
+    for person in marks
+]
+
+    def order(name: str) -> int:
+        if name == "10th":
+            return 0
+        elif name == "ITI" or "COE":
+            return 1
+        elif name == "12th":
+            return 2
+        elif name == "Diploma":
+            return 3
+        else:
+            raise ValueError(f"Invalid name: {name}")
+
+    return pd.Series([max(names, key=order) for names in exam_names])
 
 def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd.Series:
     """
@@ -300,13 +357,16 @@ def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFram
     df["tenth_passing_year"] = _extract_mark_data(
         df["mark_data"], "ExamName", "10th", ["YearofPassing"]
     )
+    df["highest_qualification_tmp"] = _extract_highest_qualification(df["mark_data"])
+    df.loc[df["highest_qualification"].isna(), "highest_qualification"] = df.loc[df["highest_qualification"].isna(), "highest_qualification_tmp"]
+    df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
     df = df.drop(
         [
             "student_name",
             "nationality",
             "domicile",
+            "highest_qualification_tmp",
             "s_domicile_category",
-            "highest_qualification",
             "outside_odisha_applicant_state_name",
             "odia_applicant_living_outside_odisha_state_name",
             "tenth_exam_school_address",
@@ -365,7 +425,7 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks["secured_marks"] = pd.to_numeric(marks["secured_marks"], errors="coerce")
     marks["total_marks"] = pd.to_numeric(marks["total_marks"], errors="coerce")
     marks["percentage"] = marks["secured_marks"] / marks["total_marks"] * 100
-    marks["yearof_passing"].rename("year_of_passing", inplace=True)
+    marks.rename(columns={"yearof_passing": "year_of_passing"}, inplace=True)
 
     # Drop with nonsensical values
     marks["percentage"] = marks["percentage"].apply(lambda x: np.nan if x > 100 else x)
@@ -413,6 +473,10 @@ def extract_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
     strength_df["category"] = strength_df["category"].str.lstrip("_")
 
     return strength_df
+
+
+
+
 
 
 def extract_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
