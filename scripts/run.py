@@ -1,5 +1,5 @@
 from hamilton import driver
-from sams import pipeline
+from sams.preprocessing import pipeline as preprocessing_pipeline
 import sys
 
 
@@ -9,8 +9,8 @@ def main(args):
     else:
         build = args[1]
 
-    dr = driver.Builder().with_modules(pipeline).build()
-    final_vars = ["save_geocodes","save_interim_iti_students","save_interim_diploma_students"]
+    dr = driver.Builder().with_modules(preprocessing_pipeline).build()
+    final_vars = ["save_interim_diploma_students"]
     inputs = dict(build=build,google_maps=True)
     dr.execute(final_vars=final_vars, inputs=inputs)
 
