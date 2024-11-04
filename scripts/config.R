@@ -1,6 +1,6 @@
-packages <- c("tidyverse","RSQLite","rprojroot","knitr",
+packages <- c("tidyverse","rprojroot","knitr", "ggplot2", "arrow",
               "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate",
-              "map","tmap","fs","yaml","here")
+              "map","tmap","fs","yaml")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
@@ -12,6 +12,7 @@ for (pkg in packages) {
 rm(pkg)
 library(yaml)
 library(fs)
+library(here)
 
 # Load data catalog
 catalog <- yaml.load_file(file.path(here(),"config","datasets.yaml"))

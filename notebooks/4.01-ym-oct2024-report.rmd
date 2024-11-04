@@ -49,11 +49,14 @@ library(sf)
 library(maps)
 library(tmap)
 library(jsonlite)
+library(sf)
+library(readxl)
+library(stringdist)
 
 ```
 
 ```{r, echo=FALSE,include=FALSE}
-con <- dbConnect(RSQLite::SQLite(), file.path(config$SAMS_DB))
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
 
 # Query data for ITI module for years 2017 to 2023
 query <- "SELECT * FROM students WHERE module = 'ITI' AND year BETWEEN 2017 AND 2024;"
@@ -75,7 +78,7 @@ student_iti_admis = student_data_iti %>%
 ```
 
 ```{r, include=FALSE,echo=FALSE}
-con <- dbConnect(RSQLite::SQLite(), file.path(config$SAMS_DB))
+con <- dbConnect(RSQLite::SQLite(), file.path("C:/Users/Admin/Documents/GitHub/sams/data/raw/sams.db"))
 
 # Query data for ITI module for years 2017 to 2023
 query <- "SELECT * FROM students WHERE module = 'Diploma' AND year BETWEEN 2018 AND 2024;"
@@ -97,9 +100,189 @@ student_dip_admis = student_data_dip[!is.na(student_data_dip$sams_code),]
 
 ```
 
+## Vocational Temp
+```{r,eval=FALSE}
+ITI_tenth_graduates_2023 <- student_iti_admis %>%
+  filter(Qualifying_ExamName != "8th Pass") %>%
+  filter(YearofPassing == year) %>%
+  filter(year == 2023) %>%
+  summarise(Admitted_ITI_Students_Male = sum(gender == "Male"),
+            Admitted_ITI_Students_Female = sum(gender == "Female") )  # Count the number of students
+print(ITI_tenth_graduates_2023) 
+
+
+```
+
+
+## Vocational Pipeline
+```{r include=FALSE,eval=FALSE}
+
+# ITI extract two variables from the json_column
+student_iti_admis <- student_iti_admis %>%
+  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
+  mutate(
+    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
+    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
+  ) %>%
+  select(-parsed_json)  # Remove the parsed_json column if not needed
+
+# Polytechnics extract two variables from the json_column
+# Done by Yashaswi. File name - 
+
+# Trades for Various Qualifications 2023
+iti_qual_trade_2023 = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(Qualifying_ExamName) %>%
+  summarise(number_of_trade = n_distinct(reported_branch_or_trade)) 
+
+iti_2023 = student_iti_admis %>%
+  filter(year == 2023) 
+
+table(iti_2023$highest_qualification)
+
+
+
+ITI_graduates_same_year <- student_iti_admis %>%
+  filter(Qualifying_ExamName != "8th Pass") %>%
+  filter(YearofPassing == year) %>%
+  group_by(year) %>%   # Group by admission year
+  summarise(Admitted_ITI_Students = n())  # Count the number of students
+
+Dip_graduates_same_year <- student_dip_admis_dt_distinct %>%
+  filter(exam_name == "10th") %>%
+  filter(yearof_passing == year) %>%
+  group_by(year) %>%
+  summarise(Admitted_Dip_Students = n())  # Count the number of students
+
+
+ 
+
+# Import 10th figures
+tenth_count = read_excel("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external/tenth_plustwo_odisha.xlsx")
+
+# Summarize the data by year, calculating the total pass, total fail, and total batch count
+total_tenth_count <- tenth_count %>%
+  group_by(Year, Gender) %>%
+  summarise(
+    total_pass = sum(Pass, na.rm = TRUE),
+    total_fail = sum(Fail, na.rm = TRUE),
+    total_batch = total_pass + total_fail
+  ) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(
+    total_pass = sum(total_pass),
+    total_fail = sum(total_fail),
+    total_batch = total_pass + total_fail
+  )
+
+
+# Import admission count for +2 in from 2011 to 2023 from SAMS Dashboard
+plus_two_admis <- read_excel("C:/Users/Admin/Box/Amitav/Skills/SAMS/data/external/tenth_plustwo_odisha.xlsx", 
+    sheet = "plus_two")
+
+plus_two_admis <- plus_two_admis %>% rename(year = Year)
+total_tenth_count <- total_tenth_count %>% rename(year = Year)
+
+total_tenth_count <- total_tenth_count %>% rename(total_tenth_batch = total_batch)
+plus_two_admis <- plus_two_admis %>% rename(total_plus_two_admitted = student_admitted)
+
+# Select only the columns you need from each dataframe
+df1_selected <- plus_two_admis %>% select(year, total_plus_two_admitted)
+df2_selected <- total_tenth_count %>% select(year, total_tenth_batch)
+
+# Perform full_join based on 'Year'
+pipeline_table <- df2_selected %>%
+  full_join(df1_selected, by = "year") %>%
+  full_join(ITI_graduates_same_year, by = "year") %>%
+  full_join(Dip_graduates_same_year, by = "year") %>%
+  arrange(year) %>%
+  mutate(total_plus_two_admitted = gsub(",", "", total_plus_two_admitted)) %>%
+  mutate(total_plus_two_admitted = as.numeric(total_plus_two_admitted)) 
+
+
+remove(pipeline_table)
+
+pipeline_table$residual = pipeline_table$total_tenth_batch - pipeline_table$total_plus_two_admitted - pipeline_table$Admitted_ITI_Students - pipeline_table$Admitted_Dip_Students
+
+pipeline_table
+
+
+# Replace 'df' with the name of your DataFrame and specify the file path
+write.xlsx(pipeline_table, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/pipeline_all_year.xlsx")
+
+
+student_iti_admis$diff_year_yearpassing = student_iti_admis$year - as.numeric(student_iti_admis$YearofPassing)  
+
+ggplot(student_iti_admis, aes(x = diff_year_yearpassing)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(title = "Histogram of Year Difference", x = "Difference Between Years", y = "Count") +
+  scale_x_continuous(limits = c(0, 30), 
+                     breaks = seq(0, 30, by = 1))
+```
+
+
+# Students in ITIs
+```{r}
+## Total students in ITIs - Pvt vs Govt
+iti_students_summary <- student_iti_admis %>%
+  group_by(year) %>%
+  summarise(
+    total_students = n(),
+    pvt_students = sum(typeof_institute == "Pvt."),
+    gov_students = sum(typeof_institute == "Govt."),
+    share_of_pvt = round((pvt_students / total_students) * 100, 2),  # Round to 1 decimal place
+    share_of_gov = round((gov_students / total_students) * 100, 2)   # Round to 1 decimal place
+  ) %>%
+  filter(year != 2017)
+
+write.xlsx(iti_students_summary, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/iti_students_pvt_gov.xlsx")
+
+
+```
+
+
+```{r}
+for_pie_highest_qualification_ITI = student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(highest_qualification) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  arrange(desc(student_count))
+
+# Replace 'path/to/output.xlsx' with the desired file path
+write.xlsx(for_pie_highest_qualification_ITI, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/highest_qual_ITI_2023_pie.xlsx")
+  
+
+for_pie_highest_qualification_Diploma = student_dip_admis_dt_distinct %>%
+  filter(year == 2023) %>%
+  group_by(highest_qualification_board_exam_name) %>%
+  summarise(student_count = n(), .groups = "drop") %>%
+  arrange(desc(student_count))
+
+print(student_dip_admis_dt_distinct)
+print(for_pie_highest_qualification_Diploma)
+# Replace 'path/to/output.xlsx' with the desired file path
+write.xlsx(for_pie_highest_qualification_Diploma, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/highest_qual_Diploma_2023_pie.xlsx")
+  
+
+```
+
+
+
+```{r tables, echo=FALSE,include=FALSE, results='asis'}
+#pipeline_table %>%
+#  filter(year >= 2017) %>%
+#  knitr::kable(caption = "Table __: Vocational Training Pipeline in Odisha", digits = 1) %>%
+#  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
+
+
+```
+
+
 ## Demographics
 
-```{r, echo=FALSE,include=FALSE}
+```{r include=FALSE}
 ## Social Group composition in across years
 
 # Function to calculate % for groups
@@ -173,16 +356,20 @@ pivot_table_dip_inc_soc_2023 <- student_dip_admis %>%
               values_fill = list(percentage = 0)) %>%
   select(social_category, `Upto 2.5 lakh`,`Between 2.5 To 8 lakh`, `Above 8 lakh`, `--`)
 
-
 ```
 
-```{r,include=FALSE}
+```{r echo=FALSE, results='asis'}
 ITI_soc_grp %>%
   knitr::kable(caption = "Table _: Social Category Composition ITIs (%)", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+
 poly_soc_grp %>% 
   knitr::kable(caption = "Table _: Social Category Composition Polytechnics (%)", digits = 1) %>%
-  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
+  kableExtra::kable_styling(bootstrap_options = "striped", 
+                            full_width = TRUE,       # Allows table to expand
+                            position = "center",     # Center the table
+                            font_size = 14) %>%      # Adjust font size
+  kableExtra::column_spec(1:ncol(ITI_soc_grp), width = "2cm") 
 
 ITI_religion %>%
   knitr::kable(caption = "Table _: Religion Composition ITI (%)", digits = 1) %>%
@@ -220,49 +407,6 @@ pivot_table_dip_inc_soc_2023 %>%
 
 ```
 
-## Marks
-```{r include=FALSE}
-
-# ITI extract two variables from the json_column
-student_iti_admis <- student_iti_admis %>%
-  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
-  mutate(
-    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
-    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
-  ) %>%
-  select(-parsed_json)  # Remove the parsed_json column if not needed
-
-# Polytechnics extract two variables from the json_column
-student_dip_admis <- student_dip_admis %>%
-  mutate(parsed_json = lapply(mark_data, fromJSON)) %>%  # Parse the JSON
-  mutate(
-    Qualifying_ExamName = sapply(parsed_json, function(x) x$ExamName),   # Extract variable1
-    YearofPassing = sapply(parsed_json, function(x) x$YearofPassing)    # Extract variable2
-  ) %>%
-  select(-parsed_json)  # Remove the parsed_json column if not needed
-
-# Trades for Various Qualifications 2023
-iti_qual_trade_2023 = student_iti_admis %>%
-  filter(year == 2023) %>%
-  group_by(Qualifying_ExamName) %>%
-  summarise(number_of_trade = n_distinct(reported_branch_or_trade)) 
-
-
-ITI_graduates_same_year <- student_iti_admis %>%
-  filter(Qualifying_ExamName != "8th Pass") %>%
-  filter(YearofPassing == year) %>%
-  group_by(year) %>%   # Group by admission year
-  summarise(Admitted_ITI_Students = n())  # Count the number of students
-
-
-Poly_graduates_same_year <- student_iti_admis %>%
-  filter(Qualifying_ExamName != "8th Pass") %>%
-  filter(YearofPassing == year) %>%
-  group_by(year) %>%   # Group by admission year
-  summarise(Admitted_ITI_Students = n())  # Count the number of students
-
-
-```
 
 
 ## Geography
@@ -273,6 +417,12 @@ Poly_graduates_same_year <- student_iti_admis %>%
 total_students_district <- student_iti_admis %>%
   group_by(district, year) %>%  # Group by district and year
   summarise(Students_from_District = n(), .groups = 'drop')  # Count the number of students
+
+# Institute_District
+total_students_insti_district <- student_iti_admis %>%
+  group_by(institute_district, year) %>%  # Group by district and year
+  summarise(Students_Institute_District = n(), .groups = 'drop')  # Count the number of students
+
 
 # Count the number of female students from each district in government ITIs across the years
 female_govt_iti_students <- student_iti_admis %>%
@@ -288,6 +438,9 @@ female_insti_govt_iti_students <- student_iti_admis %>%
 
 # Students from each district 2023
 total_students_district_2023 <- total_students_district %>%
+  filter(year == 2023)
+
+total_students_insti_district_2023 = total_students_insti_district %>%
   filter(year == 2023)
 
 female_govt_iti_students_2023 <- female_govt_iti_students %>%
@@ -356,6 +509,8 @@ combined_female_students_dist_2023 <- combined_female_students_dist_2023 %>%
     TRUE ~ district  # Keep other district names unchanged
   ))
 
+
+
 total_students_district_2023 <- total_students_district_2023 %>% mutate(district = toupper(district))
 
 total_students_district_2023 <- total_students_district_2023 %>%
@@ -375,6 +530,31 @@ total_students_district_2023 <- total_students_district_2023 %>%
     TRUE ~ district  # Keep other district names unchanged
   ))
 
+total_students_insti_district_2023 = total_students_insti_district_2023 %>% mutate(institute_district = toupper(institute_district))
+
+total_students_insti_district_2023 <- total_students_insti_district_2023 %>%
+  mutate(institute_district = case_when(
+    institute_district == "ANGUL" ~ "ANUGUL",
+    institute_district == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    institute_district == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    institute_district == "JAJPUR" ~ "JAJAPUR",
+    institute_district == "KENDRAPARA" ~ "KENDRAPARHA",
+    institute_district == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    institute_district == "KHURDA" ~ "KHORDHA",
+    institute_district == "NAWARANGPUR" ~"NABARANGAPUR",
+    institute_district == "NUAPADA" ~"NUAPARHA",
+    institute_district == "RAYAGADA" ~"RAYAGARHA",
+    institute_district == "SONEPUR" ~"SUBARNAPUR",
+    institute_district == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ institute_district  # Keep other district names unchanged
+  ))
+
+odisha_districts <- odisha_districts %>%
+  left_join(total_students_insti_district_2023, by = c("Name" = "institute_district"))
+
+odisha_districts$Students_Institute_District_per_lakh = odisha_districts$Students_Institute_District/odisha_districts$Population*100000
+
+
 # Step 4: Merge the ITI count data with the Odisha districts shapefile
 odisha_districts <- odisha_districts %>%
   left_join(combined_female_students_dist_2023, by = c("Name" = "district"))
@@ -392,8 +572,10 @@ odisha_districts$female_students_home_dist_per_lakh = odisha_districts$female_st
 odisha_districts$Students_from_District_per_lakh = odisha_districts$Students_from_District/odisha_districts$Population*100000
 
 
+
+
 # Plotting Students Map
-tmap_mode("view")  # Change to "view" for interactive mode
+tmap_mode("plot")  # Change to "view" for interactive mode
 map_student <- tm_shape(odisha_districts) +
   tm_polygons("Students_from_District", 
               title = "Number of Students in ITIs by Home District (2023)", 
@@ -418,7 +600,7 @@ map_student_per_lakh <- tm_shape(odisha_districts) +
               title = "Number of Students in ITIs by Home District (2023) Per Lakh Pop", 
               palette = "Blues", 
               n = 4) +
-  tm_layout(main.title = "Number of Girls in ITIs by Home District (2023) Per Lakh Pop",
+  tm_layout(main.title = "Number of Students in ITIs by Home District (2023) Per Lakh Pop",
             main.title.size = 1.2,
             legend.position = c("right", "bottom"),  # Attempting bottom right
             legend.title.size = 1,
@@ -430,6 +612,27 @@ map_student_per_lakh <- tm_shape(odisha_districts) +
 # Add the interactive tooltip
 map_student_per_lakh + tm_view(view.legend.position = c("right", "bottom"))
 
+
+odisha_districts$Students_Institute_District_per_lakh = odisha_districts$Students_Institute_District/odisha_districts$Population*100000
+
+tmap_mode("view")  # Change to "view" for interactive mode
+map_student_per_lakh <- tm_shape(odisha_districts) +
+  tm_polygons("Students_Institute_District_per_lakh", 
+              title = "Number of Students in ITIs by Institute District (2023) Per Lakh Pop", 
+              palette = "Blues", 
+              breaks = c(50, 100, 150, 200, 300),  # Manually set the intervals
+              style = "fixed") +  # Use fixed style to apply specified intervals
+  tm_layout(main.title = "Number of Students in ITIs by Institute District (2023) Per Lakh Pop",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white", 
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black")
+
+# Add the interactive tooltip
+map_student_per_lakh + tm_view(view.legend.position = c("right", "bottom"))
 
 
 # Plotting with tmap Female Students
@@ -449,10 +652,10 @@ map <- tm_shape(odisha_districts) +
   tm_borders(lwd = 3, col = "black")
 
 # Add the interactive tooltip
-map + tm_view(view.legend.position = c("right", "bottom"))
+map
 
 
-tmap_mode("view")  # Change to "view" for interactive mode
+tmap_mode("plot")  # Change to "view" for interactive mode
 map_per_lakh <- tm_shape(odisha_districts) +
   tm_polygons("female_students_home_dist_per_lakh", 
               title = "Number of Girls in Govt ITIs by Home District (2023) Per Lakh Pop", 
@@ -474,19 +677,198 @@ map_per_lakh + tm_view(view.legend.position = c("right", "bottom"))
 ```
 
 
+```{r}
+# How many ITIs are in districts
+iti_count_by_district <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  group_by(institute_district,typeof_institute) %>%
+  summarise(
+    total_itis = n_distinct(reported_institute),
+    .groups = 'drop'  # This ensures summarise does not retain the grouping structure
+  ) %>%
+  pivot_wider(names_from = typeof_institute, values_from = total_itis, values_fill = 0) # Total number of ITIs
+
+iti_count_by_district$total_itis <- iti_count_by_district$Govt. + iti_count_by_district$Pvt.
+iti_count_by_district
+
+iti_count_by_district <- iti_count_by_district %>% mutate(`institute_district` = toupper(`institute_district`))
+
+iti_count_by_district <- iti_count_by_district %>%
+  mutate(institute_district = case_when(
+    institute_district == "ANGUL" ~ "ANUGUL",
+    institute_district == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    institute_district == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    institute_district == "JAJPUR" ~ "JAJAPUR",
+    institute_district == "KENDRAPARA" ~ "KENDRAPARHA",
+    institute_district == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    institute_district == "KHURDA" ~ "KHORDHA",
+    institute_district == "NAWARANGPUR" ~"NABARANGAPUR",
+    institute_district == "NUAPADA" ~"NUAPARHA",
+    institute_district == "RAYAGADA" ~"RAYAGARHA",
+    institute_district == "SONEPUR" ~"SUBARNAPUR",
+    institute_district == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ institute_district  # Keep other district names unchanged
+  ))
+
+# Merge the ITI count data with the Odisha districts shapefile
+odisha_districts <- odisha_districts %>%
+  left_join(iti_count_by_district, by = c("Name" = "institute_district"))
+
+tmap_mode("view")
+map_total_itis = tm_shape(odisha_districts) + 
+  tm_polygons("total_itis", 
+              title = "Number of ITIs", 
+              palette = "Blues", 
+              n = 4) +
+  tm_layout(main.title = "Number of ITIs",
+            main.title.size = 0.7,
+            legend.position = c("right", "bottom"),
+            legend.title.size = 0.2,
+            legend.text.size = 0.1) +
+  tm_borders(lwd = 1, col = "black")
+map_total_itis + tm_view(view.legend.position = c("right", "bottom"))
+
+
+
+
+
+```
+
+# Temp - Analysis of District "Migration"
+```{r}
+table(student_iti_admis$district,student_iti_admis$institute_district)
+
+# Subset ITI by "Other" in "district"
+iti_district_other_2023 = student_iti_admis %>%
+  filter(district %in% c("Other","Odisha","Skill Department (DTET)")) %>%
+  filter(year == 2023)
+
+iti_district_other_2023_state_mig <- iti_district_other_2023 %>%  
+  group_by(state, institute_district) %>%  # Group by 'state' and 'institute_district'
+  summarise(count = n(), .groups = 'drop')  # Count occurrences and ungroup
+
+# Export
+write_xlsx(iti_district_other_2023_state_mig, "C:/Users/Admin/Documents/incoming_ITI_students_from_states.xlsx")
+
+
+# Inter district Within State migration
+iti_interdistrict_mig_2023 <- student_iti_admis %>%  
+  filter(!district %in% c("Other","Odisha","Skill Department (DTET)")) %>%
+  filter(year == 2023) %>%
+  group_by(district, institute_district) %>%  # Group by 'state' and 'institute_district'
+  summarise(count = n(), .groups = 'drop')  # Count occurrences and ungroup
+iti_interdistrict_mig_2023
+# Export
+write_xlsx(iti_interdistrict_mig_2023, "C:/Users/Admin/Documents/iti_interdistrict_mig_2023.xlsx")
+
+
+# Number of people Leaving district 2023 select top 10 districts
+leavers_by_district_2023 <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  filter(!district %in% c("Other","Odisha","Skill Department (DTET)")) %>%
+  group_by(district) %>%
+  summarise(
+    total_count = n(),  # Total number of people in each district
+    leavers_count = sum(district != institute_district)  # Count people who leave their district
+  ) %>%
+  mutate(leavers_percentage = (leavers_count / total_count) * 100) %>%  # Calculate percentage
+  arrange(desc(leavers_percentage)) %>%  # Sort by percentage in descending order
+  slice_max(leavers_percentage,n=10)
+leavers_by_district_2023
+# The top 10 districts' leavers_percentage ranges from 31.6% to 57.1%
+
+top_leaving_district_list = leavers_by_district_2023 %>%
+  pull(district)
+top_leaving_district_list
+# Where are the leavers in top leaving states going
+iti_interdistrict_mig_2023_selected <- student_iti_admis %>%  
+  filter(district %in% top_leaving_district_list) %>%
+  filter(year == 2023) %>%
+  group_by(district, institute_district) %>%  # Group by 'state' and 'institute_district'
+  summarise(count = n(), .groups = 'drop')  # Count occurrences and ungroup
+iti_interdistrict_mig_2023_selected
+# Export
+write_xlsx(iti_interdistrict_mig_2023_selected, "C:/Users/Admin/Documents/iti_interdistrict_mig_topDist_2023.xlsx")
+
+
+write_xlsx(leavers_by_district_2023, "C:/Users/Admin/Documents/leavers_by_district_2023.xlsx")
+
+leavers_by_district_2023 <- leavers_by_district_2023 %>% mutate(district = toupper(district))
+
+# Plot the number/percentage leaving district in 2023 
+leavers_by_district_2023 <- leavers_by_district_2023 %>%
+  mutate(district = case_when(
+    district == "ANGUL" ~ "ANUGUL",
+    district == "BOLANGIR" ~ "BOLANGIR (BALANGIR)",
+    district == "BALASORE" ~ "BALASORE (BALESHWAR)",
+    district == "JAJPUR" ~ "JAJAPUR",
+    district == "KENDRAPARA" ~ "KENDRAPARHA",
+    district == "KEONJHAR" ~ "KEONJHAR (KENDUJHAR)",
+    district == "KHURDA" ~ "KHORDHA",
+    district == "NAWARANGPUR" ~"NABARANGAPUR",
+    district == "NUAPADA" ~"NUAPARHA",
+    district == "RAYAGADA" ~"RAYAGARHA",
+    district == "SONEPUR" ~"SUBARNAPUR",
+    district == "BOUDH" ~"BAUDH (BAUDA)",
+    TRUE ~ district  # Keep other district names unchanged
+  ))
+
+
+odisha_districts <- odisha_districts %>%
+  left_join(leavers_by_district_2023, by = c("Name" = "district"))
+
+tmap_mode("view")  # Change to "view" for interactive mode
+map_leavers <- tm_shape(odisha_districts) +
+  tm_polygons("leavers_percentage", 
+              title = "Percentage of Students from District studying outside (2023)", 
+              palette = "Blues", 
+              n = 4) +
+  tm_layout(main.title = "Percentage of Students from District studying outside (2023)",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"), 
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white",
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black") 
+map_leavers + tm_view(view.legend.position = c("right", "bottom"))
+
+
+## Top Hosting Districts for students within Odisha
+receivers_by_district_2023 <- student_iti_admis %>%
+  filter(year == 2023) %>%
+  filter(!district %in% c("Other","Odisha","Skill Department (DTET)")) %>%
+  group_by(institute_district) %>%
+  summarise(
+    total_count = n(),  # Total number of people in each district
+    receivers_count = sum(district != institute_district)  # Count people who come to district
+  ) %>%
+  mutate(receivers_percentage = (receivers_count / total_count) * 100) %>%  # Calculate percentage
+  arrange(desc(receivers_percentage)) %>%  # Sort by percentage in descending order
+  slice_max(receivers_percentage,n=10)
+leavers_by_district_2023
+
+
+
+```
+
+
+
+
+
 ## Institutions
 
 ```{r, echo=FALSE}
 
 ## Student count in ITIs
 iti_student_count = student_iti_admis %>%
-  group_by(year,type_of_institute) %>%
+  group_by(year,typeof_institute) %>%
   summarise(student_count = n(), .groups = "drop")
 
 # Pivot the data wider to have separate columns for Pvt. and Govt. institutes
 iti_student_count_pivoted <- iti_student_count %>%
   pivot_wider( 
-    names_from = type_of_institute, 
+    names_from = typeof_institute, 
     values_from = student_count, 
     values_fill = 0  # Fill missing values with 0
   )
@@ -502,13 +884,13 @@ iti_student_count_summary <- iti_student_count_pivoted %>%
 
 ## Student count in Polytechnics
 dip_student_count = student_dip_admis %>%
-  group_by(year,type_of_institute) %>%
+  group_by(year,typeof_institute) %>%
   summarise(student_count = n(), .groups = "drop")
 
 # Pivot the data wider to have separate columns for Pvt. and Govt. institutes
 dip_student_count_pivoted <- dip_student_count %>%
   pivot_wider( 
-    names_from = type_of_institute, 
+    names_from = typeof_institute, 
     values_from = student_count, 
     values_fill = NA  # Fill missing values with NA
   )
@@ -525,24 +907,24 @@ dip_student_count_summary <- dip_student_count_pivoted %>%
 
 # Student count in ITIs across districts
 #iti_student_dist_count = student_iti_admis %>%
-#  group_by(year,institute_district,type_of_institute,reported_institute) %>%
+#  group_by(year,institute_district,typeof_institute,reported_institute) %>%
 #  summarise(student_count = n(), .groups = "drop")
 #view(iti_student_count)
 # Student count in Polytechnics across districts
 #poly_student_dist_count = student_dip_admis %>%
-#  group_by(year,institute_district,type_of_institute,reported_institute) %>%
+#  group_by(year,institute_district,typeof_institute,reported_institute) %>%
 #  summarise(student_count = n(), .groups = "drop")
 
 
 # ITI Count
 iti_institutes_count = student_iti_admis %>%
-  group_by(year,type_of_institute) %>%
+  group_by(year,typeof_institute) %>%
   summarise(ITI_count = n_distinct(reported_institute), .groups = "drop")
 
 # Pivot the data wider to have separate columns for Pvt. and Govt. institutes
 iti_institutes_count_pivoted <- iti_institutes_count %>%
   pivot_wider( 
-    names_from = type_of_institute, 
+    names_from = typeof_institute, 
     values_from = ITI_count, 
     values_fill = 0  # Fill missing values with 0
   )
@@ -557,13 +939,13 @@ iti_institutes_count_pivoted_summary <- iti_institutes_count_pivoted %>%
 
 # Polytechnics Count
 poly_institutes_count = student_dip_admis %>%
-  group_by(year,type_of_institute) %>%
+  group_by(year,typeof_institute) %>%
   summarise(poly_count = n_distinct(reported_institute), .groups = "drop")
 
 # Pivot the data wider to have separate columns for Pvt. and Govt. institutes
 poly_institutes_count_pivoted <- poly_institutes_count %>%
   pivot_wider( 
-    names_from = type_of_institute, 
+    names_from = typeof_institute, 
     values_from = poly_count, 
     values_fill = 0  # Fill missing values with 0
   )
@@ -581,7 +963,7 @@ poly_institutes_count_pivoted_summary <- poly_institutes_count_pivoted %>%
 
 # Poly Count across districts
 #poly_institutes_count = student_dip_admis %>%
-#  group_by(year,institute_district,type_of_institute) %>%
+#  group_by(year,institute_district,typeof_institute) %>%
 #  summarise(Polytechnics_count = n_distinct(reported_institute), .groups = "drop")
 
 
@@ -591,18 +973,20 @@ poly_institutes_count_pivoted_summary <- poly_institutes_count_pivoted %>%
 # ITI
 iti_level_student_count = student_iti_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district,type_of_institute,reported_institute) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
   summarise(student_count = n(), .groups = "drop") %>%
-  select(reported_institute, student_count, type_of_institute, institute_district) %>%
+  select(reported_institute, student_count, typeof_institute, institute_district) %>%
     arrange(desc(student_count)) %>%
     slice_head(n = 10)
 
+
+write.xlsx(iti_level_student_count, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/top_10_ITIs_by_student_enrollment_2023.xlsx")
 # Polytechnics
 poly_level_student_count = student_dip_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district,type_of_institute,reported_institute) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
   summarise(student_count = n(), .groups = "drop") %>%
-  select(reported_institute, student_count, type_of_institute, institute_district) %>%
+  select(reported_institute, student_count, typeof_institute, institute_district) %>%
   arrange(desc(student_count)) %>%
   slice_head(n = 10)
 
@@ -611,18 +995,18 @@ poly_level_student_count = student_dip_admis %>%
 # ITI Level Female Student Count with Total Students and Total Gov ITIs
 iti_level_fem_student_count = student_iti_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district,type_of_institute,reported_institute) %>%
-  summarise(female_students = sum(gender == "Female"), .groups = "drop") %>%
-  select(reported_institute, female_students, type_of_institute, institute_district) %>%
-    arrange(desc(female_students)) %>%
-    slice_head(n = 10)
+  group_by(institute_district, typeof_institute, reported_institute) %>%
+  summarise(female_students = sum(gender == "Female"),total_students = n(), .groups = "drop") %>%
+  arrange(desc(female_students)) %>%
+  slice_head(n = 10) %>%
+  select(reported_institute, female_students, total_students, typeof_institute, institute_district)
 
 # Polytechnics
 poly_level_fem_student_count = student_dip_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district,type_of_institute,reported_institute) %>%
+  group_by(institute_district,typeof_institute,reported_institute) %>%
   summarise(female_students = sum(gender=="Female"), .groups = "drop") %>%
-  select(reported_institute, female_students, type_of_institute, institute_district) %>%
+  select(reported_institute, female_students, typeof_institute, institute_district) %>%
   arrange(desc(female_students)) %>%
   slice_head(n = 10)
 
@@ -660,19 +1044,21 @@ total_gov_poly_itis = student_dip_admis %>%
 # count of available trades in ITIs 2023
 iti_trade_count = student_iti_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district, reported_institute, type_of_institute) %>%
+  group_by(institute_district, reported_institute, typeof_institute) %>%
   summarise(trade_count = n_distinct(reported_branch_or_trade), .groups = "drop") %>%
   arrange(desc(trade_count)) %>% 
-  select(reported_institute, trade_count, type_of_institute,institute_district) %>%
+  select(reported_institute, trade_count, typeof_institute,institute_district) %>%
   slice_head(n = 10)
+write.xlsx(iti_trade_count, "C:/Users/Admin/Box/3. Sudakshya/4. Presentation/number_of_trades_in_top_ITIs_2023.xlsx")
+
 
 # count of available trades in ITIs 2023
 poly_trade_count = student_dip_admis %>%
   filter(year == 2023) %>%
-  group_by(institute_district, reported_institute, type_of_institute) %>%
+  group_by(institute_district, reported_institute, typeof_institute) %>%
   summarise(branch_count = n_distinct(reported_branch_or_trade), .groups = "drop") %>%
   arrange(desc(branch_count)) %>% 
-  select(reported_institute, branch_count, type_of_institute,institute_district) %>%
+  select(reported_institute, branch_count, typeof_institute,institute_district) %>%
   slice_head(n = 10)
 
 
@@ -726,9 +1112,6 @@ poly_level_fem_student_count  %>%
   knitr::kable(caption = "Table _: Top 10 Polytechnics with Highest Female Student Enrollment", digits = 1) %>%
   kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
-selected_institute_trade_matrix %>%
-  knitr::kable(caption = "Table _: Trade Composition Selected Gov. ITIs with High Female Student Enrollment", digits = 1) %>%
-  kableExtra::kable_styling(bootstrap_options = "striped",full_width = FALSE)
 
 reactable_selected_institute_trade_matrix <- reactable(
   selected_institute_trade_matrix, 
@@ -758,10 +1141,166 @@ poly_trade_count  %>%
 
 ```
 
+# ITIs in Districts per Millions 
 ```{r}
+## Count of ITIs per 100,000 population
+odisha_districts$total_itis_per_cap = odisha_districts$Name
+view(odisha_districts)
+
+odisha_districts_population <- odisha_pop_dist_2011 %>%
+  select(`District name`, Population)
+
+
+merged_iti_count_per_cap <- left_join(odisha_districts_population, odisha_districts, by = c("District name" = "Name"))
+
+merged_iti_count_per_cap$total_iti_per_cap = merged_iti_count_per_cap$total_itis/merged_iti_count_per_cap$Population * 1000000
+merged_iti_count_per_cap$total_iti_per_cap
+
+sorted_merged_iti_count_per_cap <- merged_iti_count_per_cap %>%
+  mutate(total_iti_per_cap = round(total_iti_per_cap, 1)) %>%
+  select(`District name`, total_iti_per_cap,Pvt.,Govt.) %>%  # Select only district names and total_iti_per_cap
+  arrange(desc(total_iti_per_cap)) 
+view(sorted_merged_iti_count_per_cap)
+
+odisha_districts <- left_join(odisha_districts, sorted_merged_iti_count_per_cap, by = c("Name" = "District name"))
+
+tmap_mode("view")  # Change to "view" for interactive mode
+map_count_iti_cap <- tm_shape(odisha_districts) +
+  tm_polygons("total_iti_per_cap", 
+              title = "Count of ITIs per million population (2023)", 
+              palette = "Blues", 
+              n = 4) +
+  tm_layout(main.title = "Count of ITIs per million population (2023)",
+            main.title.size = 1.2,
+            legend.position = c("right", "bottom"), 
+            legend.title.size = 1,
+            legend.text.size = 0.8,
+            legend.bg.color = "white",
+            legend.bg.alpha = 0.7) +
+  tm_borders(lwd = 3, col = "black") 
+map_count_iti_cap + tm_view(view.legend.position = c("right", "bottom"))
 
 
 
+```
+
+
+```{r}
+  
+# Replace the path with the actual path to your .shp file
+path <- "C:/Users/Admin/Desktop/block_shapefiles"
+odisha_blocks <- st_read(file.path(path,"Odisha_Admin_Block_BND_2021.shp"))
+
+view(odisha_blocks)
+geometry_file <- student_iti_admis %>% 
+  select(district) %>% 
+  distinct()
+
+
+
+
+geometry_file <- geometry_file %>%
+  mutate(district_2 = case_when(
+    district == "Angul" ~ "Anugul",
+    district == "Kendrapara" ~ "Kendrapada",
+    district == "Balasore" ~ "Baleswar",
+    district == "Jagatsinghpur" ~ "Jagatsingpur",
+    district == "Malkangiri" ~ "Malkanagiri",
+    district == "Odisha" ~ NA,
+    district == "Skill Department (DTET)" ~ NA, 
+    district == "Other" ~ NA,
+    TRUE ~ district  # Keep other district names unchanged
+  ))
+
+# Join the student_data with the corrected district_2 from geometry_file
+student_iti_admis <- student_iti_admis %>%
+  left_join(geometry_file %>% select(district, district_2), by = "district")
+
+
+#dist_not_in_master_block <- geometry_file %>%
+#  anti_join(block_name_list_master, by = c("district" = "district_n"))
+
+
+student_iti_admis <- student_iti_admis %>% 
+  mutate(block_name_normalized = str_remove(block, "\\s*\\(.*?\\)")) %>% 
+  mutate(block_name_normalized = tolower(block_name_normalized))
+
+table(student_iti_admis$block,student_iti_admis$block_name_normalized)
+
+odisha_blocks <- odisha_blocks %>% 
+  mutate(block_name_normalized = str_remove(block_name, "\\s*\\(.*?\\)")) %>% 
+  mutate(block_name_normalized = tolower(block_name_normalized))
+
+student_iti_admis <- student_iti_admis %>%
+  mutate(block_name_normalized = str_remove_all(block_name_normalized, "\\s*\\(?(S|s)adar\\)?"))
+
+odisha_blocks <- odisha_blocks %>% 
+  mutate(block_name_normalized = str_remove_all(block_name_normalized, "\\s*\\(?(S|s)adar\\)?"))
+
+view(odisha_blocks$block_name_normalized)
+view(unique(student_iti_admis$block_name_normalized))
+
+n_distinct(student_iti_admis$block_name_normalized)
+
+# Block-level students count in 2023
+iti_2023_block_level <- student_iti_admis %>%
+  filter(!is.na(district_2)) %>%
+  filter(year == 2023) %>%
+  group_by(block_name_normalized) %>%
+  summarise(student_count = n(), .groups = "drop")
+
+
+
+blocks_not_in_master_block <- iti_2023_block_level %>%
+  anti_join(odisha_blocks, by = c("block_name_normalized" = "block_name_normalized"))
+
+
+
+
+iti_block_with_special_chars_or_multiple_words <- blocks_not_in_master_block %>%
+  filter(grepl("\\s", block_name_normalized) | grepl("[[:punct:]]", block_name_normalized))
+view(iti_block_with_special_chars_or_multiple_words)
+
+shp_block_with_special_chars_or_multiple_words <- odisha_blocks %>%
+  filter(grepl("\\s", block_name_normalized) | grepl("[[:punct:]]", block_name_normalized))
+view(shp_block_with_special_chars_or_multiple_words)
+
+districts_from_iti <- 
+
+
+
+fuzzy_match_blocks <- function(student_block,master_block,threshold = 3) {
+  match_results <- character(length(student_block))
+  for(i in seq_along(student_block)) {
+    distance <- stringdist::stringdist(student_block[i],master_block,method = "osa")
+    best_match <- master_block[which.min(distance)]
+    if (min(distance) <= threshold) {
+      match_results[i] <- best_match
+    } else {
+      match_results[i] <- NA
+    }
+  }
+  return(match_results)
+}
+
+iti_2023_block_level <- iti_2023_block_level %>%
+  mutate(matched_block = fuzzy_match_blocks(block_name_normalized, odisha_blocks$block_name_normalized, threshold = 3))
+view(iti_2023_block_level)
+
+view(odisha_blocks$block_name)
+
+view(odisha_blocks)
+    block == 
+    block == 
+    block_name_normalized == "balasore" ~ "baleswar",
+    block == 
+    block == 
+
+view(odisha_blocks)
+    
+      
+fuzzy_matches <-   
+  
 ```
 
 
@@ -867,7 +1406,7 @@ top_trades_within_gender <- top_trades_within_gender %>%
 ```
 
 
-```{r tables_trade, echo=FALSE,include=FALSE, results='asis'}
+```{r echo=FALSE, results='asis'}
 ## Top Trades in 2023 In Govt. & Pvt. Institutes 
 # Create an interactive table with sorting
 reactable_table_trade_insti <- reactable(
@@ -907,6 +1446,10 @@ htmlwidgets::prependContent(
   )
 )
 
+
+```
+
+```{r echo=FALSE}
 # Create the line chart
 ggplot(top_trades_within_social_categories, aes(x = year, y = trade_count, color = reported_branch_or_trade, group = reported_branch_or_trade)) +
   geom_line(size = 1) + # Draw lines for each trade

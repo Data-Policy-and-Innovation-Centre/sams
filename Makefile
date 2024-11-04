@@ -68,6 +68,13 @@ test_client:
 	
 	@echo "Running tests on API client..."
 	pytest tests/test_client.py
+
+# Build reports
+reports:
+
+	@echo "Build reports..."
+	Rscript $(SCRIPTS_PATH)/build_report.R
+
 	
 
 .PHONY: create_env update_env remove_env clean dataset tests test_extract test_client preprocess

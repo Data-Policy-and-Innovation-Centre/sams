@@ -414,6 +414,8 @@ def main():
     """
 
     downloader = SamsDataDownloader()
+    df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
+    print(df_students.columns)
     df = downloader.fetch_institutes("ITI", 2020, pandify=True)
     print(df.columns)
 
