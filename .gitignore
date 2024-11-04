@@ -180,3 +180,4 @@ cython_debug/
 
 *.ipynb
 scripts/.Rhistory
+profile.html
