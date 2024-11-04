@@ -104,11 +104,11 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
 
 
 def geocodes_df(
-    sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame
+    sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
 ) -> pd.DataFrame:
     logger.info("Preprocessing geocodes")
     return preprocess_geocodes(
-        [sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"]
+        [sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"], google_maps=google_maps
     )
 
 

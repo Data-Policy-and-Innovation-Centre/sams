@@ -25,7 +25,7 @@ def _make_date(x: pd.Series) -> pd.Series:
 
 
 def _lat_long(
-    df: pd.DataFrame, address_col: str = "pin_code", noisy: bool = True
+    df: pd.DataFrame, address_col: str = "pin_code", noisy: bool = True, google_maps: bool = False
 ) -> pd.DataFrame:
     """
     Create longitude and latitude columns from pin_code column in a DataFrame
@@ -46,7 +46,7 @@ def _lat_long(
     if noisy:
         logger.info(f"Number of unique addresses: {len(addresses)}")
 
-    locations = {addr: geocode(f"{addr}") for addr in addresses}
+    locations = {addr: geocode(f"{addr}", google_maps) for addr in addresses}
     locations = {addr: loc for addr, loc in locations.items() if loc is not None}
 
     if noisy:
@@ -211,6 +211,7 @@ def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd
     filtered_dfs = [
         pd.DataFrame(json.loads(marks))[lambda df: df[key] == value] for marks in x
     ]
+
     filtered_dfs = [
         (
             df
@@ -220,6 +221,7 @@ def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd
         for df in filtered_dfs
     ]
 
+    logger.debug("Concatenating and resetting index...")
     col = pd.concat(filtered_dfs)[varnames]
     col.reset_index(drop=True, inplace=True)
     return col
@@ -425,7 +427,7 @@ def preprocess_institutes(
 
 
 def preprocess_geocodes(
-    dfs: list[pd.DataFrame], address_col: list[str]
+    dfs: list[pd.DataFrame], address_col: list[str], google_maps: bool = False
 ) -> pd.DataFrame:
     """
     Concatenate the pincode columns of the input DataFrames and add longitude and latitude columns to the result
@@ -457,7 +459,7 @@ def preprocess_geocodes(
             ]
         )
         df = pd.DataFrame({"address": data})
-        df = _lat_long(df, address_col="address", noisy=True)
+        df = _lat_long(df, address_col="address", noisy=True, google_maps=google_maps)
     except KeyError:
         logger.error("No 'pin_code' column found in input DataFrames")
     except Exception as e:

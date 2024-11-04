@@ -30,21 +30,15 @@ def save_data(df: pd.DataFrame, metadata: dict):
     logger.info(f"Data saved to {path}")
 
 
-def geocode(addr: str) -> Location | None:
+def geocode(addr: str, google_maps: bool) -> Location | None:
     if addr in GEOCODES:
         return GEOCODES[addr]
     else:
         try:
-            location = _geocode(f"{addr}, India")
-            if location is None:
+            if google_maps:
                 location = _gmaps_geocode(f"{addr}, India")
-                logger.debug(
-                    f"Geocoded {addr} using Google Maps API: {location}"
-                ) if location is not None else logger.debug(
-                    f"Geocoding {addr} using Google Maps API failed"
-                ) and logger.debug(
-                    location
-                )
+            else:
+                location = _geocode(f"{addr}, India")
             GEOCODES[addr] = location
             return location
         except (GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut) as e:
