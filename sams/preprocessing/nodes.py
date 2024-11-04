@@ -221,7 +221,6 @@ def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd
         for df in filtered_dfs
     ]
 
-    logger.debug("Concatenating and resetting index...")
     col = pd.concat(filtered_dfs)[varnames]
     col.reset_index(drop=True, inplace=True)
     return col
@@ -359,7 +358,7 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
 
     marks = pd.DataFrame(flatten(marks))
     marks.drop_duplicates(
-        subset=["aadhar_no", "academic_year"], keep="first", inplace=True
+        subset=["aadhar_no", "academic_year", "exam_name"], keep="first", inplace=True
     )
 
     # Coerce numeric variables
