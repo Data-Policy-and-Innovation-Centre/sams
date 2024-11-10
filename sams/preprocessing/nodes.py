@@ -425,6 +425,8 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks["secured_marks"] = pd.to_numeric(marks["secured_marks"], errors="coerce")
     marks["total_marks"] = pd.to_numeric(marks["total_marks"], errors="coerce")
     marks["percentage"] = marks["secured_marks"] / marks["total_marks"] * 100
+
+    # Rename columns
     marks.rename(columns={"yearof_passing": "year_of_passing"}, inplace=True)
 
     # Drop with nonsensical values
@@ -437,7 +439,7 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     return marks
 
 
-def extract_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract strength data from "strength" column
 
@@ -474,15 +476,38 @@ def extract_institute_strength(df: pd.DataFrame) -> pd.DataFrame:
 
     return strength_df
 
+def _extract_cutoff_cols(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
+    
+    dfs = []
+    for _, row in cutoffs_df.iterrows():
+        df = pd.DataFrame(json.loads(row["cutoff"]))
+        df["sams_code"] = [row["sams_code"]]*df.shape[0]
+        df["academic_year"] = [row["academic_year"]]*df.shape[0]
+        df["trade"] = [row["trade"]]*df.shape[0]
+        dfs.append(df)
+    
+    out = pd.concat(dfs, axis=0)
+    out.rename(columns={"SelectionStage": "selection_stage"}, inplace=True)
+    out = out.melt(id_vars=["sams_code", "trade", "academic_year", "selection_stage"],var_name="applicant_type",value_name="cutoff")
+    return out
+
+def _extract_iti_cutoff_categories(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
+    cutoffs_df["locality"] = cutoffs_df["applicant_type"].apply(lambda x: x[:3] if x != "IMC" else None)
+    cutoffs_df["qual"] = cutoffs_df["applicant_type"].apply(lambda x: x[3:6] if x != "IMC" else None)
+    cutoffs_df["pass"] = cutoffs_df["applicant_type"].str.contains("Pass")
+    cutoffs_df["social_category"] = cutoffs_df["applicant_type"].apply(lambda x: x[10:].strip("_")[0] if "_" in x else x)
+    cutoffs_df["social_category"] = cutoffs_df["social_category"].apply(lambda x: "EWS" if "EWS" in x else x)
+    cutoffs_df["social_category"] = cutoffs_df["social_category"].apply(lambda x: "IMC" if "IMC" in x else x)
+    cutoffs_df["gender"] = cutoffs_df["applicant_type"].apply(lambda x: x[-1] if x[-2] == "_" else None)
+    cutoffs_df.drop(columns=["applicant_type"], axis=1, inplace=True)
+    return cutoffs_df
 
 
-
-
-
-def extract_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
-    cutoffs_df = pd.DataFrame(df["cutoffs"].apply(json.loads).apply(pd.Series))
-    cutoffs_df = cutoffs_df.apply(pd.to_numeric)
-    cutoffs_df = pd.concat([df[["sams_code", "trade", "branch"]], cutoffs_df], axis=1)
+def preprocess_iti_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
+    cutoff_df = df[["sams_code", "academic_year", "trade", "cutoff"]]
+    cutoff_df = _extract_cutoff_cols(cutoff_df)
+    cutoff_df = _extract_iti_cutoff_categories(cutoff_df)
+    return cutoff_df
 
 
 def preprocess_iti_addresses(df: pd.DataFrame) -> pd.DataFrame:

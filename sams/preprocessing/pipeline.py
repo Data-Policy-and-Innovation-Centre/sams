@@ -20,10 +20,13 @@ from sams.preprocessing.nodes import (
     preprocess_students_marks_data,
     preprocess_geocodes,
     preprocess_iti_addresses,
+    preprocess_iti_institute_cutoffs,
+    preprocess_institute_strength
+    
 )
 from loguru import logger
 
-
+# ===== Building raw SAMS data =====
 def sams_db(build: bool = True) -> sqlite3.Connection:
     if Path(SAMS_DB).exists() and not build:
         logger.info(f"Using existing database at {SAMS_DB}")
@@ -59,7 +62,7 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
     else:
         raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-
+# ===== Loading data =====
 @parameterize(
     iti_raw=dict(sams_db=source("sams_db"), module=value("ITI")),
     diploma_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
@@ -70,15 +73,14 @@ def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFra
     return df
 
 
-def sams_institutes_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
-    query = "SELECT * FROM institutes;"
+@parameterize(
+    iti_institutes_raw=dict(sams_db=source("sams_db"), module=value("ITI")),
+    diploma_institutes_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
+)
+def sams_institutes_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
+    query = f"SELECT * FROM institutes WHERE module = '{module}';"
     df = pd.read_sql_query(query, sams_db)
     return df
-
-
-@load_from.csv(path=datasets["iti_addresses"]["path"])
-def iti_addresses_df(iti_address_raw_df: pd.DataFrame) -> pd.DataFrame:
-    return preprocess_iti_addresses(iti_address_raw_df)
 
 
 def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
@@ -87,6 +89,7 @@ def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
     return df
 
 
+# ===== Preprocessing =====
 @parameterize(
     iti_enrollment=dict(sams_students_raw_df=source("iti_raw"), module=value("ITI")),
     diploma_enrollment=dict(
@@ -102,45 +105,81 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
     else:
         NotImplemented
 
+@load_from.csv(path=datasets["iti_addresses"]["path"])
+def iti_addresses_df(iti_address_raw_df: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_iti_addresses(iti_address_raw_df)
+
 
 def geocodes_df(
     sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
 ) -> pd.DataFrame:
     logger.info("Preprocessing geocodes...")
     return preprocess_geocodes(
-        [sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"], google_maps=google_maps
+        [sams_address_raw_df, iti_addresses_df],
+        address_col=["pin_code", "address"],
+        google_maps=google_maps,
     )
 
 
 @parameterize(
-        geocoded_iti_enrollment=dict(
-            enrollment_df=source("iti_enrollment"),
-            geocodes_df=source("geocodes_df"),
-            module=value("ITI"),
-        ),
-        geocoded_diploma_enrollment=dict(
-            enrollment_df=source("diploma_enrollment"),
-            geocodes_df=source("geocodes_df"),
-            module=value("Diploma"),
-        ),
-        
+    geocoded_iti_enrollment=dict(
+        enrollment_df=source("iti_enrollment"),
+        geocodes_df=source("geocodes_df"),
+        module=value("ITI"),
+    ),
+    geocoded_diploma_enrollment=dict(
+        enrollment_df=source("diploma_enrollment"),
+        geocodes_df=source("geocodes_df"),
+        module=value("Diploma"),
+    ),
 )
-def geocoded_enrollment_df(enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, module: str) -> pd.DataFrame:
+def geocoded_enrollment_df(
+    enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, module: str
+) -> pd.DataFrame:
     logger.info(f"Adding geocodes to {module} enrollment data...")
-    merged = pd.merge(enrollment_df, geocodes_df, how="left", left_on="pin_code", right_on="address")
+    merged = pd.merge(
+        enrollment_df, geocodes_df, how="left", left_on="pin_code", right_on="address"
+    )
     merged.drop("address_y", axis=1, inplace=True)
-    merged.rename(columns={"latitude": "pin_lat", "longitude": "pin_long","address_x": "address"}, inplace=True)
+    merged.rename(
+        columns={
+            "latitude": "pin_lat",
+            "longitude": "pin_long",
+            "address_x": "address",
+        },
+        inplace=True,
+    )
     return merged
+
 
 @parameterize(
     iti_marks=dict(enrollment_df=source("iti_enrollment")),
     diploma_marks=dict(enrollment_df=source("diploma_enrollment")),
 )
 def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
-    logger.info(f"Preprocessing {enrollment_df.module.values[0]} students marks data...")
+    logger.info(
+        f"Preprocessing {enrollment_df.module.values[0]} students marks data..."
+    )
     return preprocess_students_marks_data(enrollment_df)
 
+@parameterize(
+    iti_institutes_strength = dict(
+        sams_institutes_raw_df=source("iti_institutes_raw")
+    )
+)
+def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_institute_strength(sams_institutes_raw_df)
 
+@parameterize(
+    iti_institutes_cutoff = dict(
+        sams_institutes_raw_df=source("iti_institutes_raw")
+    )
+)
+def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_iti_institute_cutoffs(sams_institutes_raw_df)
+
+
+# ===== Saving data =====
 @datasaver()
 @parameterize(
     save_interim_iti_students=dict(
@@ -168,6 +207,32 @@ def save_interim_student_data(
         ),
         f"{module}_marks": utils.get_file_and_dataframe_metadata(
             datasets[f"{module}_marks"]["path"], marks_df
+        ),
+    }
+
+    return metadata
+
+@datasaver()
+@parameterize(
+    save_interim_iti_institutes=dict(
+        institutes_strength_df=source("iti_institutes_strength"),
+        institutes_cutoff_df=source("iti_institutes_cutoff"),
+        module=value("ITI"),
+    )
+        
+)
+def save_interim_institutes_data(institutes_strength_df: pd.DataFrame, institutes_cutoff_df: pd.DataFrame, module: str) -> dict:
+    logger.info(f"Saving interim institutes data for {module} module...")
+    module = module.lower()
+    save_data(institutes_strength_df, datasets[f"{module}_institutes_strength"])
+    save_data(institutes_cutoff_df, datasets[f"{module}_institutes_cutoffs"])
+
+    metadata = {
+        f"{module}_institutes_strength": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_institutes_strength"]["path"], institutes_strength_df
+        ),
+        f"{module}_institutes_cutoff": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_institutes_cutoffs"]["path"], institutes_cutoff_df
         ),
     }
 
