@@ -94,7 +94,7 @@ def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
     ),
 )
 def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFrame:
-    logger.info(f"Preprocessing {module} students enrollment data")
+    logger.info(f"Preprocessing {module} students enrollment data...")
     if module == "ITI":
         return preprocess_iti_students_enrollment_data(sams_students_raw_df)
     elif module == "Diploma":
@@ -106,30 +106,50 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
 def geocodes_df(
     sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
 ) -> pd.DataFrame:
-    logger.info("Preprocessing geocodes")
+    logger.info("Preprocessing geocodes...")
     return preprocess_geocodes(
         [sams_address_raw_df, iti_addresses_df], address_col=["pin_code", "address"], google_maps=google_maps
     )
 
 
 @parameterize(
+        geocoded_iti_enrollment=dict(
+            enrollment_df=source("iti_enrollment"),
+            geocodes_df=source("geocodes_df"),
+            module=value("ITI"),
+        ),
+        geocoded_diploma_enrollment=dict(
+            enrollment_df=source("diploma_enrollment"),
+            geocodes_df=source("geocodes_df"),
+            module=value("Diploma"),
+        ),
+        
+)
+def geocoded_enrollment_df(enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, module: str) -> pd.DataFrame:
+    logger.info(f"Adding geocodes to {module} enrollment data...")
+    merged = pd.merge(enrollment_df, geocodes_df, how="left", left_on="pin_code", right_on="address")
+    merged.drop("address_y", axis=1, inplace=True)
+    merged.rename(columns={"latitude": "pin_lat", "longitude": "pin_long","address_x": "address"}, inplace=True)
+    return merged
+
+@parameterize(
     iti_marks=dict(enrollment_df=source("iti_enrollment")),
     diploma_marks=dict(enrollment_df=source("diploma_enrollment")),
 )
 def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
-    logger.info(f"Preprocessing {enrollment_df.module.values[0]} students marks data")
+    logger.info(f"Preprocessing {enrollment_df.module.values[0]} students marks data...")
     return preprocess_students_marks_data(enrollment_df)
 
 
 @datasaver()
 @parameterize(
     save_interim_iti_students=dict(
-        enrollment_df=source("iti_enrollment"),
+        enrollment_df=source("geocoded_iti_enrollment"),
         marks_df=source("iti_marks"),
         module=value("ITI"),
     ),
     save_interim_diploma_students=dict(
-        enrollment_df=source("diploma_enrollment"),
+        enrollment_df=source("geocoded_diploma_enrollment"),
         marks_df=source("diploma_marks"),
         module=value("Diploma"),
     ),
