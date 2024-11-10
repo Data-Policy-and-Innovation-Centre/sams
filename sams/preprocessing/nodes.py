@@ -5,6 +5,7 @@ from sams.util import dict_camel_to_snake_case, flatten, geocode
 from loguru import logger
 from sams.config import GEOCODES, GEOCODES_CACHE
 import pickle
+from geopy.distance import geodesic
 
 
 def _make_date(x: pd.Series) -> pd.Series:
@@ -560,7 +561,7 @@ def preprocess_geocodes(
             ]
         )
         df = pd.DataFrame({"address": data})
-        df = _lat_long(df, address_col="address", noisy=True, google_maps=google_maps)
+        df = _lat_long(df, address_col="address", noisy=False, google_maps=google_maps)
     except KeyError:
         logger.error("No 'pin_code' column found in input DataFrames")
     except Exception as e:
@@ -571,3 +572,13 @@ def preprocess_geocodes(
             pickle.dump(GEOCODES, f)
 
     return df
+
+def preprocess_distances(df: pd.DataFrame) -> pd.DataFrame:
+    df["distance"] = df.apply(lambda row: _get_distance((row["student_lat"], row["student_long"]), (row["institute_lat"], row["institute_long"])), axis=1)
+    return df
+
+def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
+    try:
+        return geodesic(coord_1, coord_2).kilometers
+    except ValueError as e:
+        return None

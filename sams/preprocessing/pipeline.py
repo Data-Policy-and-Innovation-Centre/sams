@@ -21,7 +21,8 @@ from sams.preprocessing.nodes import (
     preprocess_geocodes,
     preprocess_iti_addresses,
     preprocess_iti_institute_cutoffs,
-    preprocess_institute_strength
+    preprocess_institute_strength,
+    preprocess_distances
     
 )
 from loguru import logger
@@ -68,7 +69,7 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
     diploma_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
 )
 def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
-    query = f"SELECT * FROM students WHERE module = '{module}';"
+    query = f"SELECT * FROM students WHERE module = '{module}' ;"
     df = pd.read_sql_query(query, sams_db)
     return df
 
@@ -120,36 +121,72 @@ def geocodes_df(
         google_maps=google_maps,
     )
 
+@parameterize(
+        geocoded_iti_institutes= dict(
+            sams_institutes_raw_df=source("iti_institutes_raw"),
+            geocodes_df=source("geocodes_df"),
+            iti_addresses_df=source("iti_addresses_df")
+        ),
+)
+def geocoded_institutes_df(sams_institutes_raw_df: pd.DataFrame, geocodes_df: pd.DataFrame, iti_addresses_df: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Adding geocodes to institutes data...")
+    iti_addresses_df = pd.merge(
+        iti_addresses_df, geocodes_df, how="left", on="address"
+    )
+    geocoded_institutes_df = sams_institutes_raw_df[["ncvtmis_code","sams_code"]].drop_duplicates()
+    geocoded_institutes_df = pd.merge(
+        geocoded_institutes_df, iti_addresses_df, how="left", on="ncvtmis_code"
+    )
+    geocoded_institutes_df = geocoded_institutes_df[["sams_code", "latitude", "longitude"]]
+    return geocoded_institutes_df
 
 @parameterize(
     geocoded_iti_enrollment=dict(
         enrollment_df=source("iti_enrollment"),
         geocodes_df=source("geocodes_df"),
-        module=value("ITI"),
+        geocoded_institutes_df=source("geocoded_iti_institutes"),
+        module=value("ITI")
     ),
     geocoded_diploma_enrollment=dict(
         enrollment_df=source("diploma_enrollment"),
         geocodes_df=source("geocodes_df"),
+        geocoded_institutes_df=value(None),
         module=value("Diploma"),
     ),
 )
 def geocoded_enrollment_df(
-    enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, module: str
+    enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, geocoded_institutes_df: pd.DataFrame, module: str
 ) -> pd.DataFrame:
     logger.info(f"Adding geocodes to {module} enrollment data...")
-    merged = pd.merge(
+    geocoded_enrollment_df = pd.merge(
         enrollment_df, geocodes_df, how="left", left_on="pin_code", right_on="address"
     )
-    merged.drop("address_y", axis=1, inplace=True)
-    merged.rename(
+    geocoded_enrollment_df.drop("address_y", axis=1, inplace=True)
+    geocoded_enrollment_df.rename(
         columns={
-            "latitude": "pin_lat",
-            "longitude": "pin_long",
+            "latitude": "student_lat",
+            "longitude": "student_long",
             "address_x": "address",
         },
         inplace=True,
     )
-    return merged
+    if module == "ITI":
+        geocoded_enrollment_df = pd.merge(
+            geocoded_enrollment_df, geocoded_institutes_df, how="left", on="sams_code"
+        )
+        geocoded_enrollment_df.rename(
+            columns={
+                "latitude": "institute_lat",
+                "longitude": "institute_long",
+            },
+            inplace=True,
+        )
+        geocoded_enrollment_df = preprocess_distances(geocoded_enrollment_df)
+    else:
+        NotImplemented
+
+    return geocoded_enrollment_df
+
 
 
 @parameterize(
@@ -168,14 +205,17 @@ def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
     )
 )
 def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Preprocessing institute strength data...")
     return preprocess_institute_strength(sams_institutes_raw_df)
 
 @parameterize(
     iti_institutes_cutoff = dict(
-        sams_institutes_raw_df=source("iti_institutes_raw")
+        sams_institutes_raw_df=source("iti_institutes_raw"),
+        module=value("ITI")
     )
 )
-def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame, module: str) -> pd.DataFrame:
+    logger.info(f"Preprocessing {module} institute cutoff data...")
     return preprocess_iti_institute_cutoffs(sams_institutes_raw_df)
 
 
