@@ -44,7 +44,12 @@ datasets:
     path: "data/interim/pdis_marks.pq"
     layer: interim
 
-  institutes_strength:
+  iti_institutes_strength:
     type: parquet
-    path: "data/interim/institutes_strength.pq"
+    path: "data/interim/iti_institutes_strength.pq"
+    layer: interim
+
+  iti_institutes_cutoffs:
+    type: parquet
+    path: "data/interim/iti_institutes_cutoffs.pq"
     layer: interim
