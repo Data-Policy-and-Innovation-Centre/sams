@@ -23,6 +23,7 @@ LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
 FIGURES_DIR = OUTPUT_DIR / "figures"
+TABLES_DIR = OUTPUT_DIR / "tables"
 CONFIG = PROJ_ROOT / "config"
 CACHE = PROJ_ROOT / "cache"
 
@@ -35,6 +36,7 @@ for path in [
     EXTERNAL_DATA_DIR,
     OUTPUT_DIR,
     FIGURES_DIR,
+    TABLES_DIR,
     LOGS,
     MISSING_VALUES,
     CACHE,
