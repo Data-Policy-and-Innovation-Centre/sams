@@ -408,12 +408,12 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks = [
         [
             dict_camel_to_snake_case(
-                {**mark, "aadhar_no": aadhar, "academic_year": academic_year}
+                {**mark, "aadhar_no": aadhar, "academic_year": academic_year, "sams_code":sams_code, "reported_branch_or_trade":reported_branch_or_trade}
             )
             for mark in json.loads(marks)
         ]
-        for aadhar, marks, academic_year in df[
-            ["aadhar_no", "mark_data", "academic_year"]
+        for aadhar, marks, academic_year, sams_code, reported_branch_or_trade in df[
+            ["aadhar_no", "mark_data", "academic_year", "sams_code", "reported_branch_or_trade"]
         ].values
     ]
 
@@ -503,13 +503,26 @@ def _extract_iti_cutoff_categories(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
     cutoffs_df.drop(columns=["applicant_type"], axis=1, inplace=True)
     return cutoffs_df
 
-
 def preprocess_iti_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
     cutoff_df = df[["sams_code", "academic_year", "trade", "cutoff"]]
     cutoff_df = _extract_cutoff_cols(cutoff_df)
     cutoff_df = _extract_iti_cutoff_categories(cutoff_df)
     return cutoff_df
 
+def preprocess_institute_enrollments(df: pd.DataFrame) -> pd.DataFrame:
+    inst_enrollments_df = pd.DataFrame(df["enrollment"].apply(json.loads).apply(pd.Series))
+    inst_enrollments_df = pd.concat(
+        [df[["sams_code", "module", "academic_year", "institute_name"]], inst_enrollments_df],
+        axis=1,
+    )
+    inst_enrollments_df = inst_enrollments_df.melt(
+        id_vars=["sams_code", "module", "academic_year", "institute_name"],
+        var_name="category",
+        value_name="enrollments",
+    )
+    inst_enrollments_df.drop_duplicates(subset=["sams_code","academic_year","category"],inplace=True)
+    
+    return inst_enrollments_df
 
 def preprocess_iti_addresses(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=str.lower)
