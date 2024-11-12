@@ -1,0 +1,13 @@
+---
+title: "Vocational Training in Odisha: An overview with SAMS"
+author: "Yashaswi Mohanty"
+output:
+  powerpoint_presentation:
+    reference_doc: "ppt_template.pptx"
+---
+
+
+
+# Slide 1 Title
+
+## Slide 2 Title
