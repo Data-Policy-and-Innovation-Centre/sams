@@ -5,7 +5,6 @@ from hamilton.function_modifiers import (
     source,
     value,
     load_from,
-    save_to,
 )
 from hamilton.io import utils
 import pandas as pd
@@ -22,7 +21,8 @@ from sams.preprocessing.nodes import (
     preprocess_iti_addresses,
     preprocess_iti_institute_cutoffs,
     preprocess_institute_strength,
-    preprocess_distances
+    preprocess_distances,
+    preprocess_institute_enrollments
     
 )
 from loguru import logger
@@ -202,7 +202,10 @@ def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
 @parameterize(
     iti_institutes_strength = dict(
         sams_institutes_raw_df=source("iti_institutes_raw")
-    )
+    ),
+    diploma_institutes_strength = dict(
+        sams_institutes_raw_df=source("diploma_institutes_raw")
+    ),
 )
 def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Preprocessing institute strength data...")
@@ -218,6 +221,17 @@ def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame, module: str) -> p
     logger.info(f"Preprocessing {module} institute cutoff data...")
     return preprocess_iti_institute_cutoffs(sams_institutes_raw_df)
 
+@parameterize(
+    iti_institutes_enrollments = dict(
+        sams_institutes_raw_df=source("iti_institutes_raw"),
+    ),
+    diploma_institutes_enrollments = dict(
+        sams_institutes_raw_df=source("diploma_institutes_raw"),
+    ),
+)
+def institutes_enrollments_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Preprocessing institute enrollments data...")
+    return preprocess_institute_enrollments(sams_institutes_raw_df)
 
 # ===== Saving data =====
 @datasaver()
@@ -257,22 +271,43 @@ def save_interim_student_data(
     save_interim_iti_institutes=dict(
         institutes_strength_df=source("iti_institutes_strength"),
         institutes_cutoff_df=source("iti_institutes_cutoff"),
+        institutes_enrollment_df=source("iti_institutes_enrollments"),
         module=value("ITI"),
-    )
+    ),
+    save_interim_diploma_institutes=dict(
+        institutes_strength_df=source("diploma_institutes_strength"),
+        institutes_cutoff_df=value(None),
+        institutes_enrollment_df=source("diploma_institutes_enrollments"),
+        module=value("Diploma"),
+    ),
         
 )
-def save_interim_institutes_data(institutes_strength_df: pd.DataFrame, institutes_cutoff_df: pd.DataFrame, module: str) -> dict:
+def save_interim_institutes_data(institutes_strength_df: pd.DataFrame, institutes_cutoff_df: pd.DataFrame, institutes_enrollment_df: pd.DataFrame, module: str) -> dict:
     logger.info(f"Saving interim institutes data for {module} module...")
     module = module.lower()
     save_data(institutes_strength_df, datasets[f"{module}_institutes_strength"])
-    save_data(institutes_cutoff_df, datasets[f"{module}_institutes_cutoffs"])
-
-    metadata = {
+    save_data(institutes_enrollment_df, datasets[f"{module}_institutes_enrollments"])
+    
+    if module == "iti":
+        save_data(institutes_cutoff_df, datasets[f"{module}_institutes_cutoffs"])
+        metadata = {
         f"{module}_institutes_strength": utils.get_file_and_dataframe_metadata(
             datasets[f"{module}_institutes_strength"]["path"], institutes_strength_df
         ),
         f"{module}_institutes_cutoff": utils.get_file_and_dataframe_metadata(
             datasets[f"{module}_institutes_cutoffs"]["path"], institutes_cutoff_df
+        ),
+        f"{module}_institutes_enrollments": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_institutes_enrollments"]["path"], institutes_enrollment_df
+        ),
+    }
+    else:
+        metadata = {
+        f"{module}_institutes_strength": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_institutes_strength"]["path"], institutes_strength_df
+        ),
+        f"{module}_institutes_enrollments": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_institutes_enrollments"]["path"], institutes_enrollment_df
         ),
     }
 
