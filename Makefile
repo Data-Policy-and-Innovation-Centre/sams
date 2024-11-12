@@ -73,7 +73,7 @@ test_client:
 reports:
 
 	@echo "Build reports..."
-	Rscript $(SCRIPTS_PATH)/build_report.R
+	Rscript $(SCRIPTS_PATH)/build_reports.R
 
 	
 
