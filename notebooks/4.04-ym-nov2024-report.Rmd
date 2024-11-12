@@ -30,6 +30,15 @@ library(ggplot2)
 ```{r Load data, include=FALSE, echo=FALSE}
 iti_enrollments <- read_parquet(get_path("iti_enrollments"))
 iti_marks <- read_parquet(get_path("iti_marks"))
+iti_strength <- read_parquet(get_path("iti_institutes_strength"))
+iti_cutoffs <- read_parquet(get_path("iti_institutes_cutoffs"))
+iti_inst_cutoffs <- read_parquet(get_path("iti_institutes_enrollments"))
+
+```
+
+# Playground
+
+```{r }
 
 
 ```
