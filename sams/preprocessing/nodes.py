@@ -408,11 +408,11 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks = [
         [
             dict_camel_to_snake_case(
-                {**mark, "aadhar_no": aadhar, "academic_year": academic_year, "sams_code":sams_code}
+                {**mark, "aadhar_no": aadhar, "academic_year": academic_year}
             )
             for mark in json.loads(marks)
         ]
-        for aadhar, marks, academic_year, sams_code in df[
+        for aadhar, marks, academic_year in df[
             ["aadhar_no", "mark_data", "academic_year"]
         ].values
     ]
@@ -495,10 +495,18 @@ def _extract_cutoff_cols(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _extract_qual(text: str) -> str:
+    qual = ""
     if "8th" in text:
-        return "8th"
+        qual = "8th"
     elif "10th" in text:
-        return "10th"
+        qual =  "10th"
+    else:
+        pass
+
+    if "Pass" in text:
+        return f"{qual} Pass"
+    elif "Fail" in text:
+        return f"{qual} Fail"
     else:
         return None
     
