@@ -11,7 +11,7 @@ import sams.preprocessing.nodes as nodes
 @pytest.fixture
 def sample_df():
     return pd.DataFrame({
-        'empty_col': ['', ' ', 'NA', 'value'],
+        'empty_col': ["NA", ""],
         'pin_code': ['123456', '789012'],
         'dob': ['2000-01-01', '1999-12-31'],
         'date_of_application': ['2023-01-01', '2023-12-31'],

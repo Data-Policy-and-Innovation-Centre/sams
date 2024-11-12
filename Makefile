@@ -18,6 +18,10 @@ export PYTHONPATH := $(PROJECT_ROOT):$(PYTHONPATH)
 # COMMANDS                                                                      #
 #################################################################################
 
+# Run pipelines
+run:
+	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/run.py
+
 # Command to create the environment
 create_env:
 	conda env create -f $(ENV_FILE)

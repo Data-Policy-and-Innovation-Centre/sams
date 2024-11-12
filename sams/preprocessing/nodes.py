@@ -408,11 +408,11 @@ def preprocess_students_marks_data(df: pd.DataFrame) -> pd.DataFrame:
     marks = [
         [
             dict_camel_to_snake_case(
-                {**mark, "aadhar_no": aadhar, "academic_year": academic_year}
+                {**mark, "aadhar_no": aadhar, "academic_year": academic_year, "sams_code":sams_code}
             )
             for mark in json.loads(marks)
         ]
-        for aadhar, marks, academic_year in df[
+        for aadhar, marks, academic_year, sams_code in df[
             ["aadhar_no", "mark_data", "academic_year"]
         ].values
     ]
@@ -483,33 +483,79 @@ def _extract_cutoff_cols(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
     for _, row in cutoffs_df.iterrows():
         df = pd.DataFrame(json.loads(row["cutoff"]))
         df["sams_code"] = [row["sams_code"]]*df.shape[0]
+        df["institute_name"] = [row["institute_name"]]*df.shape[0]
         df["academic_year"] = [row["academic_year"]]*df.shape[0]
         df["trade"] = [row["trade"]]*df.shape[0]
         dfs.append(df)
     
     out = pd.concat(dfs, axis=0)
     out.rename(columns={"SelectionStage": "selection_stage"}, inplace=True)
-    out = out.melt(id_vars=["sams_code", "trade", "academic_year", "selection_stage"],var_name="applicant_type",value_name="cutoff")
+    out = out.melt(id_vars=["sams_code", "trade", "academic_year", "selection_stage","institute_name"],var_name="applicant_type",value_name="cutoff")
     return out
 
+
+def _extract_qual(text: str) -> str:
+    if "8th" in text:
+        return "8th"
+    elif "10th" in text:
+        return "10th"
+    else:
+        return None
+    
+def _extract_social_category(text: str) -> str:
+    if text == "EWS":
+        return "EWS"
+    elif text == "IMC":
+        return "IMC"
+    else:
+        if "Pass" in text:
+            return text.split("Pass")[1].split("_")[0]
+        elif "Fail" in text:
+            return text.split("Fail")[1].split("_")[0]
+        else:
+            return None
+        
+def _extract_gender(text: str) -> str:
+    if "_F" in text:
+        return "Female"
+    elif "_M" in text:
+        return "Male"
+    else:
+        return None
+
+
+
 def _extract_iti_cutoff_categories(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Extract locality, qualification, pass/fail, social category, and gender from the applicant type column
+    """
     cutoffs_df["locality"] = cutoffs_df["applicant_type"].apply(lambda x: x[:3] if x != "IMC" else None)
-    cutoffs_df["qual"] = cutoffs_df["applicant_type"].apply(lambda x: x[3:6] if x != "IMC" else None)
+    cutoffs_df["qual"] = cutoffs_df["applicant_type"].apply(_extract_qual)
     cutoffs_df["pass"] = cutoffs_df["applicant_type"].str.contains("Pass")
-    cutoffs_df["social_category"] = cutoffs_df["applicant_type"].apply(lambda x: x[10:].strip("_")[0] if "_" in x else x)
-    cutoffs_df["social_category"] = cutoffs_df["social_category"].apply(lambda x: "EWS" if "EWS" in x else x)
-    cutoffs_df["social_category"] = cutoffs_df["social_category"].apply(lambda x: "IMC" if "IMC" in x else x)
-    cutoffs_df["gender"] = cutoffs_df["applicant_type"].apply(lambda x: x[-1] if x[-2] == "_" else None)
-    cutoffs_df.drop(columns=["applicant_type"], axis=1, inplace=True)
+    cutoffs_df["social_category"] = cutoffs_df["applicant_type"].apply(_extract_social_category)
+    cutoffs_df["gender"] = cutoffs_df["applicant_type"].apply(_extract_gender)
     return cutoffs_df
 
-
 def preprocess_iti_institute_cutoffs(df: pd.DataFrame) -> pd.DataFrame:
-    cutoff_df = df[["sams_code", "academic_year", "trade", "cutoff"]]
+    cutoff_df = df[["sams_code", "institute_name", "academic_year", "trade", "cutoff"]]
     cutoff_df = _extract_cutoff_cols(cutoff_df)
     cutoff_df = _extract_iti_cutoff_categories(cutoff_df)
     return cutoff_df
 
+def preprocess_institute_enrollments(df: pd.DataFrame) -> pd.DataFrame:
+    inst_enrollments_df = pd.DataFrame(df["enrollment"].apply(json.loads).apply(pd.Series))
+    inst_enrollments_df = pd.concat(
+        [df[["sams_code", "module", "academic_year", "institute_name"]], inst_enrollments_df],
+        axis=1,
+    )
+    inst_enrollments_df = inst_enrollments_df.melt(
+        id_vars=["sams_code", "module", "academic_year", "institute_name"],
+        var_name="category",
+        value_name="enrollments",
+    )
+    inst_enrollments_df.drop_duplicates(subset=["sams_code","academic_year","category"],inplace=True)
+    
+    return inst_enrollments_df
 
 def preprocess_iti_addresses(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=str.lower)

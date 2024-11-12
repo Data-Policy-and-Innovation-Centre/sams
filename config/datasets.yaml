@@ -53,3 +53,23 @@ datasets:
     type: parquet
     path: "data/interim/iti_institutes_cutoffs.pq"
     layer: interim
+
+  iti_institutes_enrollments:
+    type: parquet
+    path: "data/interim/iti_institutes_enrollments.pq"
+    layer: interim
+
+  diploma_institutes_strength:
+    type: parquet
+    path: "data/interim/diploma_institutes_strength.pq"
+    layer: interim
+
+  diploma_institutes_cutoffs:
+    type: parquet
+    path: "data/interim/diploma_institutes_cutoffs.pq"
+    layer: interim
+
+  diploma_institutes_enrollments:
+    type: parquet
+    path: "data/interim/diploma_institutes_enrollments.pq"
+    layer: interim
