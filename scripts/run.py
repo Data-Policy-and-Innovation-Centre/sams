@@ -13,7 +13,7 @@ def main(args):
             "save_interim_iti_institutes"
         ]
     else:
-        build = bool(args[1] == "True")
+        build = args[1] == "build"
         final_vars = args[2:]
 
     dr = driver.Builder().with_modules(preprocessing_pipeline).build()
