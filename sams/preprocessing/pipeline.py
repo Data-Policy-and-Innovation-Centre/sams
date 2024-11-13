@@ -5,6 +5,8 @@ from hamilton.function_modifiers import (
     source,
     value,
     load_from,
+    save_to,
+    cache
 )
 from hamilton.io import utils
 import pandas as pd
@@ -28,6 +30,7 @@ from sams.preprocessing.nodes import (
 from loguru import logger
 
 # ===== Building raw SAMS data =====
+@cache(behavior="IGNORE")
 def sams_db(build: bool = True) -> sqlite3.Connection:
     if Path(SAMS_DB).exists() and not build:
         logger.info(f"Using existing database at {SAMS_DB}")
@@ -218,7 +221,7 @@ def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame, geocoded_instit
 
 
 @parameterize(
-    iti_institutes_cutoff = dict(
+    iti_institutes_cutoffs = dict(
         sams_institutes_raw_df=source("iti_institutes_raw"),
         module=value("ITI")
     )
@@ -238,6 +241,61 @@ def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame, module: str) -> p
 def institutes_enrollments_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Preprocessing institute enrollments data...")
     return preprocess_institute_enrollments(sams_institutes_raw_df)
+
+def _refactor_social_category(category: str, orphan: bool, gc: bool, ph: bool, es: bool, ews: bool) -> str:
+    if orphan:
+        return "ORPHAN"
+    if gc:
+        return "GC"
+    if ph != "No":
+        return "PWD"
+    if es:
+        return "ES"
+    if ews:
+        return "EWS"
+
+    if category == "General" or category == "OBC/SEBC":
+        return "UR"
+    elif "SC" in category:
+        return "SC"
+    elif "ST" in category:
+        return "ST"
+     
+@save_to.parquet(path=value(datasets["iti_marks_and_cutoffs"]["path"]))
+def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.DataFrame, iti_institutes_cutoffs: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Generating ITI marks and cutoffs joined frame for marks/cutoffs analysis...")
+    academics_demographics = geocoded_iti_enrollment[["aadhar_no","reported_branch_or_trade","phase","academic_year","sams_code", "gender","social_category","gc", "ph",
+                                                       "es","orphan", "ews", "reported_institute", "institute_district"]]
+    academics_demographics["local"] = (academics_demographics["reported_institute"] == academics_demographics["institute_district"])
+    
+    marks = pd.merge(
+        iti_marks, academics_demographics, on=["aadhar_no", "academic_year"]
+    )
+    marks["social_category"] = marks.apply(lambda row: _refactor_social_category(row["social_category"],row["orphan"],row["gc"], row["ph"],row["es"],row["ews"]), axis=1)
+    marks.drop(columns=["orphan", "gc", "ph", "es", "ews", "reported_institute", "institute_district"], inplace=True)
+    marks["phase"] = marks["phase"].apply(lambda x: int(x) if x is not None else -1)
+    marks_cutoffs = pd.merge(
+        marks, iti_institutes_cutoffs, left_on=["sams_code", "academic_year", "reported_branch_or_trade", "social_category","gender", "phase", "local"], 
+        right_on=["sams_code", "academic_year","trade", "social_category","gender", "selection_stage", "local"],
+        how="left"
+    )
+    marks_cutoffs.drop(columns=["compartmental_status","compartmental_fail_mark", 
+                                "highest_qualification_board_exam_name"], inplace=True)
+    #save_data(marks_cutoffs, datasets["iti_marks_and_cutoffs"])
+    return marks_cutoffs
+
+@save_to.parquet(path=value(datasets["iti_vacancies"]["path"]))
+def iti_vacancies(geocoded_iti_enrollment: pd.DataFrame, iti_institutes_strength: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Generating ITI vacancies data...")
+    iti_enrollments_agg = geocoded_iti_enrollment.groupby(["sams_code","academic_year","reported_branch_or_trade"], as_index=False)["aadhar_no"].count()
+    iti_strength = iti_institutes_strength[iti_institutes_strength["category"] == "Total"]
+    iti_enrollments_strength = pd.merge(
+        iti_enrollments_agg, iti_strength, left_on=["sams_code","academic_year","reported_branch_or_trade"], right_on=["sams_code","academic_year","trade"],
+        how="outer", indicator=True
+    )
+    iti_enrollments_strength.rename(columns={"aadhar_no": "enrollment"}, inplace=True)
+    iti_enrollments_strength["vacancy_ratio"] = iti_enrollments_strength["enrollment"] / iti_enrollments_strength["strength"]
+    return iti_enrollments_strength
 
 # ===== Saving data =====
 @datasaver()
@@ -276,7 +334,7 @@ def save_interim_student_data(
 @parameterize(
     save_interim_iti_institutes=dict(
         institutes_strength_df=source("iti_institutes_strength"),
-        institutes_cutoff_df=source("iti_institutes_cutoff"),
+        institutes_cutoff_df=source("iti_institutes_cutoffs"),
         institutes_enrollment_df=source("iti_institutes_enrollments"),
         module=value("ITI"),
     ),
