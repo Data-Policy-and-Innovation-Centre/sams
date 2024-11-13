@@ -73,3 +73,13 @@ datasets:
     type: parquet
     path: "data/interim/diploma_institutes_enrollments.pq"
     layer: interim
+
+  iti_marks_and_cutoffs:
+    type: parquet
+    path: "data/processed/iti_marks_and_cutoffs.pq"
+    layer: processed
+
+  iti_vacancies:
+    type: parquet
+    path: "data/processed/iti_vacancies.pq"
+    layer: processed
