@@ -17,7 +17,9 @@ library(here)
 rm(list = ls())
 
 here::i_am("README.md")
+here()
 source(file.path(here(),"scripts","config.R"))
+
 
 ```
 
@@ -25,38 +27,63 @@ source(file.path(here(),"scripts","config.R"))
 library(tidyverse)
 library(arrow)
 library(ggplot2)
+library(openxlsx)
+library(kableExtra)
+library(knitr)
 ```
 
-```{r Load data, include=FALSE, echo=FALSE}
+```{r Load processed data, include=FALSE, echo=FALSE}
+# Processed data
+iti_marks_and_cutoffs <- read_parquet(get_path("iti_marks_and_cutoffs"))
+iti_vacancies <- read_parquet(get_path("iti_vacancies"))
+```
+
+
+```{r Load interim data, include=FALSE, echo=FALSE}
+# Interim data
 iti_enrollments <- read_parquet(get_path("iti_enrollments"))
-iti_marks <- read_parquet(get_path("iti_marks"))
-iti_strength <- read_parquet(get_path("iti_institutes_strength"))
-iti_cutoffs <- read_parquet(get_path("iti_institutes_cutoffs"))
-iti_inst_cutoffs <- read_parquet(get_path("iti_institutes_enrollments"))
+iti_enrollments_2023 <- iti_enrollments %>% filter(academic_year == 2023)
+```
+
+
+```{r Load output tables, include=FALSE, echo=FALSE}
+quals_excel_path <- file.path(paths$TABLES_DIR,"trades_by_qualification.xlsx")
+sheet_names <- getSheetNames(quals_excel_path)
+trades_by_quals <- read.xlsx(
+  quals_excel_path,
+  sheet_names[1]
+)
+trades_by_quals_pct <- read.xlsx(
+  quals_excel_path,
+  sheet_names[2]
+)
 
 ```
 
-# Playground
+# Raw exhibits
 
-```{r }
+* Our goal is to figure out why people choose vocational training / certain trades
+    * Is it voluntary or are they pushed into it?
 
+## Highest qualifications
 
+```{r Highest qualifications raw, include=TRUE}
+ trades_by_quals %>% kable( caption = "Sample Table") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 ```
 
-\newpage
 
-# Introduction
+## Boards, marks, and cutoffs
 
-```{r Figure 1, echo=FALSE, warning=FALSE, fig.cap="Marks"}
-ggplot(iti_marks, aes(x = percentage)) +
-  geom_histogram(binwidth = 0.5, fill = "skyblue", color = "black") +
-  labs(title = "Histogram of 10th marks of ITI matriculants", x = "Marks", y = "Frequency") +
-  theme_classic()
+## Distances
 
+## Prices
 
+## Quantities / Subscription
 
-```
+## Gender
 
+Government is fixing both prices and quantities. 
 
 
 
