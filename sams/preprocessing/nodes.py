@@ -532,14 +532,12 @@ def _extract_gender(text: str) -> str:
         return None
 
 
-
 def _extract_iti_cutoff_categories(cutoffs_df: pd.DataFrame) -> pd.DataFrame:
     """
     Extract locality, qualification, pass/fail, social category, and gender from the applicant type column
     """
-    cutoffs_df["locality"] = cutoffs_df["applicant_type"].apply(lambda x: x[:3] if x != "IMC" else None)
+    cutoffs_df["local"] = cutoffs_df["applicant_type"].apply(lambda x: "Loc" in x)
     cutoffs_df["qual"] = cutoffs_df["applicant_type"].apply(_extract_qual)
-    cutoffs_df["pass"] = cutoffs_df["applicant_type"].str.contains("Pass")
     cutoffs_df["social_category"] = cutoffs_df["applicant_type"].apply(_extract_social_category)
     cutoffs_df["gender"] = cutoffs_df["applicant_type"].apply(_extract_gender)
     return cutoffs_df
