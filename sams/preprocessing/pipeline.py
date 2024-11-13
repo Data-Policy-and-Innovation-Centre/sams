@@ -30,7 +30,7 @@ from sams.preprocessing.nodes import (
 from loguru import logger
 
 # ===== Building raw SAMS data =====
-@cache(behavior="IGNORE")
+@cache(behavior="DISABLE")
 def sams_db(build: bool = True) -> sqlite3.Connection:
     if Path(SAMS_DB).exists() and not build:
         logger.info(f"Using existing database at {SAMS_DB}")
@@ -71,6 +71,7 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
     iti_raw=dict(sams_db=source("sams_db"), module=value("ITI")),
     diploma_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
 )
+@cache(behavior="DISABLE")
 def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
     query = f"SELECT * FROM students WHERE module = '{module}' ;"
     df = pd.read_sql_query(query, sams_db)
@@ -81,12 +82,13 @@ def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFra
     iti_institutes_raw=dict(sams_db=source("sams_db"), module=value("ITI")),
     diploma_institutes_raw=dict(sams_db=source("sams_db"), module=value("Diploma")),
 )
+@cache(behavior="DISABLE")
 def sams_institutes_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
     query = f"SELECT * FROM institutes WHERE module = '{module}';"
     df = pd.read_sql_query(query, sams_db)
     return df
 
-
+@cache(behavior="DISABLE")
 def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
     query = "SELECT pin_code FROM students;"
     df = pd.DataFrame(pd.read_sql_query(query, sams_db))
@@ -100,6 +102,7 @@ def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
         sams_students_raw_df=source("diploma_raw"), module=value("Diploma")
     ),
 )
+@cache(behavior="default")
 def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFrame:
     logger.info(f"Preprocessing {module} students enrollment data...")
     if module == "ITI":
@@ -110,10 +113,12 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
         NotImplemented
 
 @load_from.csv(path=datasets["iti_addresses"]["path"])
+@cache(behavior="default")
 def iti_addresses_df(iti_address_raw_df: pd.DataFrame) -> pd.DataFrame:
     return preprocess_iti_addresses(iti_address_raw_df)
 
 
+@cache(behavior="default")
 def geocodes_df(
     sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
 ) -> pd.DataFrame:
@@ -131,6 +136,7 @@ def geocodes_df(
             iti_addresses_df=source("iti_addresses_df")
         ),
 )
+@cache(behavior="default")
 def geocoded_institutes_df(sams_institutes_raw_df: pd.DataFrame, geocodes_df: pd.DataFrame, iti_addresses_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Adding geocodes to institutes data...")
     iti_addresses_df = pd.merge(
@@ -157,6 +163,7 @@ def geocoded_institutes_df(sams_institutes_raw_df: pd.DataFrame, geocodes_df: pd
         module=value("Diploma"),
     ),
 )
+@cache(behavior="default")
 def geocoded_enrollment_df(
     enrollment_df: pd.DataFrame, geocodes_df: pd.DataFrame, geocoded_institutes_df: pd.DataFrame, module: str
 ) -> pd.DataFrame:
@@ -196,6 +203,7 @@ def geocoded_enrollment_df(
     iti_marks=dict(enrollment_df=source("iti_enrollment")),
     diploma_marks=dict(enrollment_df=source("diploma_enrollment")),
 )
+@cache(behavior="default")
 def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
     logger.info(
         f"Preprocessing {enrollment_df.module.values[0]} students marks data..."
@@ -212,6 +220,7 @@ def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
         geocoded_institutes_df=value(None),
     ),
 )
+@cache(behavior="default")
 def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame, geocoded_institutes_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Preprocessing institute strength data...")
     institutes_strength =  preprocess_institute_strength(sams_institutes_raw_df)
@@ -226,6 +235,7 @@ def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame, geocoded_instit
         module=value("ITI")
     )
 )
+@cache(behavior="default")
 def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame, module: str) -> pd.DataFrame:
     logger.info(f"Preprocessing {module} institute cutoff data...")
     return preprocess_iti_institute_cutoffs(sams_institutes_raw_df)
@@ -238,6 +248,7 @@ def institutes_cutoff_df(sams_institutes_raw_df: pd.DataFrame, module: str) -> p
         sams_institutes_raw_df=source("diploma_institutes_raw"),
     ),
 )
+@cache(behavior="default")
 def institutes_enrollments_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Preprocessing institute enrollments data...")
     return preprocess_institute_enrollments(sams_institutes_raw_df)
@@ -262,6 +273,7 @@ def _refactor_social_category(category: str, orphan: bool, gc: bool, ph: bool, e
         return "ST"
      
 @save_to.parquet(path=value(datasets["iti_marks_and_cutoffs"]["path"]))
+@cache(behavior="default")
 def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.DataFrame, iti_institutes_cutoffs: pd.DataFrame) -> pd.DataFrame:
     logger.info("Generating ITI marks and cutoffs joined frame for marks/cutoffs analysis...")
     academics_demographics = geocoded_iti_enrollment[["aadhar_no","reported_branch_or_trade","phase","academic_year","sams_code", "gender","social_category","gc", "ph",
@@ -285,6 +297,7 @@ def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.D
     return marks_cutoffs
 
 @save_to.parquet(path=value(datasets["iti_vacancies"]["path"]))
+@cache(behavior="default")
 def iti_vacancies(geocoded_iti_enrollment: pd.DataFrame, iti_institutes_strength: pd.DataFrame) -> pd.DataFrame:
     logger.info("Generating ITI vacancies data...")
     iti_enrollments_agg = geocoded_iti_enrollment.groupby(["sams_code","academic_year","reported_branch_or_trade"], as_index=False)["aadhar_no"].count()

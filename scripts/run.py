@@ -1,5 +1,5 @@
 from hamilton import driver
-from sams.preprocessing import pipeline as preprocessing_pipeline
+from sams.preprocessing import pipeline as interim_pipeline
 import sys
 
 
@@ -16,7 +16,7 @@ def main(args):
         build = args[1] == "build"
         final_vars = args[2:]
 
-    dr = driver.Builder().with_modules(preprocessing_pipeline).build()
+    dr = driver.Builder().with_modules(interim_pipeline).with_cache().build()
     
     inputs = dict(build=build, google_maps=True)
     dr.execute(final_vars=final_vars, inputs=inputs)
