@@ -313,8 +313,8 @@ def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     bool_vars = [
         "had_two_year_full_time_work_exp_after_tenth",
         "gc",
-        "ph",
         "es",
+        "ews",
         "sports",
         "national_cadet_corps",
         "pm_care",
