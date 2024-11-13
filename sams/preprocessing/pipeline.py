@@ -201,15 +201,21 @@ def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
 
 @parameterize(
     iti_institutes_strength = dict(
-        sams_institutes_raw_df=source("iti_institutes_raw")
+        sams_institutes_raw_df=source("iti_institutes_raw"),
+        geocoded_institutes_df=source("geocoded_iti_institutes"),
     ),
     diploma_institutes_strength = dict(
-        sams_institutes_raw_df=source("diploma_institutes_raw")
+        sams_institutes_raw_df=source("diploma_institutes_raw"),
+        geocoded_institutes_df=value(None),
     ),
 )
-def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame) -> pd.DataFrame:
+def institutes_strength_df(sams_institutes_raw_df: pd.DataFrame, geocoded_institutes_df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Preprocessing institute strength data...")
-    return preprocess_institute_strength(sams_institutes_raw_df)
+    institutes_strength =  preprocess_institute_strength(sams_institutes_raw_df)
+    if geocoded_institutes_df is not None:
+        institutes_strength = pd.merge(institutes_strength, geocoded_institutes_df, how="left", on="sams_code")
+    return institutes_strength
+
 
 @parameterize(
     iti_institutes_cutoff = dict(
