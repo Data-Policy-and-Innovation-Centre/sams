@@ -287,12 +287,15 @@ def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.D
     marks.drop(columns=["orphan", "gc", "ph", "es", "ews", "reported_institute", "institute_district"], inplace=True)
     marks["phase"] = marks["phase"].apply(lambda x: int(x) if x is not None else -1)
     marks_cutoffs = pd.merge(
-        marks, iti_institutes_cutoffs, left_on=["sams_code", "academic_year", "reported_branch_or_trade", "social_category","gender", "phase", "local"], 
-        right_on=["sams_code", "academic_year","trade", "social_category","gender", "selection_stage", "local"],
+        marks, iti_institutes_cutoffs, left_on=["sams_code", "academic_year", "reported_branch_or_trade", "social_category","gender", "phase", "local", "exam_name"], 
+        right_on=["sams_code", "academic_year","trade", "social_category","gender", "selection_stage", "local","qual"],
         how="left"
     )
     marks_cutoffs.drop(columns=["compartmental_status","compartmental_fail_mark", 
-                                "highest_qualification_board_exam_name"], inplace=True)
+                                "highest_qualification_board_exam_name","phase", "selection_stage",
+                                "reported_branch_or_trade", "applicant_type", "exam_name"], inplace=True)
+    marks_cutoffs.drop_duplicates(subset=["aadhar_no", "academic_year", "sams_code", "trade", "social_category","gender", "local", "qual"], inplace=True)
+    marks_cutoffs = marks_cutoffs[marks_cutoffs["percentage"] > marks_cutoffs["cutoff"]]
     #save_data(marks_cutoffs, datasets["iti_marks_and_cutoffs"])
     return marks_cutoffs
 
