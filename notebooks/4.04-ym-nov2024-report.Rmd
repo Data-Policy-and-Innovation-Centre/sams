@@ -136,7 +136,7 @@ qual_by_soc_pct <- read.xlsx(
 ```
 
 ```{r Highest qualifications shares, include=TRUE, echo=FALSE}
-trades_by_quals_pct %>% head(10) %>% kable( caption = "Trades by highest qualifications in 2023 (%)") %>%
+trades_by_quals_pct %>% head(10) %>% kable( caption = "Top 10 trades with highest share of college graduates") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 ```
@@ -145,14 +145,14 @@ trades_by_quals_pct %>% head(10) %>% kable( caption = "Trades by highest qualifi
     
 ```{r Trades by gender, include=TRUE, echo=FALSE}
 top_10_trades_by_quals_grad <- trades_by_quals_pct %>% head(10)
-trades_by_gender_pct %>% right_join(top_10_trades_by_quals_grad,by="Trade") %>% select(Trade,Male,Female, Total.x) %>% rename(Total = Total.x) %>% kable( caption = "Trades by highest qualifications in 2023 (%)") %>%
+trades_by_gender_pct %>% right_join(top_10_trades_by_quals_grad,by="Trade") %>% select(Trade,Male,Female, Total.x) %>% rename(Total = Total.x) %>% kable( caption = "Top 10 trades by highest share of college graduates, sorted by gender (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 
 ```
 
 ```{r Qualification by gender, echo=FALSE, include=TRUE}
-qual_by_gender_pct %>%  kable( caption = "Qualifications by gender in 2023 (%)") %>%
+qual_by_gender_pct %>%  kable( caption = "Highest qualification by gender (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 ```
@@ -385,6 +385,8 @@ model_results <- stargazer(model1, model2, model3, omit="^trade",
 ```
 
 
+
+
 The uniformly low *average* cutoffs obscure the variation in cutoffs across institutes and trades. The distribution of cutoffs for general, male candidates suggests that there's substantial heterogeneity in institutional quality and trade competitiveness.
 
 ```{r Variation in cutoffs, echo=FALSE, include=TRUE}
@@ -409,6 +411,7 @@ ggplot(cutoffs_ur_male, aes(x = cutoff)) +
 
 
 The standard deviation of the cutoff distribution is `r var_cutoffs`.
+
 
 
 ## Distance from home
@@ -465,7 +468,7 @@ ggplot(iti_enrollments, aes(x = academic_year, y = distance)) +
 
 We see a small decline in the length of commute which seems largely unrelated to a change in the number of institutes; indeed the number of institutions has remained roughly flat since 2018
 
-```{r Number of institutes, echo=FALSE, include=TRUE}
+```{r Number of institutes, echo=FALSE, include=TRUE, warning=FALSE}
 num_institutes <- iti_enrollments %>% distinct(sams_code, academic_year, type_of_institute) %>% filter(academic_year > 2017)
 
 ggplot(num_institutes, aes(x=academic_year, fill = type_of_institute)) +
@@ -488,7 +491,7 @@ ggplot(distance_over_time, aes(x = academic_year, y = distance, color = social_c
 ```
 
 
-```{r Distance travelled over time by gender, echo=FALSE, include=TRUE}
+```{r Distance travelled over time by gender, echo=FALSE, include=TRUE, warning=FALSE}
 ggplot(distance_over_time, aes(x = academic_year, y = distance, color = gender, group = gender)) +
   geom_smooth(method = "lm", se = TRUE) +  
   coord_trans(y = "log10") +
@@ -497,14 +500,217 @@ ggplot(distance_over_time, aes(x = academic_year, y = distance, color = gender, 
 ```
 
 
-
 ## Over/undersubscription
+
+```{r Load vacancies tables, echo=FALSE, include=FALSE}
+vacancy_path <- file.path(paths$TABLES_DIR, "vacancies.xlsx") 
+sheet_names <- getSheetNames(vacancy_path)
+
+vacancy_by_trade <- read.xlsx(
+  vacancy_path,
+  sheet_names[1]
+)
+
+vacancy_ratio_by_trade <- read.xlsx(
+  vacancy_path,
+  sheet_names[2]
+)
+
+top_10_institutes_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[3]
+)
+
+bottom_10_institutes_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[4]
+)
+
+top_10_institutes_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[5]
+)
+
+bottom_10_institutes_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[6]
+)
+
+top_10_districts_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[7]
+)
+
+bottom_10_districts_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[8]
+)
+
+top_10_districts_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[9]
+)
+
+bottom_10_districts_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[10]
+)
+
+top_10_trades_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[11]
+)
+
+bottom_10_trades_by_vacancy <- read.xlsx(
+  vacancy_path,
+  sheet_names[12]
+)
+
+top_10_trades_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[13]
+)
+
+bottom_10_trades_by_vacancy_ratio <- read.xlsx(
+  vacancy_path,
+  sheet_names[14]
+)
+
+
+
+```
+
+```{r Vacancy by trade, echo=FALSE, include=TRUE}
+
+vacancy_by_trade %>% kable(caption = "Summary stats on vacancies by trade in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+  
+
+
+```
+
+
+```{r Vacancy ratio by trade, echo=FALSE, include=TRUE}
+
+vacancy_ratio_by_trade %>% kable(caption = "Summary stats on vacancy ratios by trade in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+```{r Top 10 institutes by vacancy, echo=FALSE, include=TRUE}
+top_10_institutes_by_vacancy %>% kable(caption = "Top 10 institutes by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+```{r Bottom 10 institutes by vacancy, echo=FALSE, include=TRUE}
+
+bottom_10_institutes_by_vacancy %>% kable(caption = "Bottom 10 institutes by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Top 10 institutes by vacancy ratio, echo=FALSE, include=TRUE}
+top_10_institutes_by_vacancy_ratio %>% kable(caption = "Top 10 institutes by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Bottom 10 institutes by vacancy ratio, echo=FALSE, include=TRUE}
+
+bottom_10_institutes_by_vacancy_ratio %>% kable(caption = "Bottom 10 institutes by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Top 10 districts by vacancy, echo=FALSE, include=TRUE}
+top_10_districts_by_vacancy %>% kable(caption = "Top 10 districts by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+```{r Bottom 10 districts by vacancy, echo=FALSE, include=TRUE}
+
+bottom_10_districts_by_vacancy %>% kable(caption = "Bottom 10 districts by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Top 10 districts by vacancy ratio, echo=FALSE, include=TRUE}
+top_10_districts_by_vacancy_ratio %>% kable(caption = "Top 10 districts by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Bottom 10 districts by vacancy ratio, echo=FALSE, include=TRUE}
+
+bottom_10_districts_by_vacancy_ratio %>% kable(caption = "Bottom 10 districts by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+
+```{r Top 10 trades by vacancy, echo=FALSE, include=TRUE}
+top_10_trades_by_vacancy %>% kable(caption = "Top 10 trades by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+```{r Bottom 10 trades by vacancy, echo=FALSE, include=TRUE}
+
+bottom_10_trades_by_vacancy %>% kable(caption = "Bottom 10 trades by vacancy in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Top 10 trades by vacancy ratio, echo=FALSE, include=TRUE}
+top_10_trades_by_vacancy_ratio %>% kable(caption = "Top 10 trades by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Bottom 10 trades by vacancy ratio, echo=FALSE, include=TRUE}
+
+bottom_10_trades_by_vacancy_ratio %>% kable(caption = "Bottom 10 trades by vacancy ratio in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
 
 ## Geography
 
+```{r Load geography tables, echo=TRUE, include=FALSE}
+
+geography <- file.path(paths$TABLES_DIR,"geography.xlsx")
+sheet_names <- getSheetNames(geography)
+female_share_by_district <- read.xlsx(
+  geography,
+  sheet_names[1]
+) %>% rename(`Female share` = Female.share)
+
+```
+
+
+```{r Female share by district, echo=TRUE, include=TRUE}
+female_share_by_district %>% kable(caption = "Female share by district") %>%
+    kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+
 ## Price
 
-TODO
+TODO -- Need to collect more price information
 
 ## Annex
 
