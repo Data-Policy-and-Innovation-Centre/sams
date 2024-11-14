@@ -1,6 +1,6 @@
 packages <- c("tidyverse","rprojroot","knitr", "ggplot2", "arrow", "readxl","openxlsx",
               "kableExtra","here","rmarkdown","prettydoc","ggsankey","reticulate",
-              "map","tmap","fs","yaml")
+              "map","tmap","fs","yaml", "stargazer")
 
 # Loop through the package names and install if not already installed
 options(repos = c(CRAN = "https://cran.rstudio.com/"))
