@@ -16,5 +16,5 @@ output_file = here("output/ppt-nov2024.pptx"))
 
 # Nov 2024 -- Report
 rmarkdown::render(here("notebooks/4.04-ym-nov2024-report.Rmd"), 
-output_file = here("output/report-nov2024.docx"))
+output_file = here("output/report-nov2024.html"))
 

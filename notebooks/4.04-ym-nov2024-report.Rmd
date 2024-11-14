@@ -3,8 +3,9 @@ title: "SAMS Data Analysis"
 author: "Data, Policy, and Innovation Centre"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
-  word_document:
-    reference_docx: "template.docx"
+  html_document:
+    theme: journal
+    mathjax: default
     toc: true
     toc_depth: 3
     fig_caption: true
@@ -30,12 +31,15 @@ library(ggplot2)
 library(openxlsx)
 library(kableExtra)
 library(knitr)
+library(stargazer)
+library(RColorBrewer)
 ```
 
 ```{r Load processed data, include=FALSE, echo=FALSE}
 # Processed data
 iti_marks_and_cutoffs <- read_parquet(get_path("iti_marks_and_cutoffs"))
 iti_vacancies <- read_parquet(get_path("iti_vacancies"))
+iti_marks_and_cutoffs_2023 <- iti_marks_and_cutoffs %>% filter(academic_year == 2023)
 ```
 
 
@@ -43,8 +47,39 @@ iti_vacancies <- read_parquet(get_path("iti_vacancies"))
 # Interim data
 iti_enrollments <- read_parquet(get_path("iti_enrollments"))
 iti_enrollments_2023 <- iti_enrollments %>% filter(academic_year == 2023)
+iti_cutoffs <- read_parquet(get_path("iti_institutes_cutoffs"))
+
 ```
 
+```{r Add type of institutes data to cutoffs, include=FALSE, echo=FALSE}
+iti_cutoffs <- iti_enrollments %>% distinct(sams_code,type_of_institute) %>% 
+  right_join(iti_cutoffs, by="sams_code")
+iti_cutoffs_2023 <- iti_cutoffs %>% filter(academic_year == 2023)
+
+
+```
+
+
+# Goals for the report
+The long-term goal of this analysis is to uncover motivations and patterns behind students’ enrollment in vocational training program and uncover factors influencing choice based on gender and social demographics. Of principal interest to us is
+
+* What types of students decide to enroll in vocational training programs?
+    * This ideally requires data on enrollment in higher education / 12th grade programs as well
+
+* Are there "overqualified" students enrolling in vocational programs?
+
+* Does distance from training institutes act as a binding constraint on students?
+    * Are some students unable to enroll in the trades / institutions they would like because of a long commute?
+    * Hostel facilities are likely to play a role in this.
+
+* Are there certain trades that are "oversubscribed", in that the government has not provided enough seats in those trades despite demand?
+    * Conversely, are some other trades "undersubscribed", and perhaps resources are better allocated in other trades?
+
+The following exhibits serve as a scoping exercise for the report due at the end of the month.
+
+# Raw exhibits
+
+## Trades and qualifications
 
 ```{r Load output tables, include=FALSE, echo=FALSE}
 quals_excel_path <- file.path(paths$TABLES_DIR,"trades_by_qualification.xlsx")
@@ -56,34 +91,423 @@ trades_by_quals <- read.xlsx(
 trades_by_quals_pct <- read.xlsx(
   quals_excel_path,
   sheet_names[2]
+) %>% rename(
+  `Graduate and above` = Graduate.and.above,
+  Trade = reported_branch_or_trade
+)
+trades_by_gender_pct <- read.xlsx(
+  quals_excel_path,
+  sheet_names[3]
+) %>% rename(
+  Trade = reported_branch_or_trade
+)
+
+qual_by_gender_pct <- read.xlsx(
+   quals_excel_path,
+   sheet_names[4]
+) %>% rename(
+  `Graduate and above` = Graduate.and.above
+)
+
+trades_by_soc_pct <- read.xlsx(
+  quals_excel_path,
+  sheet_names[5]
+) %>% rename(
+  Trade = reported_branch_or_trade
+)
+
+qual_by_soc_pct <- read.xlsx(
+  quals_excel_path,
+  sheet_names[6]
+) %>% 
+  rename(
+    `Graduate and above` = Graduate.and.above
+  )
+
+```
+
+
+* We are likely to find some trades where students are "overqualified". 
+
+```{r Highest qualifications raw, include=FALSE, echo=FALSE}
+
+ trades_by_quals %>% kable( caption = "Trades by highest qualifications") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+```
+
+```{r Highest qualifications shares, include=TRUE, echo=FALSE}
+trades_by_quals_pct %>% head(10) %>% kable( caption = "Trades by highest qualifications in 2023 (%)") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+* Some trades show a particularly high share of graduates
+    * These appear to be female dominated trades
+    
+```{r Trades by gender, include=TRUE, echo=FALSE}
+top_10_trades_by_quals_grad <- trades_by_quals_pct %>% head(10)
+trades_by_gender_pct %>% right_join(top_10_trades_by_quals_grad,by="Trade") %>% select(Trade,Male,Female, Total.x) %>% rename(Total = Total.x) %>% kable( caption = "Trades by highest qualifications in 2023 (%)") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+```{r Qualification by gender, echo=FALSE, include=TRUE}
+qual_by_gender_pct %>%  kable( caption = "Qualifications by gender in 2023 (%)") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+
+```{r Trades by social category, echo=FALSE, include=TRUE}
+trades_by_soc_pct %>% head(20) %>%  kable( caption = "Trades by social category in 2023 (%)") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+ * Need to check if heavy sorting into trades is due to the geography of trade offerings.
+ 
+```{r Qualifications by social category, echo=FALSE, include=TRUE}
+qual_by_soc_pct %>% kable( caption = "Qualifications by social category in 2023 (%)") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+ 
+
+## Student marks and institute cutoffs
+
+### Marks
+
+```{r Load tables for marks analysis, echo=FALSE,include=FALSE}
+marks_excel_path <- file.path(paths$TABLES_DIR, "marks_cutoffs.xlsx")
+sheet_names <- getSheetNames(marks_excel_path)
+marks_by_trade <- read.xlsx(
+  marks_excel_path,
+  sheet_names[1]
+  
+)
+marks_by_demographics <- read.xlsx(
+  marks_excel_path,
+  sheet_names[2]
+)
+boards_marks <- read.xlsx(
+  marks_excel_path,
+  sheet_names[3]
+)
+
+cutoffs_trade_demographics <- read.xlsx(
+  marks_excel_path,
+  sheet_names[4]
+)
+
+cutoffs_trade_gender <- read.xlsx(
+  marks_excel_path,
+  sheet_names[5]
 )
 
 ```
 
-# Raw exhibits
+```{r Distribution of 10th marks, echo=FALSE, include=TRUE, warning=FALSE}
 
-* Our goal is to figure out why people choose vocational training / certain trades
-    * Is it voluntary or are they pushed into it?
+ggplot(iti_marks_and_cutoffs_2023, aes(x = percentage)) +
+  geom_histogram(
+    binwidth = 1,                 # Set bin width
+    fill = "#4C72B0",             # Color for the bars
+    color = "black",              # Outline color
+    alpha = 0.8                   # Transparency
+  ) +
+  labs(
+    title = "Overall distribution of marks in 2023",
+    x = "Marks (%)",
+    y = "Frequency"
+  ) + 
+  geom_vline(
+    xintercept = 33,              # Set the x position of the line at 33 marks
+    color = "red",                # Color of the line
+    linetype = "dashed",          # Line type (dashed)
+    size = 1                      # Thickness of the line
+  ) + 
+  annotate(
+    "text", 
+    x = 33, y = 4500,                # Position the text below the line
+    label = "Passing Percentage: 33%", 
+    color = "red",                # Color of the text
+    size = 3,                     # Size of the text
+    hjust = -0.05,
+    vjust = -1
+  
+  ) + 
+  theme_classic() 
+  
 
-## Highest qualifications
+```
 
-```{r Highest qualifications raw, include=TRUE}
- trades_by_quals %>% kable( caption = "Sample Table") %>%
+```{r Average marks by trade, echo=FALSE, include=TRUE}
+marks_by_trade %>% head(20) %>% kable( caption = "Summary statistics on marks by trade") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```
+
+```{r Average marks by demographics, echo=FALSE,include=TRUE}
+marks_by_demographics %>% kable(caption = "Average marks by demographics") %>% 
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+  
+
 ```
 
 
-## Boards, marks, and cutoffs
 
-## Distances
+```{r Average marks by gender and category within trade, echo=FALSE, include=FALSE}
 
-## Prices
+iti_marks_gender_cat_reg_data <- iti_marks_and_cutoffs_2023
+iti_marks_gender_cat_reg_data$gender <- relevel(factor(iti_marks_gender_cat_reg_data$gender),ref="Male")
 
-## Quantities / Subscription
+iti_marks_gender_cat_reg_data$social_category <- relevel(factor(iti_marks_gender_cat_reg_data$social_category),ref="UR")
 
-## Gender
+iti_marks_gender_cat_reg_data$trade <- relevel(factor(iti_marks_gender_cat_reg_data$trade),
+                                               ref = "Electrician (NSQF)")
+iti_marks_gender_cat_reg_data <- iti_marks_gender_cat_reg_data %>% 
+  mutate(
+    coarse_board = case_when(
+      grepl("Odisha",highest_qualification_exam_board) ~ "BSE Odisha",
+      grepl("Central", highest_qualification_exam_board) ~ "CBSE",
+      TRUE ~ "Other"
+    )
+  )
+iti_marks_gender_cat_reg_data$coarse_board <- relevel(factor(iti_marks_gender_cat_reg_data$coarse_board),ref = "Other")
 
-Government is fixing both prices and quantities. 
+model1 <- lm(percentage ~ gender + social_category, data = iti_marks_gender_cat_reg_data)
+model2 <- lm(percentage ~ gender + social_category + trade, data=iti_marks_gender_cat_reg_data)
+model3 <- lm(percentage ~ gender + social_category + coarse_board + trade, data=iti_marks_gender_cat_reg_data)
+summary(model3)
+
+
+
+
+
+
+```
+
+
+* While the vast majority of students come from the Odisha state board, we see some other boards like CBSE as well
+
+```{r Boards, echo=FALSE, include=TRUE}
+boards_marks %>% head(5) %>% kable(caption = "Summary statistics on marks by board") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+  
+
+  
+
+```
+
+* We can summarize average marks by social category and demographics, within different trades and different boards by running a fixed-effects regression. 
+
+* The goal here is to *summarize* data; we do not treat the models themselves seriously.
+
+```{r Stargazer of marks on demographics by trade, echo=FALSE, results='asis'}
+model_results <- stargazer(model1, model2, model3, omit="^trade",
+          type = "html",          # Use "text" for console, "html" for HTML output in RMarkdown
+          title = "Marks by demographic characteristics",
+          dep.var.labels = c("Marks (%)"),
+          covariate.labels = c("Female", "Green Card", "Phys. Disabled", "Scheduled Caste", "Scheduled Tribe", "BSE Odisha", "CBSE"),
+          out.header = FALSE,
+          align = TRUE,
+          no.space = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+* The estimated models have the same specifications in demographics
+    * Model (2) uses within trade estimates (trade fixed-effects).
+    * Model (3) = Model (2) + board fixed effects where we have classified the boards into "BSE Odisha", "CBSE", and "Other".
+    * The constant in model (1) represents average marks for unreserved male students.
+    * The constant in model (2) represents average marks for unreserved male students in the electrician trade.
+    * The constant in model (3) represents average marks for unreserved male students in the electrician trade who graduated from some "Other" board.
+* The model is missing interaction terms, which is why the coefficient estimates may not add up to within gender X category means.
+
+### Cutoffs
+
+Average cutoffs are low throughout ITIs 
+
+```{r Average cutoffs by trade and demographics, echo=FALSE,include=TRUE}
+cutoffs_trade_demographics %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
+    kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+```{r Average cutoffs by trade and gender, echo=FALSE,include=TRUE}
+cutoffs_trade_gender %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
+    kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+Now we can use the fixed-effects regression approach as before to also look at how cutoffs differ between private and government ITIs.
+
+```{r Average cutoffs by trade, gender, demographics, and type of institute, echo=FALSE,include=FALSE}
+
+# Coarsen up social category
+iti_cutoffs_2023 <- iti_cutoffs_2023 %>% mutate(
+  coarse_cat = case_when(
+    social_category == "SC" ~ "SC",
+    social_category == "ST" ~ "ST",
+    social_category == "UR" ~ "UR",
+    TRUE ~ "Other"
+  )
+)
+
+# Set up levels
+iti_cutoffs_2023$coarse_cat <- relevel(factor(iti_cutoffs_2023$coarse_cat), ref="UR")
+iti_cutoffs_2023$gender <- relevel(factor(iti_cutoffs_2023$gender), ref="Male")
+iti_cutoffs_2023$type_of_institute <- relevel(factor(iti_cutoffs_2023$type_of_institute), ref="Pvt.")
+iti_cutoffs_2023$trade <- relevel(factor(iti_cutoffs_2023$trade), ref= "Electrician (NSQF)")
+
+# Estimate models
+model1 <- lm(cutoff ~ type_of_institute + gender, iti_cutoffs_2023)
+model2 <- lm(cutoff ~ type_of_institute + gender + coarse_cat, iti_cutoffs_2023)
+model3 <- lm(cutoff ~ type_of_institute + gender + coarse_cat + trade, iti_cutoffs_2023)
+
+
+
+
+```
+
+
+```{r Stargazer of cutoffs on social category, gender, trade, and type, echo=FALSE, results='asis'}
+model_results <- stargazer(model1, model2, model3, omit="^trade",
+          type = "html",          # Use "text" for console, "html" for HTML output in RMarkdown
+          title = "Cutoffs by social category, gender, trade, and type in 2023",
+          dep.var.labels = c("Marks (%)"),
+          covariate.labels = c("Govt.", "Female", "Other","SC", "ST"),
+          out.header = FALSE,
+          align = TRUE,
+          no.space = TRUE,
+          star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+
+The uniformly low *average* cutoffs obscure the variation in cutoffs across institutes and trades. The distribution of cutoffs for general, male candidates suggests that there's substantial heterogeneity in institutional quality and trade competitiveness.
+
+```{r Variation in cutoffs, echo=FALSE, include=TRUE}
+cutoffs_ur_male <- iti_cutoffs_2023 %>% filter(coarse_cat == "UR", gender == "Male")
+var_cutoffs <- sd(cutoffs_ur_male$cutoff)
+var_cutoffs <- sprintf("%.1f",var_cutoffs)
+
+ggplot(cutoffs_ur_male, aes(x = cutoff)) +
+  geom_histogram(
+    binwidth = 10,                 # Set bin width
+    fill = "#4C72B0",             # Color for the bars
+    color = "black",              # Outline color
+    alpha = 0.8                   # Transparency
+  ) +
+  labs(
+    title = "Distribution of cutoffs for general male candidates",
+    x = "Cutoff (%)",
+    y = "Frequency"
+  ) + theme_minimal()
+
+```
+
+
+The standard deviation of the cutoff distribution is `r var_cutoffs`.
+
+
+## Distance from home
+
+
+```{r Load tables for distance analysis, echo=FALSE, include=FALSE}
+distance_excel_path <- file.path(paths$TABLES_DIR, "distance.xlsx")
+sheet_names <- getSheetNames(distance_excel_path)
+distance_by_type <- read.xlsx(
+  distance_excel_path,
+  sheet_names[1]
+)
+
+```
+
+```{r Summary stats on distance by type of institute, echo=FALSE,include=TRUE}
+distance_by_type %>% kable(caption="Summary stats on distance from home")  %>%
+    kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+
+```
+
+Students travel slightly longer distances to private ITIs; this could be because public ITIs are even further away. It could also suggest that they are not eligible for public ITIs / trades that they are interested in.
+
+```{r Density of distance to ITI, echo=FALSE, include=TRUE, warning=FALSE}
+
+ggplot(iti_enrollments_2023, aes(x=distance, fill="red")) +
+  geom_density(alpha=0.2) +
+  theme_minimal() + scale_x_continuous(limits=c(0, 500)) +
+  labs(title="Density of Distance between home and institute", x="Distance in Kilometers", y="Density") + guides(fill="none")
+
+```
+
+```{r Density of distance by type, echo=FALSE, include=TRUE, warning=FALSE}
+ggplot(iti_enrollments_2023, aes(x=distance, fill=type_of_institute)) +
+  geom_density(alpha=0.2) +
+  theme_minimal() + scale_x_continuous(limits=c(0, 500)) +
+  labs(title="Density of Distance between home and institute", x="Distance in Kilometers", y="Density") + labs(fill = "Type of institute")
+
+```
+
+We can examine the dynamics of the length of commute over time
+
+```{r Distance over time, echo=FALSE, include=TRUE, warning=FALSE}
+
+ggplot(iti_enrollments, aes(x = academic_year, y = distance)) +
+  geom_smooth(method = "lm", se = TRUE) +  
+  coord_trans(y = "log10") +
+  labs(x = "Year", y = "Average distance travelled (km)") +
+  theme_minimal()
+
+
+```
+
+We see a small decline in the length of commute which seems largely unrelated to a change in the number of institutes; indeed the number of institutions has remained roughly flat since 2018
+
+```{r Number of institutes, echo=FALSE, include=TRUE}
+num_institutes <- iti_enrollments %>% distinct(sams_code, academic_year, type_of_institute) %>% filter(academic_year > 2017)
+
+ggplot(num_institutes, aes(x=academic_year, fill = type_of_institute)) +
+  geom_bar()  + scale_fill_brewer("Dark2", name= "Type of institute") + labs(x = "Year", y = "Num. institutes", fill = "Type of institute") +
+  theme_minimal()
+
+```
+
+
+Different social groups may be disproportionately affected by the length of the commute.
+
+```{r Distance travelled over time by social category, echo=FALSE, include=TRUE, warning=FALSE}
+distance_over_time <- iti_enrollments %>% filter(gender %in% c("Male","Female"))
+ggplot(distance_over_time, aes(x = academic_year, y = distance, color = social_category, group = social_category)) +
+  geom_smooth(method = "lm", se = TRUE) +  
+  coord_trans(y = "log10") +
+  labs(x = "Year", y = "Average distance travelled (km)", color = "Social category") +
+  theme_minimal()
+
+```
+
+
+```{r Distance travelled over time by gender, echo=FALSE, include=TRUE}
+ggplot(distance_over_time, aes(x = academic_year, y = distance, color = gender, group = gender)) +
+  geom_smooth(method = "lm", se = TRUE) +  
+  coord_trans(y = "log10") +
+  labs(x = "Year", y = "Average distance travelled (km)", color = "Gender") +
+  theme_minimal()
+```
+
+
+
+## Over/undersubscription
+
+## Geography
+
+## Price
+
+TODO
+
+## Annex
+
 
 
 
