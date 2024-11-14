@@ -307,10 +307,13 @@ def iti_vacancies(geocoded_iti_enrollment: pd.DataFrame, iti_institutes_strength
     iti_strength = iti_institutes_strength[iti_institutes_strength["category"] == "Total"]
     iti_enrollments_strength = pd.merge(
         iti_enrollments_agg, iti_strength, left_on=["sams_code","academic_year","reported_branch_or_trade"], right_on=["sams_code","academic_year","trade"],
-        how="outer", indicator=True
+        how="inner", indicator=False
     )
     iti_enrollments_strength.rename(columns={"aadhar_no": "enrollment"}, inplace=True)
-    iti_enrollments_strength["vacancy_ratio"] = iti_enrollments_strength["enrollment"] / iti_enrollments_strength["strength"]
+    iti_enrollments_strength["vacancies"] = iti_enrollments_strength["strength"] - iti_enrollments_strength["enrollment"]
+    iti_enrollments_strength["vacancy_ratio"] = iti_enrollments_strength["vacancies"] / iti_enrollments_strength["strength"]
+    iti_enrollments_strength.drop(columns=["branch","reported_branch_or_trade"], inplace=True)
+    iti_enrollments_strength[["enrollment","strength","vacancies"]] = iti_enrollments_strength[["enrollment","strength","vacancies"]].astype(int)
     return iti_enrollments_strength
 
 # ===== Saving data =====
