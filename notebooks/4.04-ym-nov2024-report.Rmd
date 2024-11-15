@@ -59,8 +59,32 @@ iti_cutoffs_2023 <- iti_cutoffs %>% filter(academic_year == 2023)
 
 ```
 
+# Executive summary
 
-# Goals for the report
+# An overview of SAMS
+
+## Enrollment
+
+## Institutes
+
+## Trades
+
+# The vocational training pipeline
+
+# Student demographics
+
+# Student qualifications and marks
+
+# The geography of vocational training
+
+
+
+
+
+
+
+
+<!-- # Goals for the report
 The long-term goal of this analysis is to uncover motivations and patterns behind students’ enrollment in vocational training program and uncover factors influencing choice based on gender and social demographics. Of principal interest to us is
 
 * What types of students decide to enroll in vocational training programs?
@@ -75,7 +99,7 @@ The long-term goal of this analysis is to uncover motivations and patterns behin
 * Are there certain trades that are "oversubscribed", in that the government has not provided enough seats in those trades despite demand?
     * Conversely, are some other trades "undersubscribed", and perhaps resources are better allocated in other trades?
 
-The following exhibits serve as a scoping exercise for the report due at the end of the month.
+The following exhibits serve as a scoping exercise for the report due at the end of the month. -->
 
 # Raw exhibits
 
@@ -712,7 +736,7 @@ female_share_by_district %>% kable(caption = "Female share by district") %>%
 
 TODO -- Need to collect more price information
 
-## Annex
+
 
 
 
