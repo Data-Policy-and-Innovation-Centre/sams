@@ -19,11 +19,11 @@ export PYTHONPATH := $(PROJECT_ROOT):$(PYTHONPATH)
 #################################################################################
 
 # Run pipelines
-run:
-	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/run.py
+clean_data:
+	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/preprocess_data.py
 
 # Command to create the environment
-create_env:
+env:
 	conda env create -f $(ENV_FILE)
 
 	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
@@ -39,7 +39,7 @@ remove_env:
 	conda env remove -n $(PROJECT_NAME)
 
 # Delete all compiled Python files and interim datasets
-clean:
+reset:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type f -name '*.log' -exec rm -f {} +
@@ -51,12 +51,6 @@ clean:
 sams_db:
 	@echo "Running build_sams_db.py with PYTHONPATH=$(PYTHONPATH)"
 	$(PYTHON_INTERPRETER) $(BUILD_SAMS_SCRIPT)
-
-# Preprocessing
-preprocess:
-	@ echo "Running preprocess_data.py..."
-	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/preprocess_data.py
-
 
 # Tests
 tests:
