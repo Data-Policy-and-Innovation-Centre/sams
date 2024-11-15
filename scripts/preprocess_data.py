@@ -1,19 +1,26 @@
-from sams.preprocessing import nodes
-import pandas as pd
-import sqlite3
-from sams.config import datasets
-from loguru import logger
-
-# Load raw data
-logger.info("Loading raw data from SQLite database")
-con = sqlite3.connect(datasets["sams"]["path"])
-df_diploma = pd.read_sql_query("SELECT * FROM students WHERE module = 'Diploma';", con)
-
-# Preprocess Diploma students enrollment
-logger.info("Preprocessing Diploma students enrollment")
-df_diploma_enrollment = nodes.preprocess_diploma_students_enrollment_data(df_diploma)
+from hamilton import driver
+from sams.preprocessing import pipeline as interim_pipeline
+import sys
 
 
-# Preprocess Diploma students marks
-logger.info("Preprocessing Diploma students marks")
-df_diploma_marks = nodes.preprocess_students_marks_data(df_diploma)
+def main(args):
+    if len(args) < 2:
+        build = False
+        final_vars = [
+            "save_interim_iti_diploma_students",
+            "save_interim_diploma_institutes",
+            "save_interim_iti_students",
+            "save_interim_iti_institutes"
+        ]
+    else:
+        build = args[1] == "build"
+        final_vars = args[2:]
+
+    dr = driver.Builder().with_modules(interim_pipeline).with_cache().build()
+    
+    inputs = dict(build=build, google_maps=True)
+    dr.execute(final_vars=final_vars, inputs=inputs)
+
+
+if __name__ == "__main__":
+    main(sys.argv)
