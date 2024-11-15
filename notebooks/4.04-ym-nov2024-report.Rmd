@@ -65,7 +65,22 @@ iti_cutoffs_2023 <- iti_cutoffs %>% filter(academic_year == 2023)
 
 ## Enrollment
 
+* Exhibit: Table/Figure on enrollment over time in ITIs and Diploma institutes
+
+* Exhibit: Table/Figure on enrollment over time (%) by pvt vs govt for ITIs
+
+* Exhibit: Table/Figure on enrollment over time (%) by pvt vs govt for Diplomas
+
+* Exhibit: Summary stats on number of students in ITIs and 
+
+
 ## Institutes
+
+* Exhibit: Table on institutes over time (ITI/Diploma)
+
+* Exhibit: Table on institutes over time by pvt vs govt for ITIs
+
+* Exhibits: Table on institutes over time by pvt vs govt for Diplomas
 
 ## Trades
 
