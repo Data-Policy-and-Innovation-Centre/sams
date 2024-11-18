@@ -46,14 +46,18 @@ for path in [
         path.mkdir(parents=True, exist_ok=True)
 
 # Data catalog
-with open(CONFIG / "datasets.yaml") as f:
-    datasets = yaml.safe_load(f)
-    datasets = datasets["datasets"]
+with open(CONFIG / "catalog.yaml") as f:
+    catalog = yaml.safe_load(f)
+    datasets = catalog["datasets"]
+    exhibits = catalog["exhibits"]
 
 SAMS_DB = PROJ_ROOT / Path(datasets["sams"]["path"])
 
 for name in datasets:
     datasets[name]["path"] = PROJ_ROOT / Path(datasets[name]["path"])
+
+for name in exhibits:
+    exhibits[name]["path"] = PROJ_ROOT / Path(exhibits[name]["path"])
 
 
 # Auth

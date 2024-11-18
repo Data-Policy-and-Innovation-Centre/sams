@@ -83,3 +83,8 @@ datasets:
     type: parquet
     path: "data/processed/iti_vacancies.pq"
     layer: processed
+
+exhibits:
+  students_enrollments:
+    type: excel
+    path: "output/tables/students_enrollments.xlsx"
