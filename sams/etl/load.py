@@ -20,7 +20,7 @@ from tqdm import tqdm
 import time
 from loguru import logger
 from sams.config import ERRMAX, RAW_DATA_DIR, LOGS
-from sams.util import (
+from sams.utils import (
     dict_camel_to_snake_case,
     find_null_column,
     stop_logging_to_console,

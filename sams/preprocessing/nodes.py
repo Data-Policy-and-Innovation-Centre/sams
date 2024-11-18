@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
-from sams.util import dict_camel_to_snake_case, flatten, geocode
+from sams.utils import dict_camel_to_snake_case, flatten, geocode
 from loguru import logger
 from sams.config import GEOCODES, GEOCODES_CACHE
 import pickle

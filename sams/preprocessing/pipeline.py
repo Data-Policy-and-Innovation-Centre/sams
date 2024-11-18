@@ -14,7 +14,7 @@ import sqlite3
 from sams.config import PROJ_ROOT, LOGS, SAMS_DB, datasets
 from sams.etl.orchestrate import SamsDataOrchestrator
 from sams.etl.extract import SamsDataDownloader
-from sams.util import save_data, hours_since_creation
+from sams.utils import save_data, hours_since_creation
 from sams.preprocessing.nodes import (
     preprocess_iti_students_enrollment_data,
     preprocess_diploma_students_enrollment_data,

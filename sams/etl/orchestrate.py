@@ -4,7 +4,7 @@ from sams.etl.extract import SamsDataDownloader
 from sams.etl.load import SamsDataLoader
 from sams.etl.validate import validate
 from sams.config import STUDENT, LOGS, INSTITUTE, SAMS_DB
-from sams.util import stop_logging_to_console, resume_logging_to_console
+from sams.utils import stop_logging_to_console, resume_logging_to_console
 import pandas as pd
 
 

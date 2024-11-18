@@ -29,6 +29,25 @@ def save_data(df: pd.DataFrame, metadata: dict):
 
     logger.info(f"Data saved to {path}")
 
+def load_data(metadata: dict) -> pd.DataFrame:
+    path = metadata["path"]
+    filetype = metadata["type"]
+    logger.info(f"Loading data from {path}")
+
+    if filetype == "csv":
+        return pd.read_csv(path)
+    elif filetype == "excel":
+        return pd.read_excel(path)
+    elif filetype == "parquet":
+        return pd.read_parquet(path)
+    elif filetype == "json":
+        return pd.read_json(path, orient="records")
+    elif filetype == "feather":
+        return pd.read_feather(path)
+    else:
+        raise ValueError(f"Invalid file type: {filetype}")
+    
+    
 
 def geocode(addr: str, google_maps: bool) -> Location | None:
     if addr in GEOCODES:
@@ -47,7 +66,6 @@ def geocode(addr: str, google_maps: bool) -> Location | None:
         except Exception as e:
             logger.error(f"Error geocoding address {addr}: {e}")
             return None
-
 
 def is_valid_date(date_string: str) -> tuple[bool, datetime | None]:
     formats = [

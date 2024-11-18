@@ -3,7 +3,7 @@ from sams.etl.extract import SamsDataDownloader
 from sams.config import PROJ_ROOT, LOGS, SAMS_DB
 from pathlib import Path
 from loguru import logger
-from sams.util import hours_since_creation
+from sams.utils import hours_since_creation
 
 if not Path(PROJ_ROOT / ".env").exists():
     raise FileNotFoundError(f".env file not found at {PROJ_ROOT}/.env")

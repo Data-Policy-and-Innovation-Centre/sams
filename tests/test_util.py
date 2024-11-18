@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 import pandas as pd
 from unittest.mock import patch, mock_open
-from sams.util import (
+from sams.utils import (
     is_valid_date,
     camel_to_snake_case,
     dict_camel_to_snake_case,
