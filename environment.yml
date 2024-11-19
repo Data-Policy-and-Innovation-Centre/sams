@@ -33,4 +33,5 @@ dependencies:
     - plotnine
     - pytest
     - geopy
+    - geopandas
     - -e .
