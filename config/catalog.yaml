@@ -85,6 +85,18 @@ datasets:
     layer: processed
 
 exhibits:
-  students_enrollments:
+  students_enrollment_basics:
     type: excel
-    path: "output/tables/students_enrollments.xlsx"
+    path: "output/tables/enrollment.xlsx"
+
+  institutes_basics:
+    type: excel
+    path: "output/tables/institutes.xlsx"
+
+  trades_and_branches_basics:
+    type: excel
+    path: "output/tables/trades_and_branches.xlsx"
+
+  pipeline:
+    type: excel
+    path: "output/tables/static/pipeline.xlsx"

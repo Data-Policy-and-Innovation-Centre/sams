@@ -2,20 +2,20 @@
 title: "SAMS Data Analysis"
 author: "Data, Policy, and Innovation Centre"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
+always_allow_html: true
 output:
-  html_document:
-    theme: journal
-    mathjax: default
+  word_document:
     toc: true
     toc_depth: 3
     fig_caption: true
     keep_md: false           # Choose whether to keep the intermediate .md file
     df_print: paged         # Prints data frames as paginated tables
+    reference_docx: "template.docx" 
 ---
 
 ```{r Load configuration, include=FALSE, eval=FALSE, echo=FALSE}
 library(here)
-rm(list = ls())
+ rm(list = ls())
 
 here::i_am("README.md")
 here()
@@ -61,36 +61,407 @@ iti_cutoffs_2023 <- iti_cutoffs %>% filter(academic_year == 2023)
 
 # Executive summary
 
+*Fill in later*
+
+\newpage
+
 # An overview of SAMS
 
-## Enrollment
+The Student Academic Management System (SAMS) is a digital platform developed and deployed by the Government of Odisha to streamline the admission and administration processes across various levels of education in the state. It serves as a one-stop solution for managing academic workflows, primarily focusing on admissions, academic tracking, and data management. Initially introduced in 2010 for higher secondary education, SAMS has expanded to encompass higher education and vocational training, making it a pivotal tool for educational governance in Odisha.
+
+## Key features
+
+* Centralized Admission Process
+      SAMS facilitates online applications for admissions across higher secondary schools, colleges, ITIs, and vocational training institutions. This unified system ensures:
+
+    * Transparency in the selection process.
+    * Equal access to educational opportunities.
+    * Minimization of manual intervention and associated errors.
+
+* Multi-Tier Educational Coverage
+    The platform covers the following educational sectors:
+
+    * Higher Secondary Education (Class XI-XII): Admissions into schools offering Science, Commerce, and Arts streams.
+    * Higher Education (Undergraduate Programs): Colleges offering general and professional degree programs.
+    * Vocational and Skill-Based Training: Industrial Training Institutes (ITIs) and Diploma courses in engineering and other trades.
+    * Post-Diploma and Advanced Courses: Specialized technical and professional courses.
+
+* End-to-End Digital Process
+  SAMS integrates and digitizes the student application experience:
+
+    * Digital registration and application submission.
+    * Real-time merit-based seat allocation.
+
+## The SAMS database as a resource for policy analysis
+
+SAMS has proven to be a transformative tool for streamlining admissions across various levels of education in Odisha. It has successfully automated processes, enhanced transparency, and lessened the administrative burden on individual institutions. However, while the platform hosts a rich repository of data on student demographics, academic performance, enrollment patterns, and institutional capacities, this information remains underutilized for analytics-driven decision-making and policy formulation.
+
+The primary focus of SAMS has been operational, such as managing admissions and tracking seats across institutions. However, the data generated from these processes is rarely used to identify trends or address systemic issues in education. Despite the capability to generate real-time reports, the data is seldom used to monitor emerging trends or respond proactively to challenges, such as the underutilization of seats in certain programs and regional / socioeconomic disparities in access to education. 
+
+# The state of vocational training in Odisha 
+
+*Add introduction describing vocational training in Odisha and describe how the SAMS analysis showcases the richness of the SAMS data and highlights its ability to help policymakers and adminstrators make data-driven decisions*
+
+##  Overview
+
+*Describe the variables captured in the data*
+
+### Enrollment
+
+```{r Load basic enrollment tables, echo=FALSE, include=FALSE}
+
+path <- get_exhibit("students_enrollment_basics")
+sheet_names <- getSheetNames(path)
+enrollments_over_time <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+iti_time_type <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+diploma_time_type <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+```
+
+
 
 * Exhibit: Table/Figure on enrollment over time in ITIs and Diploma institutes
 
+```{r Enrollment over time, echo=FALSE, include=FALSE}
+html_table <- enrollments_over_time %>% kable( caption = "Enrollment over time") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+# Check why this table doesn't match tables below
+
+```
+
+
 * Exhibit: Table/Figure on enrollment over time (%) by pvt vs govt for ITIs
+
+```{r Enrollment over time in ITIs by type, echo=FALSE}
+html_table <- iti_time_type %>% kable( caption = "Enrollment at ITIs over time by type of institute") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
 
 * Exhibit: Table/Figure on enrollment over time (%) by pvt vs govt for Diplomas
 
-* Exhibit: Summary stats on number of students in ITIs and 
+
+```{r Enrollment over time in Diplomas by type, echo=FALSE}
+html_table <- diploma_time_type %>% kable( caption = "Enrollment in Diplomas over time by type of institute") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
 
 
-## Institutes
+
+### Institutes
+
+```{r Load institutes basics tables, include=FALSE, echo=FALSE}
+path <- get_exhibit("institutes_basics")
+sheet_names <- getSheetNames(path)
+num_iti_over_time <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+num_diploma_over_time <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+all_over_time <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+
+num_itis_time_type <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+
+num_diploma_time_type <- read.xlsx(
+  path,
+  sheet_names[5]
+)
+
+top_10_iti_enrollment <- read.xlsx(
+  path,
+  sheet_names[6]
+)
+
+top_10_diploma_enrollment <- read.xlsx(
+  path,
+  sheet_names[7]
+)
+
+
+```
+
 
 * Exhibit: Table on institutes over time (ITI/Diploma)
 
+
+
+```{r Num ITIs over time, echo=FALSE}
+html_table <- num_iti_over_time %>% kable( caption = "Num. ITIs over time") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Num Diploma over time, echo=FALSE}
+html_table <- num_diploma_over_time %>% kable( caption = "Num. Diploma institutes over time") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
 * Exhibit: Table on institutes over time by pvt vs govt for ITIs
 
-* Exhibits: Table on institutes over time by pvt vs govt for Diplomas
 
-## Trades
+```{r ITI enrollment over time by type, echo=FALSE}
+html_table <- num_itis_time_type %>% kable( caption = "Num. ITIs over time by type of institute") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
-# The vocational training pipeline
+print_table_to_word(html_table)
 
-# Student demographics
+```
 
-# Student qualifications and marks
 
-# The geography of vocational training
+* Exhibit: Table on institutes over time by pvt vs govt for Diplomas
+
+
+
+```{r Diploma enrollment over time by type, echo=FALSE}
+html_table <- num_diploma_time_type %>% kable( caption = "Num. Diploma institutes over time by type of institute") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
+* Exhibit: Top 10 institutes by enrollment in 2023 for ITIs
+
+```{r Top 10 ITIs in 2023 by enrollment, echo=FALSE}
+html_table <- top_10_iti_enrollment %>% kable( caption = "Top 10 ITIs by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+* Exhibit: Top 10 institutes by enrollment in 2023 for Diplomas
+
+
+```{r Top 10 Diplomas in 2023 by enrollment, echo=FALSE}
+html_table <- top_10_diploma_enrollment %>% kable( caption = "Top 10 ITIs by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
+
+* Exhibit: Summary stats on enrollment in institutions over time by pvt vs govt
+
+
+### Branches and trades
+
+```{r Load branches and trades tables, echo=FALSE, include=FALSE}
+path <- get_exhibit("trades_and_branches_basics")
+sheet_names <- getSheetNames(path)
+trades_over_time <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+branches_over_time <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+top_10_itis_num_trades <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+top_10_diploma_num_branches <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+top_10_trades  <- read.xlsx(
+  path,
+  sheet_names[5]
+)
+
+top_10_branches <-  read.xlsx(
+  path,
+  sheet_names[6]
+)
+
+```
+
+
+* Exhibit: Total number of trades offered by ITIs over time
+
+```{r Trades over time, include=TRUE, echo=FALSE}
+
+html_table <- trades_over_time %>% kable( caption = "Num. ITI trades offered over time") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+* Exhibit: Total number of branches in Diploma institutes over time
+
+
+```{r Branches over time, include=TRUE, echo=FALSE}
+
+html_table <- branches_over_time %>% kable( caption = "Num. Diploma branches offered over time") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+* Exhibit: The top 10 trades by enrollment at ITIs in 2023
+
+```{r Top 10 trades by enrollment in 2023, include=TRUE, echo=FALSE}
+
+html_table <- top_10_trades %>% kable( caption = "Top 10 ITI trades by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+* Exhibit: The top 10 branches by enrollment at Diplomas in 2023
+
+
+```{r Top 10 branches by enrollment in 2023, include=TRUE, echo=FALSE}
+
+html_table <- top_10_branches %>% kable( caption = "Top 10 Diploma branches by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+* Exhibit: The top 10 institutes by num. trades offered in 2023 for ITIs 
+
+
+```{r Top 10 ITIs by num. trades offered, include=TRUE, echo=FALSE}
+
+html_table <- top_10_itis_num_trades %>% kable( caption = "Top 10 ITIs by num. trades offered in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+* Exhibit: The top 10 institutes by num. branches in 2023 for Diplomas
+
+
+```{r Top 10 Diplomas by num. branches, include=TRUE, echo=FALSE}
+
+html_table <- top_10_diploma_num_branches %>% kable( caption = "Top 10 Diplomas by number of branches in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+## The vocational training pipeline
+
+```{r Load pipeline data, echo=FALSE, include=FALSE}
+path <- 
+
+```
+
+
+* Exhibit: Student enrollment after class 10 over time
+
+* Exhibit: Gap between 10th graduation and enrollment
+
+## Student demographics
+
+* Exhibit: Share of students by gender over time for ITIs
+
+* Exhibit: Share of students by gender over time for Diplomas
+
+* Exhibit: Students by social category over time for ITIs
+
+* Exhibit: Students by social category over time for Diplomas
+
+* Exhibit: Crosstabulation of students by gender and social category in 2023 for ITIs
+
+* Exhibit: Crosstabulation of students by gender and social category in 2023 for Diploma
+
+* Exhibit: Crosstabulation of students by income and social category in 2023 for ITI
+
+* Exhibit: Crosstabulation of students by income and social category in 2023 for Diploma
+
+* Exhibit: Top 10 trades with highest representation of general category students in 2023
+
+* Exhibit: Top 10 trades with highest representation of SC students in 2023
+
+* Exhibit: Top 10 trades with highest representation of ST students in 2023
+
+* Exhibit: Top 10 trades with highest representation of women and girls in 2023
+
+## Student qualifications and marks
+
+* Exhibit: Number / share of students by highest qualification in ITIs in 2023
+
+* Exhibit: Number / share of students by highest qualification in Diplomas in 2023
+
+* Exhibit: Highest qualification by social category in 2023
+
+* Exhibit: Highest qualification by gender in 2023
+
+* Exhibit: Distribution of 10th grade marks for ITI students
+
+* Exhibits: *Select others from annex*
+
+
+## Seat utilization and vacancies
+
+* Exhibits: *Select from annex*
+
+## The geography of vocational training
+
+* Exhibits: *Select distance exhibits from annex*
+
+\newpage
 
 
 
@@ -116,7 +487,7 @@ The long-term goal of this analysis is to uncover motivations and patterns behin
 
 The following exhibits serve as a scoping exercise for the report due at the end of the month. -->
 
-# Raw exhibits
+# Annex: Exhibit repository
 
 ## Trades and qualifications
 
@@ -170,13 +541,18 @@ qual_by_soc_pct <- read.xlsx(
 
 ```{r Highest qualifications raw, include=FALSE, echo=FALSE}
 
- trades_by_quals %>% kable( caption = "Trades by highest qualifications") %>%
+html_table <- trades_by_quals %>% kable( caption = "Trades by highest qualifications") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+ 
 ```
 
 ```{r Highest qualifications shares, include=TRUE, echo=FALSE}
-trades_by_quals_pct %>% head(10) %>% kable( caption = "Top 10 trades with highest share of college graduates") %>%
+html_table <- trades_by_quals_pct %>% head(10) %>% kable( caption = "Top 10 trades with highest share of college graduates") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 * Some trades show a particularly high share of graduates
@@ -184,29 +560,37 @@ trades_by_quals_pct %>% head(10) %>% kable( caption = "Top 10 trades with highes
     
 ```{r Trades by gender, include=TRUE, echo=FALSE}
 top_10_trades_by_quals_grad <- trades_by_quals_pct %>% head(10)
-trades_by_gender_pct %>% right_join(top_10_trades_by_quals_grad,by="Trade") %>% select(Trade,Male,Female, Total.x) %>% rename(Total = Total.x) %>% kable( caption = "Top 10 trades by highest share of college graduates, sorted by gender (%)") %>%
+html_table <- trades_by_gender_pct %>% right_join(top_10_trades_by_quals_grad,by="Trade") %>% select(Trade,Male,Female, Total.x) %>% rename(Total = Total.x) %>% kable( caption = "Top 10 trades by highest share of college graduates, sorted by gender (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
 
 ```{r Qualification by gender, echo=FALSE, include=TRUE}
-qual_by_gender_pct %>%  kable( caption = "Highest qualification by gender (%)") %>%
+html_table <- qual_by_gender_pct %>%  kable( caption = "Highest qualification by gender (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Trades by social category, echo=FALSE, include=TRUE}
-trades_by_soc_pct %>% head(20) %>%  kable( caption = "Trades by social category in 2023 (%)") %>%
+html_table <- trades_by_soc_pct %>% head(20) %>%  kable( caption = "Trades by social category in 2023 (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
  * Need to check if heavy sorting into trades is due to the geography of trade offerings.
  
 ```{r Qualifications by social category, echo=FALSE, include=TRUE}
-qual_by_soc_pct %>% kable( caption = "Qualifications by social category in 2023 (%)") %>%
+html_table <- qual_by_soc_pct %>% kable( caption = "Qualifications by social category in 2023 (%)") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
@@ -281,15 +665,21 @@ ggplot(iti_marks_and_cutoffs_2023, aes(x = percentage)) +
 ```
 
 ```{r Average marks by trade, echo=FALSE, include=TRUE}
-marks_by_trade %>% head(20) %>% kable( caption = "Summary statistics on marks by trade") %>%
+html_table <- marks_by_trade %>% head(20) %>% kable( caption = "Summary statistics on marks by trade") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
 
 ```
 
 ```{r Average marks by demographics, echo=FALSE,include=TRUE}
-marks_by_demographics %>% kable(caption = "Average marks by demographics") %>% 
+html_table <- marks_by_demographics %>% kable(caption = "Average marks by demographics") %>% 
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
-  
+
+print_table_to_word(html_table)
+
 
 ```
 
@@ -330,8 +720,10 @@ summary(model3)
 * While the vast majority of students come from the Odisha state board, we see some other boards like CBSE as well
 
 ```{r Boards, echo=FALSE, include=TRUE}
-boards_marks %>% head(5) %>% kable(caption = "Summary statistics on marks by board") %>%
+html_table <- boards_marks %>% head(5) %>% kable(caption = "Summary statistics on marks by board") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
   
 
   
@@ -342,7 +734,7 @@ boards_marks %>% head(5) %>% kable(caption = "Summary statistics on marks by boa
 
 * The goal here is to *summarize* data; we do not treat the models themselves seriously.
 
-```{r Stargazer of marks on demographics by trade, echo=FALSE, results='asis'}
+```{r Stargazer of marks on demographics by trade, echo=FALSE, include=FALSE}
 model_results <- stargazer(model1, model2, model3, omit="^trade",
           type = "html",          # Use "text" for console, "html" for HTML output in RMarkdown
           title = "Marks by demographic characteristics",
@@ -352,7 +744,14 @@ model_results <- stargazer(model1, model2, model3, omit="^trade",
           align = TRUE,
           no.space = TRUE,
           star.cutoffs = c(0.05, 0.01, 0.001))
+
+
 ```
+
+```{r Output stargazer of marks on demographics by trade, include=TRUE, echo=FALSE}
+print_table_to_word(model_results)
+```
+
 
 * The estimated models have the same specifications in demographics
     * Model (2) uses within trade estimates (trade fixed-effects).
@@ -367,15 +766,19 @@ model_results <- stargazer(model1, model2, model3, omit="^trade",
 Average cutoffs are low throughout ITIs 
 
 ```{r Average cutoffs by trade and demographics, echo=FALSE,include=TRUE}
-cutoffs_trade_demographics %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
+html_table <- cutoffs_trade_demographics %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
     kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
 
 ```{r Average cutoffs by trade and gender, echo=FALSE,include=TRUE}
-cutoffs_trade_gender %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
+html_table <- cutoffs_trade_gender %>% head(10) %>% kable(caption = "Average cutoffs by trade and social category in 2023") %>%
     kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
@@ -411,7 +814,7 @@ model3 <- lm(cutoff ~ type_of_institute + gender + coarse_cat + trade, iti_cutof
 ```
 
 
-```{r Stargazer of cutoffs on social category, gender, trade, and type, echo=FALSE, results='asis'}
+```{r Stargazer of cutoffs on social category, gender, trade, and type, echo=FALSE, include=FALSE}
 model_results <- stargazer(model1, model2, model3, omit="^trade",
           type = "html",          # Use "text" for console, "html" for HTML output in RMarkdown
           title = "Cutoffs by social category, gender, trade, and type in 2023",
@@ -423,7 +826,10 @@ model_results <- stargazer(model1, model2, model3, omit="^trade",
           star.cutoffs = c(0.05, 0.01, 0.001))
 ```
 
+```{r Output Stargazer of cutoffs on social category, gender, trade, and type, include=TRUE, echo=FALSE}
+print_table_to_word(model_results)
 
+```
 
 
 The uniformly low *average* cutoffs obscure the variation in cutoffs across institutes and trades. The distribution of cutoffs for general, male candidates suggests that there's substantial heterogeneity in institutional quality and trade competitiveness.
@@ -467,8 +873,10 @@ distance_by_type <- read.xlsx(
 ```
 
 ```{r Summary stats on distance by type of institute, echo=FALSE,include=TRUE}
-distance_by_type %>% kable(caption="Summary stats on distance from home")  %>%
+html_table <- distance_by_type %>% kable(caption="Summary stats on distance from home")  %>%
     kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
@@ -621,8 +1029,10 @@ bottom_10_trades_by_vacancy_ratio <- read.xlsx(
 
 ```{r Vacancy by trade, echo=FALSE, include=TRUE}
 
-vacancy_by_trade %>% kable(caption = "Summary stats on vacancies by trade in 2023") %>%
+html_table <- vacancy_by_trade %>% kable(caption = "Summary stats on vacancies by trade in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
   
 
 
@@ -631,96 +1041,122 @@ vacancy_by_trade %>% kable(caption = "Summary stats on vacancies by trade in 202
 
 ```{r Vacancy ratio by trade, echo=FALSE, include=TRUE}
 
-vacancy_ratio_by_trade %>% kable(caption = "Summary stats on vacancy ratios by trade in 2023") %>%
+html_table <- vacancy_ratio_by_trade %>% kable(caption = "Summary stats on vacancy ratios by trade in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
 
 ```{r Top 10 institutes by vacancy, echo=FALSE, include=TRUE}
-top_10_institutes_by_vacancy %>% kable(caption = "Top 10 institutes by vacancy in 2023") %>%
+html_table <- top_10_institutes_by_vacancy %>% kable(caption = "Top 10 institutes by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 ```{r Bottom 10 institutes by vacancy, echo=FALSE, include=TRUE}
 
-bottom_10_institutes_by_vacancy %>% kable(caption = "Bottom 10 institutes by vacancy in 2023") %>%
+html_table <- bottom_10_institutes_by_vacancy %>% kable(caption = "Bottom 10 institutes by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Top 10 institutes by vacancy ratio, echo=FALSE, include=TRUE}
-top_10_institutes_by_vacancy_ratio %>% kable(caption = "Top 10 institutes by vacancy ratio in 2023") %>%
+html_table <- top_10_institutes_by_vacancy_ratio %>% kable(caption = "Top 10 institutes by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Bottom 10 institutes by vacancy ratio, echo=FALSE, include=TRUE}
 
-bottom_10_institutes_by_vacancy_ratio %>% kable(caption = "Bottom 10 institutes by vacancy ratio in 2023") %>%
+html_table <- bottom_10_institutes_by_vacancy_ratio %>% kable(caption = "Bottom 10 institutes by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Top 10 districts by vacancy, echo=FALSE, include=TRUE}
-top_10_districts_by_vacancy %>% kable(caption = "Top 10 districts by vacancy in 2023") %>%
+html_table <- top_10_districts_by_vacancy %>% kable(caption = "Top 10 districts by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 ```{r Bottom 10 districts by vacancy, echo=FALSE, include=TRUE}
 
-bottom_10_districts_by_vacancy %>% kable(caption = "Bottom 10 districts by vacancy in 2023") %>%
+html_table <- bottom_10_districts_by_vacancy %>% kable(caption = "Bottom 10 districts by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Top 10 districts by vacancy ratio, echo=FALSE, include=TRUE}
-top_10_districts_by_vacancy_ratio %>% kable(caption = "Top 10 districts by vacancy ratio in 2023") %>%
+html_table <- top_10_districts_by_vacancy_ratio %>% kable(caption = "Top 10 districts by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Bottom 10 districts by vacancy ratio, echo=FALSE, include=TRUE}
 
-bottom_10_districts_by_vacancy_ratio %>% kable(caption = "Bottom 10 districts by vacancy ratio in 2023") %>%
+html_table <- bottom_10_districts_by_vacancy_ratio %>% kable(caption = "Bottom 10 districts by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 
 ```{r Top 10 trades by vacancy, echo=FALSE, include=TRUE}
-top_10_trades_by_vacancy %>% kable(caption = "Top 10 trades by vacancy in 2023") %>%
+html_table <- top_10_trades_by_vacancy %>% kable(caption = "Top 10 trades by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 ```{r Bottom 10 trades by vacancy, echo=FALSE, include=TRUE}
 
-bottom_10_trades_by_vacancy %>% kable(caption = "Bottom 10 trades by vacancy in 2023") %>%
+html_table <- bottom_10_trades_by_vacancy %>% kable(caption = "Bottom 10 trades by vacancy in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Top 10 trades by vacancy ratio, echo=FALSE, include=TRUE}
-top_10_trades_by_vacancy_ratio %>% kable(caption = "Top 10 trades by vacancy ratio in 2023") %>%
+html_table <- top_10_trades_by_vacancy_ratio %>% kable(caption = "Top 10 trades by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
 
 ```{r Bottom 10 trades by vacancy ratio, echo=FALSE, include=TRUE}
 
-bottom_10_trades_by_vacancy_ratio %>% kable(caption = "Bottom 10 trades by vacancy ratio in 2023") %>%
+html_table <- bottom_10_trades_by_vacancy_ratio %>% kable(caption = "Bottom 10 trades by vacancy ratio in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 ```
 
@@ -740,16 +1176,14 @@ female_share_by_district <- read.xlsx(
 
 
 ```{r Female share by district, echo=TRUE, include=TRUE}
-female_share_by_district %>% kable(caption = "Female share by district") %>%
+html_table <- female_share_by_district %>% kable(caption = "Female share by district") %>%
     kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
 
 
 ```
 
-
-## Price
-
-TODO -- Need to collect more price information
 
 
 
