@@ -89,11 +89,33 @@ def pivot_table(df: pd.DataFrame, index:str , values:str, aggfunc:str, round: in
         out = out.rename(columns={values: value_label})
     return out
 
-def save_table_excel(dfs: list[pd.DataFrame], sheet_names: list[str], outfile: str):
+def save_table_excel(dfs: list[pd.DataFrame], sheet_names: list[str], index: list[bool], outfile: str):
+    """
+    Save multiple DataFrames to an Excel file with specified sheet names.
 
+    Parameters
+    ----------
+    dfs : list[pd.DataFrame]
+        List of DataFrames to save to Excel.
+    sheet_names : list[str]
+        List of sheet names corresponding to each DataFrame.
+    index: list[bool]
+        List of booleans indicating whether to include the index column in each DataFrame.
+    outfile : str
+        Path to the output Excel file.
+
+    Raises
+    ------
+    ValueError
+        If the number of DataFrames does not match the number of sheet names.
+
+    """
     if len(dfs) != len(sheet_names):
         raise ValueError("The number of input DataFrames must be equal to the number of sheet names")
 
-    with pd.ExcelWriter(outfile, mode='w') as writer:
-        for df, sheet_name in zip(dfs, sheet_names):
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
+    if len(dfs) != len(index):
+        raise ValueError("The number of input DataFrames must be equal to the number of index bool values")
+
+    with pd.ExcelWriter(outfile, engine='openpyxl', mode='w') as writer:
+        for df, sheet_name, index in zip(dfs, sheet_names, index):
+            df.to_excel(writer, sheet_name=sheet_name, index=index)
