@@ -9,6 +9,11 @@ datasets:
     path: "data/external/iti_addresses.csv"
     layer: external
 
+  block_shapefiles:
+    type: shapefile
+    path: "data/external/shapefiles_odisha/block_boundaries/Odisha_Admin_Block_BND_2021.shp"
+    layer: external
+
   geocodes:
     type: parquet
     path: "data/interim/geocodes.pq"
