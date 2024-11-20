@@ -8,6 +8,7 @@ import re
 from tqdm import tqdm
 from geopy.exc import GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut
 from geopy import Location
+import geopandas as gpd
 
 
 def save_data(df: pd.DataFrame, metadata: dict):
@@ -44,6 +45,8 @@ def load_data(metadata: dict) -> pd.DataFrame:
         return pd.read_json(path, orient="records")
     elif filetype == "feather":
         return pd.read_feather(path)
+    elif filetype == "shapefile":
+        return gpd.read_file(path)
     else:
         raise ValueError(f"Invalid file type: {filetype}")
     
