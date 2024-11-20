@@ -1,12 +1,15 @@
 import pandas as pd
 from hamilton.function_modifiers import parameterize, value, source, datasaver
-from sams.config import datasets, exhibits
+from sams.config import datasets, exhibits, FIGURES_DIR
 from sams.utils import load_data
 from sams.analysis.utils import (
     pivot_table,
     save_table_excel
 )
 from loguru import logger
+from shapely.geometry import Point
+import geopandas as gpd
+import matplotlib.pyplot as plt
 
 # ========== Datasets ============
 @parameterize(
@@ -43,6 +46,12 @@ def institutes_strength(module: str) -> pd.DataFrame:
 )
 def institutes_enrollments(module: str) -> pd.DataFrame:
     return load_data(datasets[f"{module.lower()}_institutes_enrollments"])
+
+def geocodes() -> pd.DataFrame:
+    return load_data(datasets["geocodes"])
+
+def block_shapefiles() -> gpd.GeoDataFrame:
+    return load_data(datasets["block_shapefiles"])
 
 @parameterize(
     iti_marks_and_cutoffs=dict(module=value("ITI")),   
@@ -230,14 +239,54 @@ def top_10_diplomas_by_num_branches_2023(diploma_institutes_strength: pd.DataFra
     top_10_diplomas_by_num_branches_2023.drop("sams_code", axis=1, inplace=True)
     return top_10_diplomas_by_num_branches_2023
 
+
+def _num_students_in_blocks_geom(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame) -> pd.DataFrame:
+    students_by_location = student_enrollments_2023.groupby(["student_long", "student_lat"]).agg({"aadhar_no": "nunique"}).reset_index()
+    students_by_location = students_by_location.rename(columns={"aadhar_no": "Num. students"})
+    geometry = [Point(xy) for xy in zip(students_by_location["student_long"], students_by_location["student_lat"])]
+    students_by_location = gpd.GeoDataFrame(students_by_location, crs="EPSG:4326", geometry=geometry)
+    block_shapefiles = block_shapefiles.to_crs("EPSG:4326")
+    return students_by_location, block_shapefiles
+
+@parameterize(
+    map_iti_students_enrolled_2023=dict(student_enrollments_2023=source("iti_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
+    map_diploma_students_enrolled_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
+)
+def map_students_enrolled_2023(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
+    students_by_location, blocks = _num_students_in_blocks_geom(student_enrollments_2023, block_shapefiles)
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot the blocks (base layer)
+    blocks.plot(ax=ax, color="lightgrey", edgecolor="black")
+
+    # Plot the student locations as dots
+    # students_by_location.plot(ax=ax, color="red", markersize=students_by_location['Num. students'], label="Students")
+
+    # Add a legend
+    plt.legend()
+
+    # Add a title and axis labels
+    plt.title("Student Locations on Block Map")
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    fig.savefig(FIGURES_DIR / "map_students_enrolled_2023.pdf")
+
+    return fig
+        
+
 # ========== Save exhibits ============
 @datasaver()
 def students_enrollments_basics(combined_enrollments_over_time: pd.DataFrame, 
                          iti_enrollments_over_time_by_type: pd.DataFrame, 
                          diploma_enrollments_over_time_by_type: pd.DataFrame) -> dict:
     
-    tables = [combined_enrollments_over_time, iti_enrollments_over_time_by_type, diploma_enrollments_over_time_by_type]
-    sheet_names = ["Enrollments over time", "ITI Enrollments over time by type (%)", "Diploma Enrollments over time by type (%)"]
+    tables = [combined_enrollments_over_time, 
+            iti_enrollments_over_time_by_type,
+            diploma_enrollments_over_time_by_type]
+    sheet_names = ["Enrollments over time", 
+                   "ITI Enrollments over time by type (%)", 
+                   "Diploma Enrollments over time by type (%)"]
     file_path = exhibits["students_enrollment_basics"]["path"]
     metadata = {"path": file_path, "type": "excel"}
     save_table_excel(tables, sheet_names, index=[False, True, True], outfile=file_path)
@@ -291,6 +340,8 @@ def trades_and_branches_basics(trades_over_time: pd.DataFrame, branches_over_tim
     save_table_excel(tables, sheet_names, index=[False, False, False, False, False, False], outfile=file_path)
     logger.info(f"Trades and branches summary exhibits saved at: {file_path}")
     return metadata
+
+
     
     
 
