@@ -48,6 +48,7 @@ def _lat_long(
         logger.info(f"Number of unique addresses: {len(addresses)}")
 
     locations = {addr: geocode(f"{addr}", google_maps) for addr in addresses}
+    
     locations = {addr: loc for addr, loc in locations.items() if loc is not None}
 
     if noisy:
@@ -284,6 +285,32 @@ def _extract_mark_data(x: pd.Series, key: str, value: str, varnames: list) -> pd
     return col
 
 
+def _correct_addresses(address: str, block: str, district: str, state: str, pincode: str) -> str:
+    """
+    Correct addresses by adding block, district and state if not present
+
+    Parameters
+    ----------
+    address : str
+        Original address
+    block : str
+        Block
+    district : str
+        District
+    state : str
+        State
+
+    Returns
+    -------
+    str
+        Corrected address
+    """
+    try:
+        return f"{address.split(', ')[0]}, {block}, {district}, {state} {pincode}"
+    except AttributeError:
+        return f"{block}, {district}, {state} {pincode}"
+
+
 def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     """
     Preprocess student data
@@ -321,6 +348,12 @@ def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
         "orphan",
     ]
     df[bool_vars] = df[bool_vars].apply(_make_bool)
+    df["address"] = df.apply(
+        lambda row: _correct_addresses(
+            row["address"], row["block"], row["district"], row["state"], row["pin_code"]
+        ),
+        axis=1
+    )
 
     if geocode:
         df = _lat_long(df)
@@ -613,9 +646,9 @@ def preprocess_geocodes(
             ]
         )
         df = pd.DataFrame({"address": data})
-        df = _lat_long(df, address_col="address", noisy=False, google_maps=google_maps)
-    except KeyError:
-        logger.error("No 'pin_code' column found in input DataFrames")
+        df = _lat_long(df, address_col="address", noisy=True, google_maps=google_maps)
+    except KeyError as ke:
+        logger.error(f"KeyError: {ke}")
     except Exception as e:
         # Change later
         logger.error(f"Some error occurred: {e}")
@@ -634,3 +667,5 @@ def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
         return geodesic(coord_1, coord_2).kilometers
     except ValueError as e:
         return None
+    
+
