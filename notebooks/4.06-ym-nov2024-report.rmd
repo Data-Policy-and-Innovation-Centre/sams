@@ -1,0 +1,83 @@
+---
+title: "SAMS Data Analysis"
+author: "Data, Policy, and Innovation Centre"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+always_allow_html: true
+output:
+  word_document:
+    toc: true
+    toc_depth: 3
+    fig_caption: true
+    keep_md: false           # Choose whether to keep the intermediate .md file
+    df_print: paged         # Prints data frames as paginated tables
+    reference_docx: "template.docx" 
+---
+# The State of Vocational Training in Odisha
+Vocational training in Odisha encompasses a variety of programs aimed at equipping individuals with specialized skills for employment in industries ranging from manufacturing to services. The key components of vocational education in Odisha include Industrial Training Institutes (ITIs), Diploma programs, and Post-Diploma programs. Each of these educational pathways serves different levels of skill development, from basic trades to more specialized technical expertise.
+
+*Add how this fits into the broader context of vocational training in India/ Skill India initiatives etc*
+
+## Industrial Training Institutes (ITIs)
+ITIs in Odisha provide skill development programs that focus on trades like electrical, mechanical fitting, plumbing, welding, and computer hardware, among others. These institutes are spread across urban and rural areas to cater to the local population, with both government-run and private ITIs available.
+
+**Minimum Educational Qualification**: The candidate should have completed Class 8 for all courses, although most trades require Class 10 as the minimum educational qualification. Students are selected on the basis of their class 10 marks for most courses.
+
+**Course Duration**: ITIs generally offer training programs that range from 6 months to 2 years, depending on the trade.
+
+## Diploma Programs
+
+Diploma programs in Odisha, primarily offered by polytechnic institutes, are designed to provide a deeper level of technical education in fields such as civil engineering, mechanical engineering, electrical engineering, and computer science. These programs focus on the theoretical and practical aspects of various technical subjects. While they have a greater theoretical focus in engineering than ITI programs, the programs provide less foundational theoretical training than engineering degree programmes offered by universities.
+
+
+**Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or equivalent qualification.
+
+**Course Duration**: Diploma programs typically last for 3 years, although some institutes may offer shorter courses for specialized subjects or lateral entry for candidates with an ITI background.
+
+## Post-Diploma Programs
+Post-Diploma programs in Odisha are designed for individuals who have completed a diploma in a specific technical field and wish to further specialize or enhance their skills in advanced areas such as automation, robotics, industrial safety, and other niche sectors. These programs focus on imparting higher-level skills that are in demand in industries.
+
+**Minimum Educational Qualification**: Candidates must have completed a diploma in a relevant engineering or technical field from a recognized institution.
+Age Limit: Generally, there is no specific age limit, though candidates are typically expected to be under 30 years to apply.
+
+**Course Duration**: Post-Diploma programs typically span 6 months to 1 year, though some specialized programs may extend longer depending on the curriculum and the institution offering the course.
+
+# An overview of SAMS
+
+The Student Academic Management System (SAMS) is a digital platform developed and deployed by the Government of Odisha to streamline the admission and administration processes across various levels of education in the state. It serves as a one-stop solution for managing academic workflows, primarily focusing on admissions, academic tracking, and data management. Initially introduced in 2010 for higher secondary education, SAMS has expanded to encompass higher education and vocational training, making it a pivotal tool for educational governance in Odisha.
+
+## Key features
+
+* Centralized Admission Process
+      SAMS facilitates online applications for admissions across higher secondary schools, colleges, ITIs, and vocational training institutions. This unified system ensures:
+
+    * Transparency in the selection process.
+    * Equal access to educational opportunities.
+    * Minimization of manual intervention and associated errors.
+
+* Multi-Tier Educational Coverage
+    The platform covers the following educational sectors:
+
+    * Higher Secondary Education (Class XI-XII): Admissions into schools offering Science, Commerce, and Arts streams.
+    * Higher Education (Undergraduate Programs): Colleges offering general and professional degree programs.
+    * Vocational and Skill-Based Training: Industrial Training Institutes (ITIs) and Diploma courses in engineering and other trades.
+    * Post-Diploma and Advanced Courses: Specialized technical and professional courses.
+
+* End-to-End Digital Process
+  SAMS integrates and digitizes the student application experience:
+
+    * Digital registration and application submission.
+    * Real-time merit-based seat allocation.
+
+## The SAMS database as a resource for policy analysis
+
+SAMS has proven to be a transformative tool for streamlining admissions across various levels of education in Odisha. It has successfully automated processes, enhanced transparency, and lessened the administrative burden on individual institutions. However, while the platform hosts a rich repository of data on student demographics, academic performance, enrollment patterns, and institutional capacities, this information remains underutilized for analytics-driven decision-making and policy formulation.
+
+The primary focus of SAMS has been operational, such as managing admissions and tracking seats across institutions. However, the data generated from these processes is rarely used to identify trends or address systemic issues in education. Despite the capability to generate real-time reports, the data is seldom used to monitor emerging trends or respond proactively to challenges, such as the underutilization of seats in certain programs and regional / socioeconomic disparities in access to education.
+
+
+# Analysis of SAMS Data
+
+## The vocational training pipeline
+
+
+
