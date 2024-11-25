@@ -1,6 +1,6 @@
 from datetime import datetime
 from loguru import logger
-from sams.config import GEOCODES, gmaps_geocode, novatim_geocode
+from sams.config import GEOCODES, GEOCODES_CACHE, gmaps_geocode, novatim_geocode
 import pandas as pd
 import os
 import time
@@ -9,6 +9,7 @@ from tqdm import tqdm
 from geopy.exc import GeocoderUnavailable, GeocoderQuotaExceeded, GeocoderTimedOut
 from geopy import Location
 import geopandas as gpd
+import pickle
 
 
 def save_data(df: pd.DataFrame, metadata: dict):
@@ -53,6 +54,10 @@ def load_data(metadata: dict) -> pd.DataFrame:
     
 
 def geocode(addr: str, google_maps: bool) -> Location | None:
+    if len(GEOCODES) % 100 == 0:
+        with open(GEOCODES_CACHE, "wb") as f:
+            pickle.dump(GEOCODES, f)
+
     if addr in GEOCODES:
         return GEOCODES[addr]
     else:

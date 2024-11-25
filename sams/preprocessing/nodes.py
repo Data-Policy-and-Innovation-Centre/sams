@@ -6,6 +6,7 @@ from loguru import logger
 from sams.config import GEOCODES, GEOCODES_CACHE
 import pickle
 from geopy.distance import geodesic
+from tqdm import tqdm
 
 
 def _make_date(x: pd.Series) -> pd.Series:
@@ -47,8 +48,11 @@ def _lat_long(
     if noisy:
         logger.info(f"Number of unique addresses: {len(addresses)}")
 
-    locations = {addr: geocode(f"{addr}", google_maps) for addr in addresses}
-    
+    locations = {}
+    for addr in tqdm(addresses, desc="Geocoding addresses"):
+        location = geocode(f"{addr}", google_maps)
+        locations[addr] = location
+
     locations = {addr: loc for addr, loc in locations.items() if loc is not None}
 
     if noisy:

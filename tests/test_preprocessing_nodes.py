@@ -182,3 +182,30 @@ def test_preprocess_geocodes_error_handling():
     with pytest.raises(ValueError):
         # Mismatched number of dataframes and column names
         nodes.preprocess_geocodes([pd.DataFrame()], ['col1', 'col2'])
+
+
+class TestAdresssCorrection:
+
+    def test_correct_address_no_changes(self):
+        assert nodes.correct_addresses("123 Main St, A, B, C", "A", "B", "C") == "123 Main St"
+
+    def test_correct_addresses_add_block(self):
+        assert nodes.correct_addresses("123 Main St", "A", "", "") == "123 Main St, A"
+
+    def test_correct_addressesadd_district(self):
+        assert nodes.correct_addresses("123 Main St", "A", "District B", "C") == "123 Main St District B"
+
+    def test_correct_addresses_add_state(self):
+        assert nodes.correct_addresses("123 Main St", "A", "B", "State C") == "123 Main St State C"
+
+    def test_correct_addresses_add_all(self):
+        assert nodes.correct_addresses("123 Main St", "Block A", "District B", "State C") == "123 Main St Block A District B State C"
+
+    def test_correct_addresses_case_insensitivity(self):
+        assert nodes.correct_addresses("123 Main St Block A", "block a", "B", "C") == "123 Main St Block A"
+
+    def test_correct_addresses_empty_address(self):
+        assert nodes.correct_addresses("", "Block A", "District B", "State C") == "Block A District B State C"
+
+    def test_correct_addresses_empty_block_district_state(self):
+        assert nodes.correct_addresses("123 Main St", "", "", "") == "123 Main St"

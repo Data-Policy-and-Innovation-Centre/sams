@@ -73,6 +73,7 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
 )
 @cache(behavior="DISABLE")
 def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
+    logger.info(f"Loading {module} students raw data from database")
     query = f"SELECT * FROM students WHERE module = '{module}' ;"
     df = pd.read_sql_query(query, sams_db)
     return df
@@ -84,6 +85,7 @@ def sams_students_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFra
 )
 @cache(behavior="DISABLE")
 def sams_institutes_raw_df(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
+    logger.info(f"Loading {module} institutes raw data from database")
     query = f"SELECT * FROM institutes WHERE module = '{module}';"
     df = pd.read_sql_query(query, sams_db)
     return df
@@ -93,7 +95,6 @@ def sams_address_raw_df(sams_db: sqlite3.Connection) -> pd.DataFrame:
     query = "SELECT pin_code FROM students;"
     df = pd.DataFrame(pd.read_sql_query(query, sams_db))
     return df
-
 
 # ===== Preprocessing =====
 @parameterize(
@@ -115,17 +116,23 @@ def enrollment_df(sams_students_raw_df: pd.DataFrame, module: str) -> pd.DataFra
 @load_from.csv(path=datasets["iti_addresses"]["path"])
 @cache(behavior="default")
 def iti_addresses_df(iti_address_raw_df: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Preprocessing ITI institute addresses...")
     return preprocess_iti_addresses(iti_address_raw_df)
 
 
+def sams_address_clean_df(iti_enrollment: pd.DataFrame, diploma_enrollment: pd.DataFrame) -> pd.DataFrame:
+    logger.info("Getting cleaned addresses from student data...")
+    return pd.DataFrame(pd.concat([iti_enrollment["address"], diploma_enrollment["address"]], axis=0))
+    
+
 @cache(behavior="default")
 def geocodes_df(
-    sams_address_raw_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
+    sams_address_clean_df: pd.DataFrame, iti_addresses_df: pd.DataFrame, google_maps: bool
 ) -> pd.DataFrame:
     logger.info("Preprocessing geocodes...")
     return preprocess_geocodes(
-        [sams_address_raw_df, iti_addresses_df],
-        address_col=["pin_code", "address"],
+        [sams_address_clean_df, iti_addresses_df],
+        address_col=["address", "address"],
         google_maps=google_maps,
     )
 
@@ -169,14 +176,12 @@ def geocoded_enrollment_df(
 ) -> pd.DataFrame:
     logger.info(f"Adding geocodes to {module} enrollment data...")
     geocoded_enrollment_df = pd.merge(
-        enrollment_df, geocodes_df, how="left", left_on="pin_code", right_on="address"
+        enrollment_df, geocodes_df, how="left", on="address"
     )
-    geocoded_enrollment_df.drop("address_y", axis=1, inplace=True)
     geocoded_enrollment_df.rename(
         columns={
             "latitude": "student_lat",
-            "longitude": "student_long",
-            "address_x": "address",
+            "longitude": "student_long"
         },
         inplace=True,
     )
