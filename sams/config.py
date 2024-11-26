@@ -57,7 +57,11 @@ for name in datasets:
     datasets[name]["path"] = PROJ_ROOT / Path(datasets[name]["path"])
 
 for name in exhibits:
-    exhibits[name]["path"] = PROJ_ROOT / Path(exhibits[name]["path"])
+    if "path" in exhibits[name].keys():
+        exhibits[name]["path"] = PROJ_ROOT / Path(exhibits[name]["path"])
+    else:
+        exhibits[name]["input_path"] = PROJ_ROOT / Path(exhibits[name]["input_path"])
+        exhibits[name]["output_path"] = PROJ_ROOT / Path(exhibits[name]["output_path"])
 
 
 # Auth
