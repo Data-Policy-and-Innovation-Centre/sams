@@ -1,6 +1,6 @@
 import pandas as pd
 from hamilton.function_modifiers import parameterize, value, source, datasaver
-from sams.config import datasets, exhibits, FIGURES_DIR
+from sams.config import datasets, exhibits, FIGURES_DIR, TABLES_DIR
 from sams.utils import load_data
 from sams.analysis.utils import (
     pivot_table,
@@ -12,6 +12,10 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 
 # ========== Datasets ============
+
+def pipeline_raw() -> pd.DataFrame:
+    return pd.read_excel(exhibits["pipeline"]["input_path"], sheet_name="pipeline")
+
 @parameterize(
     iti_students_enrollments=dict(module=value("ITI")),
     diploma_students_enrollments=dict(module=value("Diploma")),
@@ -144,6 +148,12 @@ def enrollments_over_time_by_type(student_enrollments: pd.DataFrame) -> pd.DataF
     return enrollments_over_time_by_type
 
 
+def pipeline_pct(pipeline_raw: pd.DataFrame) -> pd.DataFrame:
+    pipeline = _get_pct(pipeline_raw,pipeline_raw.columns[-4:], "Total 10th std. students",
+ ["11th std. admitted (%)", "ITI admitted (%)", "Diploma admitted (%)", "Assumed Dropouts (%)"], [1, 1, 1, 1])
+    pipeline.drop("Total 10th std. students", axis=1, inplace=True)
+    return pipeline
+
 
 @parameterize(
     iti_institutes_over_time=dict(institutes_strength=source("iti_institutes_strength")),
@@ -160,6 +170,76 @@ def institutes_over_time(institutes_strength: pd.DataFrame) -> pd.DataFrame:
         round=0
     )
     return institutes_over_time
+
+
+@parameterize(
+        iti_enrollment_institutes_over_time=dict(students_enrollment=source("iti_students_enrollments"), institutes_strength=source("iti_institutes_strength")),
+        diploma_enrollment_institutes_over_time=dict(students_enrollment=source("diploma_students_enrollments"), institutes_strength=source("diploma_institutes_strength")),
+)
+def enrollment_institutes_over_time(students_enrollment: pd.DataFrame, institutes_strength: pd.DataFrame) -> pd.DataFrame:
+
+    # Enrollments
+    enrollments_over_time_by_type = students_enrollment.groupby(["academic_year", "type_of_institute"]).agg({"aadhar_no": "nunique"}).reset_index()
+    enrollments_over_time_by_type = enrollments_over_time_by_type.pivot(index="academic_year", columns="type_of_institute", values="aadhar_no")
+    enrollments_over_time_by_type["Total"] = enrollments_over_time_by_type.sum(axis=1)
+    enrollments_over_time_by_type = enrollments_over_time_by_type.reset_index().melt(id_vars=["academic_year"], var_name="type_of_institute", value_name="Num. students")
+
+    # Institutes
+    institutes_over_time_by_type = institutes_strength.merge(students_enrollment[["sams_code", "type_of_institute"]], how="left", on="sams_code").groupby(["academic_year", "type_of_institute"]).agg({"sams_code": "nunique"}).reset_index()
+    institutes_over_time_by_type = institutes_over_time_by_type.pivot(index="academic_year", columns="type_of_institute", values="sams_code")
+    institutes_over_time_by_type["Total"] = institutes_over_time_by_type.sum(axis=1)
+    institutes_over_time_by_type = institutes_over_time_by_type.reset_index().melt(id_vars=["academic_year"], var_name="type_of_institute", value_name="Num. institutes")
+
+    # Merge
+    enrollments_institutes_over_time = pd.merge(enrollments_over_time_by_type, institutes_over_time_by_type, how="outer", on=["academic_year", "type_of_institute"])
+    enrollments_institutes_over_time[["Num. students", "Num. institutes"]] = enrollments_institutes_over_time[["Num. students", "Num. institutes"]].fillna(0).astype(int)
+
+    # Pivot
+    enrollments_institutes_over_time = enrollments_institutes_over_time.pivot_table(
+        index="academic_year",
+        columns="type_of_institute",
+        values=["Num. students", "Num. institutes"],
+        aggfunc="sum",
+        fill_value=0
+    )
+
+    # Relabel multi-indices
+    enrollments_institutes_over_time = enrollments_institutes_over_time.swaplevel(axis=1).sort_index(axis=1)
+    enrollments_institutes_over_time = enrollments_institutes_over_time.astype(str)
+    enrollments_institutes_over_time.replace({"0":"-"}, inplace=True)
+    enrollments_institutes_over_time.index.name = "Year"
+    enrollments_institutes_over_time.columns.names = ["Type", ""]
+
+    return enrollments_institutes_over_time
+
+def gap_between_10th_graduation_and_enrollment_iti(iti_students_enrollments: pd.DataFrame, iti_students_marks: pd.DataFrame) -> pd.DataFrame:
+    iti_marks_enrollments = iti_students_enrollments.merge(iti_students_marks, on=['aadhar_no', 'academic_year'])
+    iti_marks_enrollments['gap_years'] =  iti_marks_enrollments['date_of_application'].dt.year - iti_marks_enrollments['year_of_passing'].apply(lambda x: int(x)) 
+    iti_marks_enrollments['gap_category'] = iti_marks_enrollments['gap_years'].apply(lambda x: 'Fresh graduate' if x == 0 else '1-3 years' if x <= 3 else '> 3 years')
+    gaps_binned = iti_marks_enrollments['gap_category'].value_counts().sort_index()
+    gaps_binned.index.name = "Years since graduation"
+    gaps_binned = gaps_binned.rename("Num. students")
+    return gaps_binned
+
+
+def _top_5_trades_gender_over_time(df: pd.DataFrame) -> pd.DataFrame:
+    df.drop("gender", axis=1, inplace=True)
+    df = df.sort_values(["academic_year", "aadhar_no"], ascending=[True, False])
+    df = df.groupby(["academic_year"]).head(5).reset_index(drop=True)
+    return df
+
+
+def top_5_trades_by_gender_over_time(iti_students_enrollments: pd.DataFrame) -> pd.DataFrame:
+    top_5_trades_by_gender_over_time = iti_students_enrollments.groupby(["academic_year", "gender", "reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
+    top_5_trades_by_gender_over_time['share'] = top_5_trades_by_gender_over_time.groupby(["academic_year", "gender"])['aadhar_no'].transform(lambda x: x/x.sum())
+    top_5_trades_male_over_time = top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == "Male"]
+    top_5_trades_female_over_time = top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == "Female"]
+    
+
+    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.sort_values(["academic_year", "gender", "aadhar_no"], ascending=[True, False, False])
+    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.groupby(["academic_year", "gender"]).head(5).reset_index(drop=True)
+    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.pivot_table(index=["academic_year"], columns=["reported_branch_or_trade", "gender"], values="aadhar_no").fillna(0).astype(int).reset_index()
+    return top_5_trades_by_gender_over_time
 
 def combined_institutes_over_time(iti_institutes_over_time: pd.DataFrame, diploma_institutes_over_time: pd.DataFrame) -> pd.DataFrame:
     itis = iti_institutes_over_time.rename(columns={"Num. institutes": "ITI"})
@@ -181,7 +261,7 @@ def institutes_over_time_by_type(institutes_strength: pd.DataFrame, student_enro
     # institutes_over_time_by_type = institutes_over_time_by_type.astype("int")
     institutes_over_time_by_type = _get_pct(institutes_over_time_by_type, 
                                              ["Pvt.", "Govt."], "Num. institutes", ["Pvt (%)", "Govt (%)"], [1, 1],
-                                             drop=True)
+                                             drop=False)
     institutes_over_time_by_type.index.name = "Year"
     return institutes_over_time_by_type
 
@@ -239,7 +319,6 @@ def top_10_diplomas_by_num_branches_2023(diploma_institutes_strength: pd.DataFra
     top_10_diplomas_by_num_branches_2023.drop("sams_code", axis=1, inplace=True)
     return top_10_diplomas_by_num_branches_2023
 
-
 def _num_students_in_blocks_geom(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame) -> pd.DataFrame:
     students_by_location = student_enrollments_2023.groupby(["student_long", "student_lat"]).agg({"aadhar_no": "nunique"}).reset_index()
     students_by_location = students_by_location.rename(columns={"aadhar_no": "Num. students"})
@@ -276,6 +355,32 @@ def map_students_enrolled_2023(student_enrollments_2023: pd.DataFrame, block_sha
         
 
 # ========== Save exhibits ============
+@datasaver()
+def uc_exhibits(pipeline_pct: pd.DataFrame, 
+                iti_enrollment_institutes_over_time: pd.DataFrame,
+                iti_enrollments_over_time_by_type: pd.DataFrame,
+                top_10_itis_by_num_trades_2023: pd.DataFrame,
+                top_10_iti_institutes_by_enrollment_2023: pd.DataFrame,
+                top_10_trades_by_enrollment_2023: pd.DataFrame) -> dict:
+    
+    tables = [pipeline_pct, 
+              iti_enrollment_institutes_over_time, 
+              iti_enrollments_over_time_by_type, 
+              top_10_itis_by_num_trades_2023, 
+              top_10_iti_institutes_by_enrollment_2023, 
+              top_10_trades_by_enrollment_2023]
+    sheet_names = ["Pipeline (%)", 
+                   "ITI institutes and enrollments over time (%)", 
+                   "ITI enrollment shares of Govt. and Pvt. (%)",
+                   "Top 10 ITI institutes by number of trades in 2023",
+                   "Top 10 ITI institutes by enrollment in 2023",
+                   "Top 10 trades by enrollment in 2023"]
+    file_path = exhibits["uc_exhibits"]["path"]
+    metadata = {"path": file_path, "type": "excel"}
+    save_table_excel(tables, sheet_names, index=[False, True, True, False, False, False], outfile=file_path)
+    logger.info(f"UC exhibits saved at: {file_path}")
+    return metadata
+
 @datasaver()
 def students_enrollments_basics(combined_enrollments_over_time: pd.DataFrame, 
                          iti_enrollments_over_time_by_type: pd.DataFrame, 
