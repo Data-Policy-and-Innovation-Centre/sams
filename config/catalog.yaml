@@ -104,4 +104,9 @@ exhibits:
 
   pipeline:
     type: excel
-    path: "output/tables/static/pipeline.xlsx"
+    input_path: "output/tables/static/pipeline.xlsx"
+    output_path: "output/tables/pipeline.xlsx" 
+  
+  uc_exhibits:
+    type: excel
+    path: "output/tables/uc_exhibits.xlsx"
