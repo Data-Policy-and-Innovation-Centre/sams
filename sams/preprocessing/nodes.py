@@ -365,6 +365,17 @@ def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     return df
 
 
+def _preprocess_income_data(df: pd.DataFrame, module: str) -> pd.DataFrame:
+    if module == "ITI":
+        df["annual_income"] = df["annual_income"].apply(lambda x: "Above 6,00,000" if x == "More than 8,00,000" else x)
+    elif module == "Diploma":
+        df["annual_income"] = df["annual_income"].apply(lambda x: "0-2,50,000" if x == "Upto 2.5 lakh" else x)
+        df["annual_income"] = df["annual_income"].apply(lambda x: "2,50,000-8,00,000" if x == "Between 2.5 To 8 lakh" else x)
+        df["annual_income"] = df["annual_income"].apply(lambda x: "Above 8,00,000" if x == "Above 8 lakh" else x)
+    else:
+        NotImplemented
+    return df
+
 def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df, geocode=False)
     df["highest_qualification"] = _fix_qual_names(df["highest_qualification"])
@@ -387,8 +398,8 @@ def preprocess_iti_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     )
     df.sort_values(by=["aadhar_no", "date_of_application"], inplace=True)
     df = df.dropna(subset=["sams_code"])
+    df = _preprocess_income_data(df, "ITI")
     return df
-
 
 def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     df = _preprocess_students(df, geocode=False)
@@ -418,6 +429,7 @@ def preprocess_diploma_students_enrollment_data(df: pd.DataFrame) -> pd.DataFram
     )
     df.sort_values(by=["aadhar_no", "date_of_application"], inplace=True)
     df = df.dropna(subset=["sams_code"])
+    df = _preprocess_income_data(df, "Diploma")
     return df
 
 
