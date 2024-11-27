@@ -287,7 +287,7 @@ def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.D
     logger.info("Generating ITI marks and cutoffs joined frame for marks/cutoffs analysis...")
     academics_demographics = geocoded_iti_enrollment[["aadhar_no","reported_branch_or_trade","phase","academic_year","sams_code", "gender","social_category","gc", "ph",
                                                        "es","orphan", "ews", "reported_institute", "institute_district"]]
-    academics_demographics["local"] = (academics_demographics["reported_institute"] == academics_demographics["institute_district"])
+    academics_demographics["local"] = (academics_demographics["district"] == academics_demographics["institute_district"])
     
     marks = pd.merge(
         iti_marks, academics_demographics, on=["aadhar_no", "academic_year"]
