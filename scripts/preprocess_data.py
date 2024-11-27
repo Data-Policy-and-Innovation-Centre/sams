@@ -8,15 +8,12 @@ def main(args):
         build = False
         final_vars = [
             "save_interim_iti_students",
-            "save_interim_diploma_institutes",
-            "save_interim_iti_students",
-            "save_interim_iti_institutes"
         ]
     else:
         build = args[1] == "build"
         final_vars = args[2:]
 
-    dr = driver.Builder().with_modules(interim_pipeline).with_cache().build()
+    dr = driver.Builder().with_modules(interim_pipeline).build()
     
     inputs = dict(build=build, google_maps=True)
     dr.execute(final_vars=final_vars, inputs=inputs)
