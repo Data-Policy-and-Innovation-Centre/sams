@@ -78,7 +78,7 @@ def vacancies(module: str) -> pd.DataFrame:
     diploma_students_enrollments_2023=dict(student_enrollments=source("diploma_students_enrollments")),
 )
 def student_enrollments_2023(student_enrollments: pd.DataFrame) -> pd.DataFrame:
-    return student_enrollments[student_enrollments["year"] == 2023]
+    return student_enrollments[student_enrollments["academic_year"] == 2023]
 
 @parameterize(
     iti_students_marks_2023=dict(student_marks=source("iti_students_marks")),
@@ -92,7 +92,7 @@ def student_marks_2023(student_marks: pd.DataFrame) -> pd.DataFrame:
     diploma_institutes_cutoffs_2023=dict(institutes_cutoffs=source("diploma_institutes_cutoffs")),
 )
 def institutes_cutoffs_2023(institutes_cutoffs: pd.DataFrame) -> pd.DataFrame:
-    return institutes_cutoffs[institutes_cutoffs["year"] == 2023]
+    return institutes_cutoffs[institutes_cutoffs["academic_year"] == 2023]
 
 # ========== Exhibits ============
 @parameterize(
@@ -113,14 +113,16 @@ def enrollments_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame:
     return enrollments_over_time
 
 def combined_enrollments_over_time(iti_enrollments_over_time: pd.DataFrame, diploma_enrollments_over_time: pd.DataFrame) -> pd.DataFrame:
-    iti_enrollments_over_time.rename(columns={"Num. students": "ITI"}, inplace=True)
-    diploma_enrollments_over_time.rename(columns={"Num. students": "Diploma"}, inplace=True)
+    iti_enrollments_over_time = iti_enrollments_over_time.rename(columns={"Num. students": "ITI"})
+    iti_enrollments_over_time = diploma_enrollments_over_time.rename(columns={"Num. students": "Diploma"})
     combined_enrollments_over_time = pd.merge(iti_enrollments_over_time, diploma_enrollments_over_time, how="outer", on="Year")
     combined_enrollments_over_time = combined_enrollments_over_time[combined_enrollments_over_time["Year"] > 2017]
     combined_enrollments_over_time = combined_enrollments_over_time.astype("int")
     return combined_enrollments_over_time
 
 def _get_pct(df: pd.DataFrame, vars: list[str], total_label: str, var_labels: list[str], round: list[int], drop: bool = True) -> pd.DataFrame:
+    df = df.copy()
+
     if len(vars) != len(var_labels):
         raise ValueError("The number of variables must be equal to the number of variable labels")
 
@@ -217,6 +219,7 @@ def enrollment_institutes_over_time(students_enrollment: pd.DataFrame, institute
     return enrollments_institutes_over_time
 
 def gap_between_10th_graduation_and_enrollment_iti(iti_students_enrollments: pd.DataFrame, iti_students_marks: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: Gap between 10th grad and enrollment for ITI students")
     iti_marks_enrollments = iti_students_enrollments.merge(iti_students_marks, on=['aadhar_no', 'academic_year'])
     iti_marks_enrollments['gap_years'] =  iti_marks_enrollments['date_of_application'].dt.year - iti_marks_enrollments['year_of_passing'].apply(lambda x: int(x)) 
     iti_marks_enrollments['gap_category'] = iti_marks_enrollments['gap_years'].apply(lambda x: 'Fresh graduate' if x == 0 else '1-3 years' if x <= 3 else '> 3 years')
@@ -238,6 +241,7 @@ def _top_5_trades_gender_over_time(df: pd.DataFrame) -> pd.DataFrame:
         top_5_trades_female_over_time=dict(iti_students_enrollments=source("iti_students_enrollments"), gender=value("Female"))
 )
 def top_5_trades_by_gender_over_time(iti_students_enrollments: pd.DataFrame, gender: str) -> pd.DataFrame:
+    logger.info(f"TABLE: Top 5 trades for {gender} students over time")
     top_5_trades_by_gender_over_time = iti_students_enrollments.groupby(["academic_year", "gender", "reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
     top_5_trades_by_gender_over_time['share'] = top_5_trades_by_gender_over_time.groupby(["academic_year", "gender"])['aadhar_no'].transform(lambda x: x/x.sum())
     top_5_trades_by_gender_over_time = _top_5_trades_gender_over_time(top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == gender])
@@ -248,6 +252,7 @@ def top_5_trades_by_gender_over_time(iti_students_enrollments: pd.DataFrame, gen
         top_5_trades_female_2023=dict(iti_students_enrollments_2023=source("iti_students_enrollments_2023"),gender=value("Female"))
 )
 def top_5_trades_by_gender_2023(iti_students_enrollments_2023: pd.DataFrame, gender: str) -> pd.DataFrame:
+    logger.info(f"TABLE: Top 5 Trades for {gender} students (2023)")
     top_5_trades_by_gender_2023 = iti_students_enrollments_2023[iti_students_enrollments_2023["gender"] == gender].groupby(["reported_branch_or_trade"]).agg({"aadhar_no":"nunique"}).reset_index()
     top_5_trades_by_gender_2023['share'] = top_5_trades_by_gender_2023["aadhar_no"].transform(lambda x: x/x.sum()).round(2)
     top_5_trades_by_gender_2023 = top_5_trades_by_gender_2023.sort_values("share",ascending=False).head(5).reset_index(drop=True)
@@ -267,6 +272,7 @@ def combined_institutes_over_time(iti_institutes_over_time: pd.DataFrame, diplom
     diploma_institutes_over_time_by_type=dict(institutes_strength=source("diploma_institutes_strength"), student_enrollments=source("diploma_students_enrollments")),
 )
 def institutes_over_time_by_type(institutes_strength: pd.DataFrame, student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {institutes_strength.module[0]} Institutes Over Time By Type (Pvt / Govt)")
     student_enrollments = student_enrollments[["sams_code", "type_of_institute"]].drop_duplicates()
     institutes_over_time_by_type = pd.merge(institutes_strength, student_enrollments, how="left", on="sams_code")
     institutes_over_time_by_type = institutes_over_time_by_type.groupby(["academic_year", "type_of_institute"]).agg({"sams_code": "nunique"}).reset_index()
@@ -290,11 +296,13 @@ def top_10_institutes_by_enrollment_2023(students_enrollments_2023: pd.DataFrame
     return top_10_institutes_by_enrollment_2023
 
 def trades_over_time(iti_institutes_strength: pd.DataFrame) -> pd.DataFrame:
+    logger.info("TABLE: Number of ITI Trades over time")
     trades_over_time = iti_institutes_strength.groupby(["academic_year"]).agg({"trade": "nunique"}).reset_index()
     trades_over_time.rename(columns={"trade": "Num. trades", "academic_year": "Year"}, inplace=True)
     return trades_over_time
 
 def branches_over_time(diploma_institutes_strength: pd.DataFrame) -> pd.DataFrame:
+    logger.info("TABLE: Number of Diploma Branches over time")
     branches_over_time = diploma_institutes_strength.groupby(["academic_year"]).agg({"branch": "nunique"}).reset_index()
     branches_over_time.rename(columns={"branch": "Num. branches", "academic_year": "Year"}, inplace=True)
     return branches_over_time
@@ -304,6 +312,7 @@ def branches_over_time(diploma_institutes_strength: pd.DataFrame) -> pd.DataFram
     top_10_branches_by_enrollment_2023=dict(students_enrollments_2023=source("diploma_students_enrollments_2023")),
 )
 def top_10_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: Top 10 {students_enrollments_2023.reset_index().module[0]} by enrollment in 2023")
     top_10_by_enrollment_2023 = students_enrollments_2023.groupby(["reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
     top_10_by_enrollment_2023["share"] = top_10_by_enrollment_2023["aadhar_no"].transform(lambda x: x/x.sum()).round(2)
     top_10_by_enrollment_2023 = top_10_by_enrollment_2023.sort_values("aadhar_no", ascending=False).head(10)
@@ -312,8 +321,9 @@ def top_10_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.Dat
     else:
         top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Branch", "aadhar_no": "Num. students", "share":"Share"}, inplace=True)
     return top_10_by_enrollment_2023
-
+  
 def top_10_itis_by_num_trades_2023(iti_institutes_strength: pd.DataFrame, iti_students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info("TABLE: Top 10 ITIs by number of trades (2023)")
     iti_institutes_strength_2023 = iti_institutes_strength[iti_institutes_strength["academic_year"] == 2023]
     iti_names = iti_students_enrollments_2023[["sams_code","reported_institute","type_of_institute"]].drop_duplicates()
     iti_institutes_strength_2023 = iti_institutes_strength_2023.merge(iti_names, how="left", on="sams_code")
@@ -324,6 +334,7 @@ def top_10_itis_by_num_trades_2023(iti_institutes_strength: pd.DataFrame, iti_st
     return top_10_itis_by_num_trades_2023
 
 def top_10_diplomas_by_num_branches_2023(diploma_institutes_strength: pd.DataFrame, diploma_students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info("TABLE: Top 10 Diploma Institutes by Number of Branches (2023)")
     diploma_institutes_strength_2023 = diploma_institutes_strength[diploma_institutes_strength["academic_year"] == 2023]
     diploma_names = diploma_students_enrollments_2023[["sams_code","reported_institute","type_of_institute"]].drop_duplicates()
     diploma_institutes_strength_2023 = diploma_institutes_strength_2023.merge(diploma_names, how="left", on="sams_code")
@@ -420,7 +431,7 @@ def marks_by_gender_2023(student_marks_2023: pd.DataFrame, student_enrollments_2
         diploma_locality_by_gender_2023 = dict(student_enrollments_2023=source("diploma_students_enrollments_2023"))
 )
 def locality_by_gender_2023(student_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
-    #student_enrollments_2023["local"] = (student_enrollments_2023["district"] == student_enrollments_2023["institute_district"])
+    logger.info(f"TABLE: {student_enrollments_2023.reset_index().module[0]} Locality by Gender (2023)")
     locality_by_gender_2023 = student_enrollments_2023.groupby(["gender", "local"]).agg({"aadhar_no":"nunique"}).reset_index()
     locality_by_gender_2023 = locality_by_gender_2023.pivot(index="gender", columns="local", values="aadhar_no").reset_index()
     return locality_by_gender_2023
@@ -429,10 +440,9 @@ def locality_by_gender_2023(student_enrollments_2023: pd.DataFrame) -> pd.DataFr
         iti_locality_by_gender_2018 = dict(student_enrollments=source("iti_students_enrollments")),
         diploma_locality_by_gender_2018 = dict(student_enrollments=source("diploma_students_enrollments"))
 )       
-
 def locality_by_gender_2018(student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments.module[0]} Locality by Gender (2018)")
     student_enrollments_2018 = student_enrollments[student_enrollments["academic_year"] == 2018]
-    student_enrollments_2018["local"] = (student_enrollments_2018["district"] == student_enrollments_2018["institute_district"])
     locality_by_gender_2018 = student_enrollments_2018.groupby(["gender", "local"]).agg({"aadhar_no":"nunique"}).reset_index()
     locality_by_gender_2018 = locality_by_gender_2018.pivot(index="gender", columns="local", values="aadhar_no").reset_index()
     return locality_by_gender_2018
@@ -456,6 +466,87 @@ def social_category_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame
     social_category_over_time = student_enrollments.groupby(["academic_year","social_category"]).agg({"aadhar_no":"nunique"}).reset_index()
     social_category_over_time = social_category_over_time.pivot_table(index="academic_year", columns="social_category", values="aadhar_no").fillna(0).astype(int).reset_index()
     return social_category_over_time
+
+@parameterize(
+        iti_top_5_boards_2023 = dict(marks_2023=source("iti_students_marks_2023"), module=value("ITI")),
+        diploma_top_5_boards_2023 = dict(marks_2023=source("diploma_students_marks_2023"), module=value("Diploma")),
+)
+def top_5_boards_2023(marks_2023: pd.DataFrame, module: str) -> pd.DataFrame:
+    logger.info(f"TABLE: {module} Top Boards in 2023")
+    top_boards_in_2023 = marks_2023.groupby(["highest_qualification_exam_board"]).agg({"aadhar_no":"nunique"}).reset_index()
+    top_boards_in_2023 = top_boards_in_2023.pivot_table(index="highest_qualification_exam_board", values="aadhar_no").fillna(0).astype(int).reset_index()
+    top_boards_in_2023 = top_boards_in_2023.sort_values(by="aadhar_no", ascending=False)
+    top_boards_in_2023["percentage"] = top_boards_in_2023["aadhar_no"] / top_boards_in_2023["aadhar_no"].sum() * 100
+    top_boards_in_2023["percentage"] = top_boards_in_2023["percentage"].round(1)
+    top_boards_in_2023 = top_boards_in_2023.rename(columns={"highest_qualification_exam_board": "Board", 
+                                                            "aadhar_no": "Num. students", "percentage": "Share (%)"})
+    return top_boards_in_2023.head(5)
+
+@parameterize(
+    iti_highest_qualification_by_gender_2023 = dict(enrollments_2023 = source("iti_students_enrollments_2023")),
+    diploma_highest_qualification_by_gender_2023 = dict(enrollments_2023 = source("diploma_students_enrollments_2023")),
+)
+def highest_qualification_by_gender_2023(enrollments_2023: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    logger.info(f"TABLE: {enrollments_2023.reset_index().module[0]} Highest Qualification by Gender (2023)")
+    enrollments_2023 = enrollments_2023.copy()
+    enrollments_2023["highest_qualification"] = enrollments_2023["highest_qualification"].apply(lambda x: "Unknown" if pd.isna(x) else x)
+    highest_qualification_by_gender_2023_levels = enrollments_2023.groupby(["gender", "highest_qualification"]).agg({"aadhar_no":"nunique"}).reset_index()
+    highest_qualification_by_gender_2023_levels = highest_qualification_by_gender_2023_levels.pivot_table(index="gender", columns="highest_qualification", values="aadhar_no").fillna(0).astype(int)
+
+    # Percentage
+    highest_qualification_by_gender_2023_pct = _get_pct(
+        highest_qualification_by_gender_2023_levels,
+        vars=highest_qualification_by_gender_2023_levels.columns.to_list(),
+        total_label="Num. students",
+        var_labels=[f"{var} (%)" for var in highest_qualification_by_gender_2023_levels.columns.to_list()],
+        round=[1]*len(highest_qualification_by_gender_2023_levels.columns.to_list()),
+        drop=True
+    )
+
+    return highest_qualification_by_gender_2023_levels, highest_qualification_by_gender_2023_pct
+
+@parameterize(
+    iti_pass_by_gender_2023 = dict(enrollments_2023 = source("iti_students_enrollments_2023"), marks_2023 = source("iti_students_marks_2023"))
+)
+def pass_by_gender_2023(enrollments_2023: pd.DataFrame, marks_2023: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    module = enrollments_2023.reset_index().module[0]
+    logger.info(f"TABLE: {module} Pass by Gender (2023)")
+    pass_by_gender_2023 = pd.merge(
+        enrollments_2023, marks_2023, on=["aadhar_no", "academic_year"], how="left"
+    )
+
+    pass_by_gender_2023 = pass_by_gender_2023.groupby(["gender", "exam_name"]).agg({"aadhar_no":"nunique"}).reset_index()
+    pass_by_gender_2023 = pass_by_gender_2023.pivot_table(index="gender", columns="exam_name", values="aadhar_no").fillna(0).astype(int)
+
+    # Percentage
+    pass_by_gender_2023_pct = _get_pct(
+        pass_by_gender_2023,
+        vars=pass_by_gender_2023.columns.to_list(),
+        total_label="Num. students",
+        var_labels=[f"{var} (%)" for var in pass_by_gender_2023.columns.to_list()],
+        round=[1]*len(pass_by_gender_2023.columns.to_list()),
+        drop=True
+    )
+
+    return pass_by_gender_2023, pass_by_gender_2023_pct
+
+@parameterize(
+    iti_berhampur_cutoffs_2023 = dict(iti_institutes_cutoffs_2023 = source("iti_institutes_cutoffs_2023"), institute_name = value("ITI Berhampur")),
+    iti_cuttack_cutoffs_2023 = dict(iti_institutes_cutoffs_2023 = source("iti_institutes_cutoffs_2023"), institute_name = value("ITI Cuttack"))
+)
+def iti_cutoffs_by_institute_2023(iti_institutes_cutoffs_2023: pd.DataFrame, institute_name: str) -> pd.DataFrame:
+    logger.info(f"TABLE(s): {institute_name} Cutoffs (2023)")
+    cutoffs = iti_institutes_cutoffs_2023[iti_institutes_cutoffs_2023["institute_name"].str.contains(institute_name)]
+    cutoffs = cutoffs[cutoffs["qual"] == "10th Pass"]
+    cutoffs = cutoffs[cutoffs["social_category"].isin(["UR", "SC", "ST"])]
+    cutoffs = cutoffs[cutoffs["trade"].isin(["Electrician (NSQF)", "Fitter (NSQF)"])]
+    cutoffs = cutoffs[~cutoffs["applicant_type"].str.contains("OMC")]
+    cutoffs = cutoffs.groupby(["social_category", "gender", "trade"]).agg({"cutoff":"mean"}).reset_index()
+    cutoffs = cutoffs.round(1)
+    cutoffs = cutoffs.pivot_table(index=["trade","gender"], columns="social_category", values="cutoff")
+    cutoffs.index.names = ["Trade", "Gender"]
+    cutoffs.columns.name = "Social Category"
+    return cutoffs
 
 
 
