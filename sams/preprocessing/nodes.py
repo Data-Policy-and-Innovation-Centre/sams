@@ -358,6 +358,7 @@ def _preprocess_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
         ),
         axis=1
     )
+    df["local"] = ( df["district"] == df["institute_district"] )
 
     if geocode:
         df = _lat_long(df)
@@ -372,6 +373,7 @@ def _preprocess_income_data(df: pd.DataFrame, module: str) -> pd.DataFrame:
         df["annual_income"] = df["annual_income"].apply(lambda x: "0-2,50,000" if x == "Upto 2.5 lakh" else x)
         df["annual_income"] = df["annual_income"].apply(lambda x: "2,50,000-8,00,000" if x == "Between 2.5 To 8 lakh" else x)
         df["annual_income"] = df["annual_income"].apply(lambda x: "Above 8,00,000" if x == "Above 8 lakh" else x)
+        df["annual_income"] = df["annual_income"].apply(lambda x: "OTHER" if x == "--" else x)
     else:
         NotImplemented
     return df

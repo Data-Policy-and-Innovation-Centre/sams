@@ -352,6 +352,9 @@ def map_students_enrolled_2023(student_enrollments_2023: pd.DataFrame, block_sha
     fig.savefig(FIGURES_DIR / "map_students_enrolled_2023.pdf")
 
     return fig
+        + theme_classic()
+       )    
+
         
 
 # ========== Save exhibits ============
