@@ -10,6 +10,8 @@ from loguru import logger
 from shapely.geometry import Point
 import geopandas as gpd
 import matplotlib.pyplot as plt
+from plotnine import ggplot, aes, geom_histogram, labs, theme, theme_classic, ggsave
+
 
 # ========== Datasets ============
 
@@ -83,7 +85,7 @@ def student_enrollments_2023(student_enrollments: pd.DataFrame) -> pd.DataFrame:
     diploma_students_marks_2023=dict(student_marks=source("diploma_students_marks")),
 )
 def student_marks_2023(student_marks: pd.DataFrame) -> pd.DataFrame:
-    return student_marks[student_marks["year"] == 2023]
+    return student_marks[student_marks["academic_year"] == 2023]
 
 @parameterize(
     iti_institutes_cutoffs_2023=dict(institutes_cutoffs=source("iti_institutes_cutoffs")),  
@@ -137,6 +139,7 @@ def _get_pct(df: pd.DataFrame, vars: list[str], total_label: str, var_labels: li
     diploma_enrollments_over_time_by_type=dict(student_enrollments=source("diploma_students_enrollments")),
 )
 def enrollments_over_time_by_type(student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments.module[0]} enrollments over time by type of institute")
     enrollments_over_time_by_type = student_enrollments.groupby(["academic_year", "type_of_institute"]).agg({"aadhar_no": "nunique"}).reset_index()
     enrollments_over_time_by_type =  enrollments_over_time_by_type.pivot(index="academic_year", columns="type_of_institute", values="aadhar_no")
     enrollments_over_time_by_type = enrollments_over_time_by_type[enrollments_over_time_by_type.index> 2017]
@@ -149,6 +152,7 @@ def enrollments_over_time_by_type(student_enrollments: pd.DataFrame) -> pd.DataF
 
 
 def pipeline_pct(pipeline_raw: pd.DataFrame) -> pd.DataFrame:
+    logger.info("TABLE: Pipeline of 10th std. students")
     pipeline = _get_pct(pipeline_raw,pipeline_raw.columns[-4:], "Total 10th std. students",
  ["11th std. admitted (%)", "ITI admitted (%)", "Diploma admitted (%)", "Assumed Dropouts (%)"], [1, 1, 1, 1])
     pipeline.drop("Total 10th std. students", axis=1, inplace=True)
@@ -177,7 +181,7 @@ def institutes_over_time(institutes_strength: pd.DataFrame) -> pd.DataFrame:
         diploma_enrollment_institutes_over_time=dict(students_enrollment=source("diploma_students_enrollments"), institutes_strength=source("diploma_institutes_strength")),
 )
 def enrollment_institutes_over_time(students_enrollment: pd.DataFrame, institutes_strength: pd.DataFrame) -> pd.DataFrame:
-
+    logger.info(f"TABLE: {students_enrollment.module[0]} enrollments and institutes over time")
     # Enrollments
     enrollments_over_time_by_type = students_enrollment.groupby(["academic_year", "type_of_institute"]).agg({"aadhar_no": "nunique"}).reset_index()
     enrollments_over_time_by_type = enrollments_over_time_by_type.pivot(index="academic_year", columns="type_of_institute", values="aadhar_no")
@@ -221,26 +225,35 @@ def gap_between_10th_graduation_and_enrollment_iti(iti_students_enrollments: pd.
     gaps_binned = gaps_binned.rename("Num. students")
     return gaps_binned
 
-
 def _top_5_trades_gender_over_time(df: pd.DataFrame) -> pd.DataFrame:
     df.drop("gender", axis=1, inplace=True)
     df = df.sort_values(["academic_year", "aadhar_no"], ascending=[True, False])
     df = df.groupby(["academic_year"]).head(5).reset_index(drop=True)
+    df.rename(columns={"reported_branch_or_trade": "Trade", "academic_year": "Year", "aadhar_no": "Num. students", "share": "Share"}, inplace=True)
+    df = df.pivot_table(index="Year", columns="Trade", values=["Num. students", "Share"]).swaplevel(axis=1).sort_index(axis=1)
     return df
 
-
-def top_5_trades_by_gender_over_time(iti_students_enrollments: pd.DataFrame) -> pd.DataFrame:
+@parameterize(
+        top_5_trades_male_over_time=dict(iti_students_enrollments=source("iti_students_enrollments"), gender=value("Male")),
+        top_5_trades_female_over_time=dict(iti_students_enrollments=source("iti_students_enrollments"), gender=value("Female"))
+)
+def top_5_trades_by_gender_over_time(iti_students_enrollments: pd.DataFrame, gender: str) -> pd.DataFrame:
     top_5_trades_by_gender_over_time = iti_students_enrollments.groupby(["academic_year", "gender", "reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
     top_5_trades_by_gender_over_time['share'] = top_5_trades_by_gender_over_time.groupby(["academic_year", "gender"])['aadhar_no'].transform(lambda x: x/x.sum())
-    top_5_trades_male_over_time = top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == "Male"]
-    top_5_trades_female_over_time = top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == "Female"]
-    
-
-    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.sort_values(["academic_year", "gender", "aadhar_no"], ascending=[True, False, False])
-    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.groupby(["academic_year", "gender"]).head(5).reset_index(drop=True)
-    top_5_trades_by_gender_over_time = top_5_trades_by_gender_over_time.pivot_table(index=["academic_year"], columns=["reported_branch_or_trade", "gender"], values="aadhar_no").fillna(0).astype(int).reset_index()
+    top_5_trades_by_gender_over_time = _top_5_trades_gender_over_time(top_5_trades_by_gender_over_time[top_5_trades_by_gender_over_time["gender"] == gender])
     return top_5_trades_by_gender_over_time
 
+@parameterize(
+        top_5_trades_male_2023=dict(iti_students_enrollments_2023=source("iti_students_enrollments_2023"),gender=value("Male")),
+        top_5_trades_female_2023=dict(iti_students_enrollments_2023=source("iti_students_enrollments_2023"),gender=value("Female"))
+)
+def top_5_trades_by_gender_2023(iti_students_enrollments_2023: pd.DataFrame, gender: str) -> pd.DataFrame:
+    top_5_trades_by_gender_2023 = iti_students_enrollments_2023[iti_students_enrollments_2023["gender"] == gender].groupby(["reported_branch_or_trade"]).agg({"aadhar_no":"nunique"}).reset_index()
+    top_5_trades_by_gender_2023['share'] = top_5_trades_by_gender_2023["aadhar_no"].transform(lambda x: x/x.sum()).round(2)
+    top_5_trades_by_gender_2023 = top_5_trades_by_gender_2023.sort_values("share",ascending=False).head(5).reset_index(drop=True)
+    top_5_trades_by_gender_2023.rename(columns={"reported_branch_or_trade": "Trade", "aadhar_no": "Num. students", "share": "Share"}, inplace=True)
+    return top_5_trades_by_gender_2023
+   
 def combined_institutes_over_time(iti_institutes_over_time: pd.DataFrame, diploma_institutes_over_time: pd.DataFrame) -> pd.DataFrame:
     itis = iti_institutes_over_time.rename(columns={"Num. institutes": "ITI"})
     diplomas = diploma_institutes_over_time.rename(columns={"Num. institutes": "Diploma"})
@@ -265,12 +278,12 @@ def institutes_over_time_by_type(institutes_strength: pd.DataFrame, student_enro
     institutes_over_time_by_type.index.name = "Year"
     return institutes_over_time_by_type
 
-
 @parameterize(
     top_10_iti_institutes_by_enrollment_2023=dict(students_enrollments_2023=source("iti_students_enrollments_2023")),
     top_10_diploma_institutes_by_enrollment_2023=dict(students_enrollments_2023=source("diploma_students_enrollments_2023")),
 )
 def top_10_institutes_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: Top 10 {students_enrollments_2023.reset_index().module[0]} institutes by enrollment in 2023")
     top_10_institutes_by_enrollment_2023 = students_enrollments_2023.groupby(["reported_institute", "type_of_institute"]).agg({"aadhar_no": "nunique"}).reset_index()
     top_10_institutes_by_enrollment_2023 = top_10_institutes_by_enrollment_2023.sort_values("aadhar_no", ascending=False).head(10)
     top_10_institutes_by_enrollment_2023.rename(columns={"reported_institute": "Institute", "type_of_institute": "Type", "aadhar_no": "Num. students"}, inplace=True)
@@ -292,11 +305,12 @@ def branches_over_time(diploma_institutes_strength: pd.DataFrame) -> pd.DataFram
 )
 def top_10_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
     top_10_by_enrollment_2023 = students_enrollments_2023.groupby(["reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
+    top_10_by_enrollment_2023["share"] = top_10_by_enrollment_2023["aadhar_no"].transform(lambda x: x/x.sum()).round(2)
     top_10_by_enrollment_2023 = top_10_by_enrollment_2023.sort_values("aadhar_no", ascending=False).head(10)
     if students_enrollments_2023["module"].iloc[0] == "ITI":
-        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Trade", "aadhar_no": "Num. students"}, inplace=True)
+        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Trade", "aadhar_no": "Num. students", "share":"Share"}, inplace=True)
     else:
-        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Branch", "aadhar_no": "Num. students"}, inplace=True)
+        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Branch", "aadhar_no": "Num. students", "share":"Share"}, inplace=True)
     return top_10_by_enrollment_2023
 
 def top_10_itis_by_num_trades_2023(iti_institutes_strength: pd.DataFrame, iti_students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
@@ -352,36 +366,152 @@ def map_students_enrolled_2023(student_enrollments_2023: pd.DataFrame, block_sha
     fig.savefig(FIGURES_DIR / "map_students_enrolled_2023.pdf")
 
     return fig
+
+def map_itis_by_type_2023(itis_by_type_2023: pd.DataFrame) -> plt.Figure:
+    pass
+ 
+
+def fig_marks_2023(iti_students_marks_2023: pd.DataFrame, diploma_students_marks_2023: pd.DataFrame) -> tuple[ggplot,ggplot,ggplot]:
+    
+    # Prep data
+    iti_students_marks_2023["module"] = "ITI"
+    diploma_students_marks_2023["module"] = "Diploma"
+    marks = pd.concat([iti_students_marks_2023, diploma_students_marks_2023])
+
+    # Plot data
+    logger.info("FIGURE: Distribution of 10th class marks for ITI (2023)")
+    iti_plot = (ggplot(iti_students_marks_2023, aes(x='percentage'))
+        + geom_histogram(binwidth=1, alpha=0.7, color="black", fill="lightblue")
+        + labs(title='Distribution of 10th class marks for ITI (2023)', x='Marks (%)', y='Num. students')
+        + theme(figure_size=(8, 6))
+        + theme_classic()
+       )
+    
+    logger.info("FIGURE: Distribution of 10th class marks for Polytechnic (2023)")
+    diploma_plot = (ggplot(diploma_students_marks_2023, aes(x='percentage'))
+        + geom_histogram(binwidth=1, alpha=0.7, color="black", fill="maroon")
+        + labs(title='Distribution of 10th class marks for Polytechnic (2023)', x='Marks (%)', y='Num. students')
+        + theme(figure_size=(8, 6)) 
         + theme_classic()
        )    
+
+    logger.info("FIGURE: Histogram of Marks for All")
+    all_plot = (ggplot(marks, aes(x='percentage', fill="module"))
+        + geom_histogram(binwidth=1, alpha=0.7, color="black", position="dodge")
+        + labs(title='Histogram of Marks for All', x='Marks (%)', y='Frequency', fill="Type")
+        + theme(figure_size=(8, 6))
+        + theme_classic()
+       )
+    return iti_plot, diploma_plot, all_plot
+
+@parameterize(
+        iti_marks_by_gender_2023=dict(student_marks_2023=source("iti_students_marks_2023"), student_enrollments_2023=source("iti_students_enrollments_2023")),
+        diploma_marks_by_gender_2023=dict(student_marks_2023=source("diploma_students_marks_2023"), student_enrollments_2023=source("diploma_students_enrollments_2023")),
+)
+def marks_by_gender_2023(student_marks_2023: pd.DataFrame, student_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    student_marks_2023 = pd.concat([student_marks_2023, student_enrollments_2023[["gender"]]], axis=1)
+    marks_by_gender_2023 = student_marks_2023.groupby(["gender"]).agg({"percentage":["mean","std"]}).reset_index()
+    #marks_by_gender_2023.rename(columns={"mean": "Avg. marks",}, inplace=True)
+    return marks_by_gender_2023
+    
+
+@parameterize(
+        iti_locality_by_gender_2023 = dict(student_enrollments_2023=source("iti_students_enrollments_2023")),
+        diploma_locality_by_gender_2023 = dict(student_enrollments_2023=source("diploma_students_enrollments_2023"))
+)
+def locality_by_gender_2023(student_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    #student_enrollments_2023["local"] = (student_enrollments_2023["district"] == student_enrollments_2023["institute_district"])
+    locality_by_gender_2023 = student_enrollments_2023.groupby(["gender", "local"]).agg({"aadhar_no":"nunique"}).reset_index()
+    locality_by_gender_2023 = locality_by_gender_2023.pivot(index="gender", columns="local", values="aadhar_no").reset_index()
+    return locality_by_gender_2023
+
+@parameterize(
+        iti_locality_by_gender_2018 = dict(student_enrollments=source("iti_students_enrollments")),
+        diploma_locality_by_gender_2018 = dict(student_enrollments=source("diploma_students_enrollments"))
+)       
+
+def locality_by_gender_2018(student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    student_enrollments_2018 = student_enrollments[student_enrollments["academic_year"] == 2018]
+    student_enrollments_2018["local"] = (student_enrollments_2018["district"] == student_enrollments_2018["institute_district"])
+    locality_by_gender_2018 = student_enrollments_2018.groupby(["gender", "local"]).agg({"aadhar_no":"nunique"}).reset_index()
+    locality_by_gender_2018 = locality_by_gender_2018.pivot(index="gender", columns="local", values="aadhar_no").reset_index()
+    return locality_by_gender_2018
+
+@parameterize(
+        iti_annual_income_over_time = dict(student_enrollments=source("iti_students_enrollments")),
+        diploma_annual_income_over_time = dict(student_enrollments=source("diploma_students_enrollments")),
+)
+def annual_income_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments.module[0]} Annual Income Over Time")
+    income_over_time = student_enrollments.groupby(["academic_year","annual_income"]).agg({"aadhar_no":"nunique"}).reset_index()
+    income_over_time = income_over_time.pivot_table(index="academic_year", columns="annual_income", values="aadhar_no").fillna(0).astype(int).reset_index()
+    return income_over_time
+
+@parameterize(
+        iti_social_category_over_time = dict(student_enrollments=source("iti_students_enrollments")),
+        diploma_social_category_over_time = dict(student_enrollments=source("diploma_students_enrollments")),
+)
+def social_category_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments.module[0]} Social Category Over Time")
+    social_category_over_time = student_enrollments.groupby(["academic_year","social_category"]).agg({"aadhar_no":"nunique"}).reset_index()
+    social_category_over_time = social_category_over_time.pivot_table(index="academic_year", columns="social_category", values="aadhar_no").fillna(0).astype(int).reset_index()
+    return social_category_over_time
+
+
+
 
         
 
 # ========== Save exhibits ============
+
 @datasaver()
 def uc_exhibits(pipeline_pct: pd.DataFrame, 
                 iti_enrollment_institutes_over_time: pd.DataFrame,
                 iti_enrollments_over_time_by_type: pd.DataFrame,
                 top_10_itis_by_num_trades_2023: pd.DataFrame,
                 top_10_iti_institutes_by_enrollment_2023: pd.DataFrame,
-                top_10_trades_by_enrollment_2023: pd.DataFrame) -> dict:
+                top_10_trades_by_enrollment_2023: pd.DataFrame,
+                iti_annual_income_over_time: pd.DataFrame,
+                diploma_annual_income_over_time: pd.DataFrame,
+                iti_social_category_over_time: pd.DataFrame,
+                diploma_social_category_over_time: pd.DataFrame,
+                fig_marks_2023: tuple[ggplot, ggplot, ggplot]) -> dict:
     
+    # Prepare tables
     tables = [pipeline_pct, 
               iti_enrollment_institutes_over_time, 
               iti_enrollments_over_time_by_type, 
               top_10_itis_by_num_trades_2023, 
               top_10_iti_institutes_by_enrollment_2023, 
-              top_10_trades_by_enrollment_2023]
+              top_10_trades_by_enrollment_2023,
+              iti_annual_income_over_time,
+              diploma_annual_income_over_time,
+              iti_social_category_over_time,
+              diploma_social_category_over_time]
     sheet_names = ["Pipeline (%)", 
                    "ITI institutes and enrollments over time (%)", 
                    "ITI enrollment shares of Govt. and Pvt. (%)",
                    "Top 10 ITI institutes by number of trades in 2023",
                    "Top 10 ITI institutes by enrollment in 2023",
-                   "Top 10 trades by enrollment in 2023"]
+                   "Top 10 trades by enrollment in 2023",
+                   "ITI annual income over time",
+                   "Diploma annual income over time",
+                   "ITI social category over time",
+                   "Diploma social category over time"]
     file_path = exhibits["uc_exhibits"]["path"]
-    metadata = {"path": file_path, "type": "excel"}
-    save_table_excel(tables, sheet_names, index=[False, True, True, False, False, False], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[False, True, True, False, False, False, False, False, False, False], outfile=file_path)
     logger.info(f"UC exhibits saved at: {file_path}")
+
+    # Save figures
+    ggsave(fig_marks_2023[0], FIGURES_DIR / "hist_marks_iti_2023.pdf")
+    logger.info(f"Saved histogram of distribution of ITI marks to {FIGURES_DIR / 'hist_marks_iti_2023.pdf'}")
+
+    ggsave(fig_marks_2023[1], FIGURES_DIR / "hist_marks_diploma_2023.pdf")
+    logger.info(f"Saved histogram of distribution of Diploma marks to {FIGURES_DIR / 'hist_marks_diploma_2023.pdf'} ")
+
+    metadata = {"tables":{"path": file_path, "type": "excel"},
+                "iti_marks": {"path": FIGURES_DIR / "hist_marks_iti_2023.pdf", "type": "pdf"},
+                "diploma_marks": {"path": FIGURES_DIR / "hist_marks_diploma_2023.pdf", "type": "pdf"}}
     return metadata
 
 @datasaver()
