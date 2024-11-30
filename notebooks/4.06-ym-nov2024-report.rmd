@@ -20,6 +20,8 @@ Vocational training in Odisha encompasses a variety of programs aimed at equippi
 ## Industrial Training Institutes (ITIs)
 ITIs in Odisha provide skill development programs that focus on trades like electrical, mechanical fitting, plumbing, welding, and computer hardware, among others. These institutes are spread across urban and rural areas to cater to the local population, with both government-run and private ITIs available.
 
+* Map of ITI locations
+
 **Minimum Educational Qualification**: The candidate should have completed Class 8 for all courses, although most trades require Class 10 as the minimum educational qualification. Students are selected on the basis of their class 10 marks for most courses.
 
 **Course Duration**: ITIs generally offer training programs that range from 6 months to 2 years, depending on the trade.
@@ -27,6 +29,8 @@ ITIs in Odisha provide skill development programs that focus on trades like elec
 ## Diploma Programs
 
 Diploma programs in Odisha, primarily offered by polytechnic institutes, are designed to provide a deeper level of technical education in fields such as civil engineering, mechanical engineering, electrical engineering, and computer science. These programs focus on the theoretical and practical aspects of various technical subjects. While they have a greater theoretical focus in engineering than ITI programs, the programs provide less foundational theoretical training than engineering degree programmes offered by universities.
+
+* Map of Diploma Locations
 
 
 **Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or equivalent qualification.
@@ -77,7 +81,172 @@ The primary focus of SAMS has been operational, such as managing admissions and 
 
 # Analysis of SAMS Data
 
+
 ## The vocational training pipeline
 
+
+```{r Load configuration, include=FALSE, eval=FALSE, echo=FALSE}
+library(here)
+ rm(list = ls())
+
+here::i_am("README.md")
+here()
+source(file.path(here(),"scripts","config.R"))
+
+
+```
+
+```{r Libraries, include=FALSE, echo=FALSE}
+library(tidyverse)
+library(arrow)
+library(ggplot2)
+library(openxlsx)
+library(kableExtra)
+library(knitr)
+library(stargazer)
+library(RColorBrewer)
+```
+
+
+
+```{r Load exhibits, include=FALSE, echo=FALSE}
+path <- get_exhibit("uc_exhibits")
+sheet_names <- getSheetNames(path)
+pipeline <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+type_shares_over_time <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+top_10_itis_by_num_trades_2023 <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+top_10_itis_by_enrollment_2023 <- read.xlsx(
+  path,
+  sheet_names[5]
+)
+top_10_trades_by_enrollment_2023 <- read.xlsx(
+  path,
+  sheet_names[6]
+)
+
+```
+
+* Relatively small portion of students choose vocational training of any form driectly after 10th.
+
+* Majority opt for 11th grade.
+
+```{r Pipeline of vocational training, include=TRUE, echo=FALSE}
+
+html_table <- pipeline %>% kable( caption = "Pipeline of vocational training") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+* Yet student enrollment at ITIs has gone up steadily.
+
+* The number of ITIs remain relatively unchanged.
+
+* Large part of the increase in enrollment from govt. ITIs
+
+```{r Share of government vs private students over time, include=TRUE, echo=FALSE}
+plot_data <- type_shares_over_time %>% select(Year, `Pvt.(%)`, `Govt.(%)`) %>% 
+  pivot_longer(
+    cols=c("Pvt.(%)","Govt.(%)"),
+    names_to = "Type",
+    values_to = "Share"
+  )
+ggplot(plot_data, aes(x = Year, y = Share, color = Type, group = Type)) + 
+  geom_line() +
+  theme_classic(base_size = 15) + 
+  labs(
+    title = "Enrollment Share Over Time",
+    subtitle = "Government vs Private Institutions",
+    x = "Year",
+    y = "Enrollment (%)",
+    color = "Institution Type"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18, hjust = 0.5),
+    plot.subtitle = element_text(size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 14),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  ) +
+  scale_x_continuous(breaks = seq(2017, 2024, by = 1))
+
+
+```
+
+```{r Top 10 ITIs by num. of trades offered, echo=FALSE, include=TRUE}
+html_table <- top_10_itis_by_num_trades_2023 %>% kable( caption = "Top 10 ITIs by num. trades offered in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+* This is partly driven by the fact that government ITIs offer more trades than private ITIs
+
+```{r Top 10 ITIs by enrollment, echo=FALSE, include=TRUE}
+html_table <- top_10_itis_by_enrollment_2023 %>% kable( caption = "Top 10 ITIs by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+
+
+```{r Top 10 trades, echo=FALSE, include=TRUE}
+html_table <- top_10_trades_by_enrollment_2023 %>% kable( caption = "Top 10 trades by enrollment in 2023") %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+## Location 
+
+* Where are they from vs where are they going?
+
+* What proportion is traveling outside the district and then average distance traveled for each category. By gender, by social category.
+
+    * Over time are women traveling further? Beginning share of outside district, average distance, and final share outside district, average distance
+
+
+## Household level
+
+* Annual income
+
+* Socioeconomic background
+ 
+## Individual level
+
+* Marks 
+    * Share pass fail by gender
+
+* Boards
+
+* Highest qualification (Diploma / ITI)
+
+## Institute level
+
+* Cutoff table
+
+* Vacancy ratios graph
 
 

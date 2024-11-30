@@ -301,7 +301,7 @@ def iti_marks_and_cutoffs(geocoded_iti_enrollment: pd.DataFrame, iti_marks: pd.D
 @save_to.parquet(path=value(datasets["iti_vacancies"]["path"]))
 def iti_vacancies(geocoded_iti_enrollment: pd.DataFrame, iti_institutes_strength: pd.DataFrame) -> pd.DataFrame:
     logger.info("Generating ITI vacancies data...")
-    iti_enrollments_agg = geocoded_iti_enrollment.groupby(["sams_code","academic_year","reported_branch_or_trade"], as_index=False)["aadhar_no"].count()
+    iti_enrollments_agg = geocoded_iti_enrollment.groupby(["sams_code","academic_year", "reported_branch_or_trade", "type_of_institute"], as_index=False)["aadhar_no"].count()
     iti_strength = iti_institutes_strength[iti_institutes_strength["category"] == "Total"]
     iti_enrollments_strength = pd.merge(
         iti_enrollments_agg, iti_strength, left_on=["sams_code","academic_year","reported_branch_or_trade"], right_on=["sams_code","academic_year","trade"],
