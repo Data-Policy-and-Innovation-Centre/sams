@@ -71,9 +71,15 @@ PASSWORD = os.getenv("SAMSAPI_PASSWORD")
 # ===== CACHE =====
 # Geocodes
 geolocator = Nominatim(user_agent="sams")
-google_geolocator = GoogleV3(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
-gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1 / 50)
 novatim_geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+
+if os.getenv("GOOGLE_MAPS_API_KEY") is not None:
+    google_geolocator = GoogleV3(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
+    gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1 / 50)
+else:
+    gmaps_geocode = novatim_geocode
+
+
 GEOCODES_CACHE = CACHE / "geocodes.pkl"
 if "GEOCODES" not in globals():
     if os.path.exists(GEOCODES_CACHE):
