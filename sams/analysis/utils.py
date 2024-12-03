@@ -107,7 +107,8 @@ def save_table_excel(dfs: list[pd.DataFrame], sheet_names: list[str], index: lis
     Raises
     ------
     ValueError
-        If the number of DataFrames does not match the number of sheet names.
+        If the number of DataFrames does not match the 
+        number of sheet names or DataFrames does not match the number of index bool values
 
     """
     if len(dfs) != len(sheet_names):

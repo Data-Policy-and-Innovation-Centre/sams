@@ -209,7 +209,7 @@ def enrollment_institutes_over_time(students_enrollment: pd.DataFrame, institute
     enrollments_over_time_by_type = enrollments_over_time_by_type.reset_index().melt(id_vars=["academic_year"], var_name="type_of_institute", value_name="Num. students")
 
     # Institutes
-    institutes_over_time_by_type = institutes_strength.merge(students_enrollment[["sams_code", "type_of_institute"]], how="left", on="sams_code").groupby(["academic_year", "type_of_institute"]).agg({"sams_code": "nunique"}).reset_index()
+    institutes_over_time_by_type = institutes_strength.merge(students_enrollment[["sams_code", "type_of_institute"]].drop_duplicates(), how="left", on="sams_code").groupby(["academic_year", "type_of_institute"]).agg({"sams_code": "nunique"}).reset_index()
     institutes_over_time_by_type = institutes_over_time_by_type.pivot(index="academic_year", columns="type_of_institute", values="sams_code")
     institutes_over_time_by_type["Total"] = institutes_over_time_by_type.sum(axis=1)
     institutes_over_time_by_type = institutes_over_time_by_type.reset_index().melt(id_vars=["academic_year"], var_name="type_of_institute", value_name="Num. institutes")
@@ -513,6 +513,7 @@ def annual_income_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"TABLE: {student_enrollments.module[0]} Annual Income Over Time")
     income_over_time = student_enrollments.groupby(["academic_year","annual_income"]).agg({"aadhar_no":"nunique"}).reset_index()
     income_over_time = income_over_time.pivot_table(index="academic_year", columns="annual_income", values="aadhar_no").fillna(0).astype(int).reset_index()
+    income_over_time = income_over_time.rename(columns={"academic_year": "Year"})
     return income_over_time
 
 @parameterize(
@@ -523,6 +524,7 @@ def social_category_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame
     logger.info(f"TABLE: {student_enrollments.module[0]} Social Category Over Time")
     social_category_over_time = student_enrollments.groupby(["academic_year","social_category"]).agg({"aadhar_no":"nunique"}).reset_index()
     social_category_over_time = social_category_over_time.pivot_table(index="academic_year", columns="social_category", values="aadhar_no").fillna(0).astype(int).reset_index()
+    social_category_over_time = social_category_over_time.rename(columns={"academic_year": "Year"})
     return social_category_over_time
 
 @parameterize(
@@ -631,34 +633,38 @@ def hist_vacancy_ratios_2023(vacancies_2023: pd.DataFrame, type_of_institute: st
 
 @datasaver()
 def pipeline_exhibits(pipeline_pct: pd.DataFrame,
+                      gap_between_10th_graduation_and_enrollment_iti: pd.DataFrame,
                       iti_enrollment_institutes_over_time: pd.DataFrame,
                       diploma_enrollment_institutes_over_time: pd.DataFrame,
                       iti_enrollments_over_time_by_type: pd.DataFrame,
+                      diploma_enrollments_over_time_by_type: pd.DataFrame,
                       top_10_itis_by_num_trades_2023: pd.DataFrame,
                       top_10_iti_institutes_by_enrollment_2023: pd.DataFrame,
                       top_10_trades_by_enrollment_2023: pd.DataFrame) -> dict:
     
     # Prepare tables
     tables = [pipeline_pct, 
+              gap_between_10th_graduation_and_enrollment_iti,
               iti_enrollment_institutes_over_time, 
               diploma_enrollment_institutes_over_time,
-              iti_enrollments_over_time_by_type, 
+              iti_enrollments_over_time_by_type,
+              diploma_enrollments_over_time_by_type, 
               top_10_itis_by_num_trades_2023, 
               top_10_iti_institutes_by_enrollment_2023, 
               top_10_trades_by_enrollment_2023]
     sheet_names = ["Pipeline (%)", 
+                   "Gap between 10th Graduation and Enrollment",
                    "ITI institutes and enrollments over time (%)", 
                    "Diploma institutes and enrollments over time (%)",
                    "ITI enrollment shares of Govt. and Pvt. (%)",
+                   "Diploma enrollment shares of Govt. and Pvt. (%)",
                    "Top 10 ITI institutes by number of trades in 2023",
                    "Top 10 ITI institutes by enrollment in 2023",
                    "Top 10 trades by enrollment in 2023"]
     file_path = TABLES_DIR / "pipeline_exhibits.xlsx"
-    save_table_excel(tables, sheet_names, index=[False, True, True, True, False, False, False], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[False, True, True, True, True, True, False, False, False], outfile=file_path)
     logger.info(f"Pipeline tables saved at: {file_path}")
-
     metadata = {"tables":{"path": file_path, "type": "excel"}}
-
     return metadata
 
 @datasaver()
@@ -677,7 +683,7 @@ def household_level_exhibits(iti_annual_income_over_time: pd.DataFrame,
                    "ITI social category over time", 
                    "Diploma social category over time"]
     file_path = TABLES_DIR / "household_level_exhibits.xlsx"
-    save_table_excel(tables, sheet_names, index=[True, True, True, True], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[False, False, False, False], outfile=file_path)
     logger.info(f"Household level tables saved at: {file_path}")
 
     metadata = {"tables":{"path": file_path, "type": "excel"}}
@@ -685,7 +691,7 @@ def household_level_exhibits(iti_annual_income_over_time: pd.DataFrame,
 
 @datasaver()
 def individual_level_exhibits(hist_marks_2023: tuple[ggplot, ggplot, ggplot],
-                              iti_pass_by_gender_2023: pd.DataFrame,
+                              iti_pass_by_gender_2023: tuple[pd.DataFrame, pd.DataFrame],
                               iti_top_5_boards_2023: pd.DataFrame,
                               diploma_top_5_boards_2023: pd.DataFrame,
                               iti_highest_qualification_by_gender_2023: tuple[pd.DataFrame, pd.DataFrame],
@@ -693,12 +699,12 @@ def individual_level_exhibits(hist_marks_2023: tuple[ggplot, ggplot, ggplot],
                              ) -> dict:
     
     # Tables
-    tables = [iti_pass_by_gender_2023, 
+    tables = [iti_pass_by_gender_2023[1], 
               iti_top_5_boards_2023,
               diploma_top_5_boards_2023,
               iti_highest_qualification_by_gender_2023[1],
               diploma_highest_qualification_by_gender_2023[1]]
-    sheet_names = ["ITI pass by gender", 
+    sheet_names = ["ITI pass by gender (%)", 
                    "ITI top 5 boards",
                    "Diploma top 5 boards",
                    "ITI highest qualification by gender (%)", 
@@ -709,19 +715,19 @@ def individual_level_exhibits(hist_marks_2023: tuple[ggplot, ggplot, ggplot],
 
     # Figures
     figs = [hist_marks_2023[0], hist_marks_2023[1]]
-    fig_paths = [FIGURES_DIR / "hist_iti_marks_2023.pdf", 
-                 FIGURES_DIR / "hist_diploma_marks_2023.pdf"]
+    fig_paths = [FIGURES_DIR / "hist_iti_marks_2023.svg", 
+                 FIGURES_DIR / "hist_diploma_marks_2023.svg"]
     for fig, fig_path in zip(figs, fig_paths):
         ggsave(fig, fig_path)
         logger.info(f"Figure saved at: {fig_path}")
 
     metadata = {"tables":{"path": file_path, "type": "excel"},
-                "figures":{"path": fig_paths, "type": "pdf"}}
+                "figures":{"path": fig_paths, "type": "svg"}}
     return metadata
 
 
 @datasaver()
-def individual_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
+def institute_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
                               iti_cuttack_cutoffs_2023: pd.DataFrame,
                               hist_govt_iti_vacancy_ratios_2023: ggplot,
                               hist_pvt_iti_vacancy_ratios_2023: ggplot
@@ -731,20 +737,29 @@ def individual_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
               iti_cuttack_cutoffs_2023]
     sheet_names = ["ITI Berhampur cutoffs", 
                    "ITI Cuttack cutoffs"]
-    file_path = TABLES_DIR / "individual_level_exhibits.xlsx"
+    file_path = TABLES_DIR / "institute_level_exhibits.xlsx"
     save_table_excel(tables, sheet_names, index=[True, True], outfile=file_path)
     logger.info(f"Individual level tables saved at: {file_path}")
 
     figs = [hist_govt_iti_vacancy_ratios_2023, hist_pvt_iti_vacancy_ratios_2023]
-    fig_paths = [FIGURES_DIR / "hist_govt_iti_vacancy_ratios_2023.pdf", 
-                 FIGURES_DIR / "hist_pvt_iti_vacancy_ratios_2023.pdf"]
+    fig_paths = [FIGURES_DIR / "hist_govt_iti_vacancy_ratios_2023.svg", 
+                 FIGURES_DIR / "hist_pvt_iti_vacancy_ratios_2023.svg"]
     for fig, fig_path in zip(figs, fig_paths):
         ggsave(fig, fig_path)
         logger.info(f"Figure saved at: {fig_path}")
 
     metadata = {"tables":{"path": file_path, "type": "excel"},
-                "figures":{"path": fig_paths, "type": "pdf"}}
+                "figures":{"path": fig_paths, "type": "svg"}}
     return metadata
+
+@datasaver()
+def location_exhibits(map_itis_by_type_2023: plt.Figure) -> dict:
+    fig_path = FIGURES_DIR / "map_itis_by_type_2023.png"
+    map_itis_by_type_2023.savefig(fig_path)
+    logger.info(f"Figure saved at: {fig_path}")
+    metadata = {"figures":{"path": fig_path, "type": "png"}}
+    return metadata 
+
     
 
 
