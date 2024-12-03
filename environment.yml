@@ -21,10 +21,10 @@ dependencies:
   - schedule
   - pandas
   - scikit-learn
-  - boxsdk
   - pip:
     - python-dotenv
     - mkdocs
+    - boxsdk[jwt]
     - pyyaml
     - polars[all]
     - openpyxl
