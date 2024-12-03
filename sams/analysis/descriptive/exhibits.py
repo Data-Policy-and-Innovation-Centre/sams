@@ -244,6 +244,10 @@ def gap_between_10th_graduation_and_enrollment_iti(iti_students_enrollments: pd.
     gaps_binned = iti_marks_enrollments['gap_category'].value_counts().sort_index()
     gaps_binned.index.name = "Years since graduation"
     gaps_binned = gaps_binned.rename("Num. students")
+    gaps_binned = gaps_binned.to_frame().reset_index()
+    gaps_binned.columns = ["Years since graduation", "Num. students"]
+    total = gaps_binned["Num. students"].sum()
+    gaps_binned["Share (%)"] = round(gaps_binned["Num. students"] / total * 100, 2)
     return gaps_binned
 
 def _top_5_trades_gender_over_time(df: pd.DataFrame) -> pd.DataFrame:
@@ -309,8 +313,9 @@ def institutes_over_time_by_type(institutes_strength: pd.DataFrame, student_enro
 def top_10_institutes_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"TABLE: Top 10 {students_enrollments_2023.reset_index().module[0]} institutes by enrollment in 2023")
     top_10_institutes_by_enrollment_2023 = students_enrollments_2023.groupby(["reported_institute", "type_of_institute"]).agg({"aadhar_no": "nunique"}).reset_index()
+    top_10_institutes_by_enrollment_2023["share"] = top_10_institutes_by_enrollment_2023["aadhar_no"].transform(lambda x: 100 * x/x.sum()).round(1)
     top_10_institutes_by_enrollment_2023 = top_10_institutes_by_enrollment_2023.sort_values("aadhar_no", ascending=False).head(10)
-    top_10_institutes_by_enrollment_2023.rename(columns={"reported_institute": "Institute", "type_of_institute": "Type", "aadhar_no": "Num. students"}, inplace=True)
+    top_10_institutes_by_enrollment_2023.rename(columns={"reported_institute": "Institute", "type_of_institute": "Type", "aadhar_no": "Num. students", "share": "Share (%)"}, inplace=True)
     return top_10_institutes_by_enrollment_2023
 
 def trades_over_time(iti_institutes_strength: pd.DataFrame) -> pd.DataFrame:
@@ -332,12 +337,12 @@ def branches_over_time(diploma_institutes_strength: pd.DataFrame) -> pd.DataFram
 def top_10_by_enrollment_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"TABLE: Top 10 {students_enrollments_2023.reset_index().module[0]} by enrollment in 2023")
     top_10_by_enrollment_2023 = students_enrollments_2023.groupby(["reported_branch_or_trade"]).agg({"aadhar_no": "nunique"}).reset_index()
-    top_10_by_enrollment_2023["share"] = top_10_by_enrollment_2023["aadhar_no"].transform(lambda x: x/x.sum()).round(2)
+    top_10_by_enrollment_2023["share"] = top_10_by_enrollment_2023["aadhar_no"].transform(lambda x: 100*x/x.sum()).round(1)
     top_10_by_enrollment_2023 = top_10_by_enrollment_2023.sort_values("aadhar_no", ascending=False).head(10)
     if students_enrollments_2023["module"].iloc[0] == "ITI":
-        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Trade", "aadhar_no": "Num. students", "share":"Share"}, inplace=True)
+        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Trade", "aadhar_no": "Num. students", "share":"Share (%)"}, inplace=True)
     else:
-        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Branch", "aadhar_no": "Num. students", "share":"Share"}, inplace=True)
+        top_10_by_enrollment_2023.rename(columns={"reported_branch_or_trade": "Branch", "aadhar_no": "Num. students", "share":"Share (%)"}, inplace=True)
     return top_10_by_enrollment_2023
   
 def top_10_itis_by_num_trades_2023(iti_institutes_strength: pd.DataFrame, iti_students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
@@ -425,7 +430,7 @@ def map_itis_by_type_2023(iti_students_enrollments_2023: pd.DataFrame, block_sha
     ax.set_axis_off()
 
     # Add a title and axis labels
-    plt.title("ITI Locations on Block Map")
+    #plt.title("ITI Locations on Block Map")
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     return fig
@@ -525,6 +530,8 @@ def social_category_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame
     social_category_over_time = student_enrollments.groupby(["academic_year","social_category"]).agg({"aadhar_no":"nunique"}).reset_index()
     social_category_over_time = social_category_over_time.pivot_table(index="academic_year", columns="social_category", values="aadhar_no").fillna(0).astype(int).reset_index()
     social_category_over_time = social_category_over_time.rename(columns={"academic_year": "Year"})
+    if student_enrollments.module[0] == "Diploma":
+        social_category_over_time = social_category_over_time.rename(columns={"Other": "Unreserved"})
     return social_category_over_time
 
 @parameterize(
@@ -654,15 +661,15 @@ def pipeline_exhibits(pipeline_pct: pd.DataFrame,
               top_10_trades_by_enrollment_2023]
     sheet_names = ["Pipeline (%)", 
                    "Gap between 10th Graduation and Enrollment",
-                   "ITI institutes and enrollments over time (%)", 
-                   "Diploma institutes and enrollments over time (%)",
+                   "ITI institutes and enrollments over time", 
+                   "Diploma institutes and enrollments over time",
                    "ITI enrollment shares of Govt. and Pvt. (%)",
                    "Diploma enrollment shares of Govt. and Pvt. (%)",
                    "Top 10 ITI institutes by number of trades in 2023",
                    "Top 10 ITI institutes by enrollment in 2023",
                    "Top 10 trades by enrollment in 2023"]
     file_path = TABLES_DIR / "pipeline_exhibits.xlsx"
-    save_table_excel(tables, sheet_names, index=[False, True, True, True, True, True, False, False, False], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[False, False, True, True, True, True, False, False, False], outfile=file_path)
     logger.info(f"Pipeline tables saved at: {file_path}")
     metadata = {"tables":{"path": file_path, "type": "excel"}}
     return metadata
@@ -704,13 +711,13 @@ def individual_level_exhibits(hist_marks_2023: tuple[ggplot, ggplot, ggplot],
               diploma_top_5_boards_2023,
               iti_highest_qualification_by_gender_2023[1],
               diploma_highest_qualification_by_gender_2023[1]]
-    sheet_names = ["ITI pass by gender (%)", 
-                   "ITI top 5 boards",
-                   "Diploma top 5 boards",
-                   "ITI highest qualification by gender (%)", 
-                   "Diploma highest qualification by gender (%)"]
+    sheet_names = ["ITI pass by gender (2023) (%)", 
+                   "ITI top 5 boards (2023)",
+                   "Diploma top 5 boards (2023)",
+                   "ITI highest qualification by gender (2023) (%)", 
+                   "Diploma highest qualification by gender (2023) (%)"]
     file_path = TABLES_DIR / "individual_level_exhibits.xlsx"
-    save_table_excel(tables, sheet_names, index=[True, True, True, True, True], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[True, False, False, True, True], outfile=file_path)
     logger.info(f"Individual level tables saved at: {file_path}")
 
     # Figures
