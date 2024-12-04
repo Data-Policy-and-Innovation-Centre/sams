@@ -38,7 +38,7 @@ library(RColorBrewer)
 
 
 # The State of Vocational Training in Odisha
-Vocational training in Odisha encompasses a variety of programs aimed at equipping individuals with specialized skills for employment in a wide variety of industrial settings. The key components of vocational education in Odisha include Industrial Training Institutes (ITIs), Diploma programs, and Post-Diploma programs. Each of these educational pathways serves different levels of skill development, from basic trades to more specialized technical expertise.
+Vocational training in Odisha encompasses a variety of programs aimed at equipping individuals with specialized skills for employment in a wide variety of industrial settings. The key components of vocational education in Odisha include Industrial Training Institutes (ITIs), Polytechnic (Diploma) programs, and Post-Diploma programs. Each of these educational pathways serves different levels of skill development, from basic trades to more specialized technical expertise.
 
 *Add how this fits into the broader context of vocational training in India/ Skill India initiatives etc*
 
@@ -61,7 +61,7 @@ Diploma programs in Odisha, primarily offered by polytechnic institutes, are des
 * Map of Diploma Locations
 
 
-**Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or equivalent qualification.
+**Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or 12th standard equivalent qualification. The lower age limit of students ranges from 14 to 16; there's no specified upper age limit.
 
 **Course Duration**: Diploma programs typically last for 3 years, although some institutes may offer shorter courses for specialized subjects or lateral entry for candidates with an ITI / 12th grade background. 
 
@@ -69,7 +69,7 @@ Diploma programs in Odisha, primarily offered by polytechnic institutes, are des
 Post-Diploma programs in Odisha are designed for individuals who have completed a diploma in a specific technical field and wish to further specialize or enhance their skills in advanced areas such as automation, robotics, industrial safety, and other niche sectors. These programs focus on imparting higher-level skills that are in demand in industries.
 
 **Minimum Educational Qualification**: Candidates must have completed a diploma in a relevant engineering or technical field from a recognized institution.
-Age Limit: Generally, there is no specific age limit, though candidates are typically expected to be under 30 years to apply.
+Age Limit: There is no specified age limit.
 
 **Course Duration**: Post-Diploma programs typically span 6 months to 1 year, though some specialized programs may extend longer depending on the curriculum and the institution offering the course.
 
@@ -147,7 +147,7 @@ top_10_trades_by_enrollment_2023 <- read.xlsx(
 
 ```
 
-While both the central and state governments have implemented a variety of initiatives to promote vocational training as a key tool for improving employment opportunities for youth, there remains a significant gap in its popularity, especially among students graduating from the 10th grade in Odisha. This trend is a cause for concern, given that vocational training has the potential to equip these young individuals with the practical skills necessary for gainful formal employment in a rapidly evolving economy. 
+While both the central and state governments have implemented a variety of initiatives to promote vocational training as a key tool for improving employment opportunities for youth, there remains a significant gap in its popularity, especially among students immediately graduating from the 10th grade in Odisha. This trend is a cause for concern, given that vocational training has the potential to equip these young individuals with the practical skills necessary for gainful formal employment in a rapidly evolving economy. 
 
 ```{r Pipeline of vocational training, include=TRUE, echo=FALSE, eval=TRUE, table.label="tab:pipeline"}
 
@@ -161,11 +161,11 @@ print_table_to_word(html_table)
 
 ```{r Compute stats for pipeline, include=FALSE, echo=FALSE}
 
-pct_vocational_2023 <- pipeline$`ITI.admitted.(%)`[6] + pipeline$`Diploma.admitted.(%)`[6]
+pct_vocational_2023 <- round(pipeline$`ITI.admitted.(%)`[6] + pipeline$`Diploma.admitted.(%)`[6])
 
 ```
 
-In Table *insert ref*, we see that vocational training attracts a small proportion of 10th standard students in the year they complete their board exam. Indeed, only  `r pct_vocational_2023`% of 10th standard students taking their board exam in 2023 end up in either ITI or Diploma programs. In fact, a plurality of students at ITIs joined their program 1-3 years *after* they had finished 10th standard.
+In Table *insert ref*, we see that vocational training attracts a small proportion of 10th standard students in the year they complete their board exam. Indeed, only  `r pct_vocational_2023`% of 10th standard students taking their board exam in 2023 end up in either ITI or Diploma programs. In fact, a plurality of students at ITIs joined their program 1-3 years *after* they had finished 10th standard. While the proportion of "assumed dropouts" -- the collection of students who leave the formal educational pipeline -- has been falling in recent years, most students still opt for higher secondary education over vocational training.
 
 ```{r Gap between 10th and enrollment (ITI), include=TRUE, echo=FALSE}
 html_table <- gaps_between_10th_enrollment %>% kable(
@@ -254,6 +254,7 @@ print_table_to_word(html_table)
 
 
 ## Household level
+
 ```{r Load household level exhibits, include=FALSE, echo=FALSE}
 path <- file.path(paths$TABLES_DIR, "household_level_exhibits.xlsx")
 sheet_names <- getSheetNames(path)
@@ -278,21 +279,67 @@ diploma_social_category_over_time <- read.xlsx(
   sheet_names[4]
 )
 
-```
+# Locations
+path <- file.path(paths$TABLES_DIR, "location_exhibits.xlsx")
+sheet_names <- getSheetNames(path)
 
-```{r ITI Annual income over time, echo=FALSE }
-html_table <- iti_annual_income_over_time %>% kable(
-  caption = "Income categories for ITI students over time"
-) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+iti_home_districts_2023 <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+diploma_home_districts_2023 <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+iti_home_states_2023 <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+diploma_home_states_2023 <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+
+```
+ITIs and Polytechnics in Odisha attract a large number of students from all over the state. With the growing need for skilled professionals, students from both urban and rural areas of Odisha are seeking admission to these institutions. The state's diverse demographic, spanning from metropolitan areas like Bhubaneswar and Cuttack to more remote regions, results in a wide geographic representation of students in these training programs. In addition to students from within Odisha, ITI and Polytechnic diploma training institutions in the state attract candidates from other parts of India as well, although they comprise a small proportion of enrolled students and trainees.
+
+*Geography tables to be replaced with maps today*
+
+
+```{r ITI home states 2023, echo=FALSE}
+
+html_table <- iti_home_states_2023 %>% kable(caption = "Home states of enrolled ITI trainees in 2023") %>% 
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 print_table_to_word(html_table)
 
 ```
 
-```{r Diploma Annual income over time, echo=FALSE }
-html_table <- diploma_annual_income_over_time %>% kable(
-  caption = "Income categories for Diploma students over time"
-) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+```{r Diploma home states 2023, echo=FALSE}
+
+html_table <- iti_home_states_2023 %>% kable(caption = "Home states of enrolled Polytechnic students in 2023") %>% 
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r ITI home districts 2023, echo=FALSE}
+
+html_table <- iti_home_districts_2023 %>% kable(caption = "Home state of enrolled ITI trainees in 2023") %>% 
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Diploma home districts 2023, echo=FALSE}
+
+html_table <- iti_home_districts_2023 %>% kable(caption = "Home state of enrolled Polytechnic students in 2023") %>% 
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 print_table_to_word(html_table)
 
@@ -316,9 +363,35 @@ below_250_diploma_2023 <- below_250_diploma$share_below_250[7]
 
 ```
 
-Vocational programs in Odisha largely enroll poor students: as Table *insert_ref* shows, roughly `r below_100_iti_2023`% of students enrolled in ITIs in 2023 had a family income below INR 1,00,000 per year or approximately 60% of the per capita income in the state. For diplomas, the income data is less granular; still, we see that roughly `r below_250_diploma_2023` % of Diploma students in 2023 had family incomes below INR 2,50,000 per year. This is a trend that has held over time, suggesting that vocational training has largely been relegated to the poor and economically marginal sections of the society.
+
+Despite the diversity in the geographic origin of vocational students, students are largely homogenous in their economic background: as Table *insert_ref* shows, roughly `r below_100_iti_2023`% of students enrolled in ITIs in 2023 had a family income below INR 1,00,000 per year or approximately 60% of the per capita income in the state. For diplomas, the income data is less granular; still, we see that roughly `r below_250_diploma_2023` % of Diploma students in 2023 had family incomes below INR 2,50,000 per year. This is a trend that has held over time, suggesting that vocational training has largely been the preserve of students from poor and economically marginal families.
 
 On the other hand, reservation policies have ensured a more equitable *confirm with caste shares in population* representation of castes groups in vocational programs. Nevertheless, even within various social groups, only the poorest students tend to enroll in vocational programs. *add exhibit on crosstabulation*
+
+
+
+*We should move the location exhibit on source / destination here*
+
+
+```{r ITI Annual income over time, echo=FALSE }
+html_table <- iti_annual_income_over_time %>% kable(
+  caption = "Income categories for ITI students over time"
+) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+```{r Diploma Annual income over time, echo=FALSE }
+html_table <- diploma_annual_income_over_time %>% kable(
+  caption = "Income categories for Diploma students over time"
+) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
 
 
 ```{r ITI Social category over time, echo=FALSE}
@@ -340,6 +413,8 @@ print_table_to_word(html_table)
 
  
 ## Individual level
+
+*Add more basic facts on enrollment by gender? Reference to Sudakhya scheme*
 
 ```{r Load individual level exhibits, include=FALSE, echo=FALSE}
 path = file.path(paths$TABLES_DIR, "individual_level_exhibits.xlsx")
@@ -393,7 +468,7 @@ knitr::include_graphics(file.path(paths$FIGURES_DIR,"hist_diploma_marks_2023.svg
 
 *Add bridge section to discuss difference in marks between men and women*
 
-Some ITI trades allow trainees who have failed their 10th board exam to nevertheless enroll in their program anyway. Nevertheless, the vast majority of students enrolled at ITIs have passed their 10th exam, 
+Some ITI trades allow trainees who have failed their 10th board exam to nevertheless enroll in their program anyway. Nevertheless, the vast majority of students enrolled at ITIs have passed their 10th exam, with no significant (*do test? statistical tests tend to be significant due to sample sizes but that does not imply substantive significance*) variation in pass-rates between male and female trainees.  
 
 ```{r Share 10th pass by gender among ITI students, echo=FALSE}
 html_table <- iti_pass_by_gender %>% kable(caption = "Share 10th pass at ITIs by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
@@ -437,6 +512,7 @@ print_table_to_word(html_table)
 
 
 ## Institute level
+In vocational training institutions, just like in higher education, the process of setting cutoffs for admission is a key mechanism for managing the demand for limited seats in specific courses. These institutions face a diverse pool of applicants with varying academic backgrounds, socio-economic conditions, and preferences for trades and courses. The cutoffs play a crucial role in allocating seats fairly and efficiently, ensuring that institutions can meet the demand without exceeding capacity. Cutoffs can vary based on trade, gender and category, in order to be compliant with respect to the reservation policies of the state.
 
 ```{r Load insitutes level exhibits, include=FALSE, echo=FALSE}
 path = file.path(paths$TABLES_DIR, "institute_level_exhibits.xlsx")
@@ -454,6 +530,7 @@ iti_cuttack_cutoffs <- read.xlsx(
 
 ```
 
+In Tables *insert_ref*, we see the gender and social-category wise cutoffs for Electrician and Fitter trades offered at both ITI Berhampur and ITI Cuttack. These are two of the most popular trades across the state and the institutes are one of the largest by enrollment. As we can see, there is substantial variation in the cutoff percentages across gender and caste groups. The corresponding variation in average student marks in each category is much lower, suggesting that perhaps cutoffs are not set optimally.  
 
 
 ```{r ITI Berhampur cutoffs, echo=FALSE}
@@ -462,8 +539,7 @@ html_table <- iti_berhampur_cutoffs %>% kable(caption = "ITI Berhampur cutoffs (
 print_table_to_word(html_table)
 
 ```
-
-
+Setting suboptimal cutoffs in vocational training institutions can lead to significant inefficiencies, with some trades experiencing oversubscription while others face large vacancies. In popular trades like electrician and fitter, the demand for seats often exceeds availability, resulting in higher competition and oversubscription, particularly when cutoffs are set too low or fail to account for gender or category imbalances. This can overwhelm institutional resources and extend waiting times for students. Conversely, less popular trades may suffer from low demand and large vacancies when cutoffs are set too high across the board, leading to underutilization of resources and missed opportunities for both students and institutions. Ensuring an accurate, data-driven approach to setting cutoffs is essential for maintaining balance, optimizing seat allocation, and aligning training programs with market needs.
 
 
 ```{r ITI Cuttack cutoffs, echo=FALSE}
