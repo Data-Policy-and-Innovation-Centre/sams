@@ -70,6 +70,12 @@ def geocodes() -> pd.DataFrame:
 def block_shapefiles() -> gpd.GeoDataFrame:
     return load_data(datasets["block_shapefiles"])
 
+def district_shapefiles() -> gpd.GeoDataFrame:
+    return load_data(datasets["district_shapefiles"])
+
+def village_populations() -> pd.DataFrame:
+    return load_data(datasets["village_populations"])
+
 @parameterize(
     iti_marks_and_cutoffs=dict(module=value("ITI")),   
     diploma_marks_and_cutoffs=dict(module=value("Diploma")),
@@ -111,6 +117,14 @@ def institutes_cutoffs_2023(institutes_cutoffs: pd.DataFrame) -> pd.DataFrame:
 )
 def vacancies_2023(vacancies: pd.DataFrame) -> pd.DataFrame:
     return vacancies[vacancies["academic_year"] == 2023]
+
+
+def district_populations(village_populations: pd.DataFrame) -> pd.DataFrame:
+    district_populations = village_populations.groupby("District").agg({"Vill Population+": "sum"}).reset_index()
+    district_populations = district_populations.rename(columns={"Vill Population+": "population", "District": "district"})
+    district_populations["district"] = district_populations["district"].str.title()
+    district_populations["population"] = district_populations["population"].astype(int)
+    return district_populations
 
 # ========== Exhibits ============
 @parameterize(
@@ -434,7 +448,10 @@ def map_itis_by_type_2023(iti_students_enrollments_2023: pd.DataFrame, block_sha
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     return fig
- 
+
+
+def map_students_district_2023(student_enrollments_2023: pd.DataFrame, district_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
+    pass
 
 def hist_marks_2023(iti_students_marks_2023: pd.DataFrame, diploma_students_marks_2023: pd.DataFrame) -> tuple[ggplot,ggplot,ggplot]:
     
@@ -508,7 +525,33 @@ def iti_locality_and_distance_2023(iti_students_enrollments_2023: pd.DataFrame) 
     iti_locality_and_distance_2023 = iti_locality_and_distance_2023.pivot_table(index="local", columns="gender", values="distance")
     iti_locality_and_distance_2023 = iti_locality_and_distance_2023.round(1)
     return iti_locality_and_distance_2023
-    
+
+
+@parameterize(
+    iti_home_districts_2023 = dict(student_enrollments_2023=source("iti_students_enrollments_2023")),
+    diploma_home_districts_2023 = dict(student_enrollments_2023=source("diploma_students_enrollments_2023")),
+)
+def home_districts_2023(student_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments_2023.reset_index().module[0]} enrollments by home district (2023)")
+    home_districts = student_enrollments_2023.groupby(["district"]).agg({"aadhar_no":"nunique"}).reset_index()
+    home_districts = home_districts.sort_values(by="aadhar_no", ascending=False).reset_index(drop=True)
+    home_districts["Share (%)"] = (home_districts["aadhar_no"] / home_districts["aadhar_no"].sum()) * 100
+    home_districts["Share (%)"] = home_districts["Share (%)"].round(1)
+    home_districts.rename(columns={"aadhar_no": "Num. students"}, inplace=True)
+    return home_districts 
+
+@parameterize(
+    iti_home_states_2023 = dict(student_enrollments_2023=source("iti_students_enrollments_2023")),
+    diploma_home_states_2023 = dict(student_enrollments_2023=source("diploma_students_enrollments_2023")),
+)
+def home_states_2023(student_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {student_enrollments_2023.reset_index().module[0]} enrollments by home state (2023)")
+    home_states = student_enrollments_2023.groupby(["state"]).agg({"aadhar_no":"nunique"}).reset_index()
+    home_states = home_states.sort_values(by="aadhar_no", ascending=False).reset_index(drop=True)
+    home_states["Share (%)"] = (home_states["aadhar_no"] / home_states["aadhar_no"].sum()) * 100
+    home_states["Share (%)"] = home_states["Share (%)"].round(1)    
+    home_states.rename(columns={"aadhar_no": "Num. students"}, inplace=True)
+    return home_states 
 
 @parameterize(
         iti_annual_income_over_time = dict(student_enrollments=source("iti_students_enrollments")),
@@ -760,11 +803,31 @@ def institute_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
     return metadata
 
 @datasaver()
-def location_exhibits(map_itis_by_type_2023: plt.Figure) -> dict:
+def location_exhibits(map_itis_by_type_2023: plt.Figure,
+                      iti_home_districts_2023: pd.DataFrame,
+                      iti_home_states_2023: pd.DataFrame,
+                      diploma_home_states_2023: pd.DataFrame,
+                      diploma_home_districts_2023: pd.DataFrame) -> dict:
+                      
+    # Tables
+    tables = [iti_home_districts_2023,
+              diploma_home_districts_2023,
+              iti_home_states_2023,
+              diploma_home_states_2023]
+    sheet_names = ["ITI home districts (2023)", 
+                   "Diploma home districts (2023)",
+                   "ITI home states (2023)", 
+                   "Diploma home states (2023)"]
+    file_path = TABLES_DIR / "location_exhibits.xlsx"
+    logger.info(f"Location tables saved at: {file_path}")
+    save_table_excel(tables, sheet_names, index=[False, False, False, False], outfile=file_path)
+
+    # Figures
     fig_path = FIGURES_DIR / "map_itis_by_type_2023.png"
     map_itis_by_type_2023.savefig(fig_path)
     logger.info(f"Figure saved at: {fig_path}")
-    metadata = {"figures":{"path": fig_path, "type": "png"}}
+    metadata = {"tables":{"path": file_path, "type": "excel"},
+                "figures":{"path": fig_path, "type": "png"}}
     return metadata 
 
     
