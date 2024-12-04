@@ -12,17 +12,45 @@ output:
     df_print: paged         # Prints data frames as paginated tables
     reference_docx: "template.docx" 
 ---
+
+
+```{r Load configuration, include=FALSE, eval=FALSE, echo=FALSE}
+library(here)
+ rm(list = ls())
+
+here::i_am("README.md")
+here()
+source(file.path(here(),"scripts","config.R"))
+
+
+```
+
+```{r Libraries, include=FALSE, echo=FALSE}
+library(tidyverse)
+library(arrow)
+library(ggplot2)
+library(openxlsx)
+library(kableExtra)
+library(knitr)
+library(stargazer)
+library(RColorBrewer)
+```
+
+
 # The State of Vocational Training in Odisha
-Vocational training in Odisha encompasses a variety of programs aimed at equipping individuals with specialized skills for employment in industries ranging from manufacturing to services. The key components of vocational education in Odisha include Industrial Training Institutes (ITIs), Diploma programs, and Post-Diploma programs. Each of these educational pathways serves different levels of skill development, from basic trades to more specialized technical expertise.
+Vocational training in Odisha encompasses a variety of programs aimed at equipping individuals with specialized skills for employment in a wide variety of industrial settings. The key components of vocational education in Odisha include Industrial Training Institutes (ITIs), Diploma programs, and Post-Diploma programs. Each of these educational pathways serves different levels of skill development, from basic trades to more specialized technical expertise.
 
 *Add how this fits into the broader context of vocational training in India/ Skill India initiatives etc*
 
 ## Industrial Training Institutes (ITIs)
 ITIs in Odisha provide skill development programs that focus on trades like electrical, mechanical fitting, plumbing, welding, and computer hardware, among others. These institutes are spread across urban and rural areas to cater to the local population, with both government-run and private ITIs available.
 
-* Map of ITI locations
+```{r ITI location map, include=TRUE, echo=FALSE, fig.cap="ITI locations by type of institution and enrollment (2023)", fig.align='center'}
+knitr::include_graphics(file.path(paths$FIGURES_DIR,"map_itis_by_type_2023.png"))
+```
 
-**Minimum Educational Qualification**: The candidate should have completed Class 8 for all courses, although most trades require Class 10 as the minimum educational qualification. Students are selected on the basis of their class 10 marks for most courses.
+
+**Minimum Educational Qualification**: The candidate should have either passed or failed the class 10th board exam. In 2023 and earlier, even 8th standard students were eligible to enroll in certain trades. This has been phased out in the current academic year.
 
 **Course Duration**: ITIs generally offer training programs that range from 6 months to 2 years, depending on the trade.
 
@@ -35,7 +63,7 @@ Diploma programs in Odisha, primarily offered by polytechnic institutes, are des
 
 **Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or equivalent qualification.
 
-**Course Duration**: Diploma programs typically last for 3 years, although some institutes may offer shorter courses for specialized subjects or lateral entry for candidates with an ITI background.
+**Course Duration**: Diploma programs typically last for 3 years, although some institutes may offer shorter courses for specialized subjects or lateral entry for candidates with an ITI / 12th grade background. 
 
 ## Post-Diploma Programs
 Post-Diploma programs in Odisha are designed for individuals who have completed a diploma in a specific technical field and wish to further specialize or enhance their skills in advanced areas such as automation, robotics, industrial safety, and other niche sectors. These programs focus on imparting higher-level skills that are in demand in industries.
@@ -76,8 +104,7 @@ The Student Academic Management System (SAMS) is a digital platform developed an
 
 SAMS has proven to be a transformative tool for streamlining admissions across various levels of education in Odisha. It has successfully automated processes, enhanced transparency, and lessened the administrative burden on individual institutions. However, while the platform hosts a rich repository of data on student demographics, academic performance, enrollment patterns, and institutional capacities, this information remains underutilized for analytics-driven decision-making and policy formulation.
 
-The primary focus of SAMS has been operational, such as managing admissions and tracking seats across institutions. However, the data generated from these processes is rarely used to identify trends or address systemic issues in education. Despite the capability to generate real-time reports, the data is seldom used to monitor emerging trends or respond proactively to challenges, such as the underutilization of seats in certain programs and regional / socioeconomic disparities in access to education.
-
+The primary focus of SAMS has been operational, such as managing admissions and tracking seats across institutions. However, the data generated from these processes is rarely used to identify trends or address systemic issues in education. Despite the capability to generate real-time reports, the data is seldom used to monitor emerging trends or respond proactively to challenges, such as the underutilization of seats in certain programs and regional / socioeconomic disparities in access to training.
 
 # Analysis of SAMS Data
 
@@ -85,61 +112,44 @@ The primary focus of SAMS has been operational, such as managing admissions and 
 ## The vocational training pipeline
 
 
-```{r Load configuration, include=FALSE, eval=FALSE, echo=FALSE}
-library(here)
- rm(list = ls())
-
-here::i_am("README.md")
-here()
-source(file.path(here(),"scripts","config.R"))
-
-
-```
-
-```{r Libraries, include=FALSE, echo=FALSE}
-library(tidyverse)
-library(arrow)
-library(ggplot2)
-library(openxlsx)
-library(kableExtra)
-library(knitr)
-library(stargazer)
-library(RColorBrewer)
-```
-
-
-
-```{r Load exhibits, include=FALSE, echo=FALSE}
-path <- get_exhibit("uc_exhibits")
+```{r Load exhibits, include=FALSE, echo=FALSE, eval=TRUE}
+path <- file.path(paths$TABLES_DIR, "pipeline_exhibits.xlsx")
 sheet_names <- getSheetNames(path)
 pipeline <- read.xlsx(
   path,
   sheet_names[1]
 )
-type_shares_over_time <- read.xlsx(
+gaps_between_10th_enrollment <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+iti_institutes_enrollments_over_time <- read.xlsx(
   path,
   sheet_names[3]
 )
-top_10_itis_by_num_trades_2023 <- read.xlsx(
-  path,
-  sheet_names[4]
-)
-top_10_itis_by_enrollment_2023 <- read.xlsx(
+
+iti_type_shares_over_time <- read.xlsx(
   path,
   sheet_names[5]
 )
+top_10_itis_by_num_trades_2023 <- read.xlsx(
+  path,
+  sheet_names[7]
+)
+top_10_itis_by_enrollment_2023 <- read.xlsx(
+  path,
+  sheet_names[8]
+)
 top_10_trades_by_enrollment_2023 <- read.xlsx(
   path,
-  sheet_names[6]
+  sheet_names[9]
 )
 
 ```
 
-* Relatively small portion of students choose vocational training of any form driectly after 10th.
+While both the central and state governments have implemented a variety of initiatives to promote vocational training as a key tool for improving employment opportunities for youth, there remains a significant gap in its popularity, especially among students graduating from the 10th grade in Odisha. This trend is a cause for concern, given that vocational training has the potential to equip these young individuals with the practical skills necessary for gainful formal employment in a rapidly evolving economy. 
 
-* Majority opt for 11th grade.
-
-```{r Pipeline of vocational training, include=TRUE, echo=FALSE}
+```{r Pipeline of vocational training, include=TRUE, echo=FALSE, eval=TRUE, table.label="tab:pipeline"}
 
 html_table <- pipeline %>% kable( caption = "Pipeline of vocational training") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
@@ -149,14 +159,39 @@ print_table_to_word(html_table)
 
 ```
 
-* Yet student enrollment at ITIs has gone up steadily.
+```{r Compute stats for pipeline, include=FALSE, echo=FALSE}
 
-* The number of ITIs remain relatively unchanged.
+pct_vocational_2023 <- pipeline$`ITI.admitted.(%)`[6] + pipeline$`Diploma.admitted.(%)`[6]
 
-* Large part of the increase in enrollment from govt. ITIs
+```
 
-```{r Share of government vs private students over time, include=TRUE, echo=FALSE}
-plot_data <- type_shares_over_time %>% select(Year, `Pvt.(%)`, `Govt.(%)`) %>% 
+In Table *insert ref*, we see that vocational training attracts a small proportion of 10th standard students in the year they complete their board exam. Indeed, only  `r pct_vocational_2023`% of 10th standard students taking their board exam in 2023 end up in either ITI or Diploma programs. In fact, a plurality of students at ITIs joined their program 1-3 years *after* they had finished 10th standard.
+
+```{r Gap between 10th and enrollment (ITI), include=TRUE, echo=FALSE}
+html_table <- gaps_between_10th_enrollment %>% kable(
+  caption = "Gap between 10th and ITI enrollment"
+) %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+Despite enrolling a small proportion of 10th standard students, enrollment in ITIs has risen steadily since SAMS began recording applications in 2017. This increase is notable since the number of institutions has remained relatively stable over this period. The data show that this increase is largely driven by increased enrollment at government-run ITIs in the state, which is partly driven by the fact that publicly funded ITIs offer more trades than private ITIs.
+
+```{r ITI enrollments and institutes, include=TRUE, echo=FALSE}
+html_table <- iti_institutes_enrollments_over_time %>% kable(
+  caption = "ITI enrollment and institutes over time"
+) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Share of government vs private students over time, include=TRUE, echo=FALSE, eval=TRUE}
+plot_data <- iti_type_shares_over_time %>% select(Year, `Pvt.(%)`, `Govt.(%)`) %>% 
   pivot_longer(
     cols=c("Pvt.(%)","Govt.(%)"),
     names_to = "Type",
@@ -187,7 +222,8 @@ ggplot(plot_data, aes(x = Year, y = Share, color = Type, group = Type)) +
 
 ```
 
-```{r Top 10 ITIs by num. of trades offered, echo=FALSE, include=TRUE}
+
+```{r Top 10 ITIs by num. of trades offered, echo=FALSE, include=TRUE, eval=TRUE}
 html_table <- top_10_itis_by_num_trades_2023 %>% kable( caption = "Top 10 ITIs by num. trades offered in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
@@ -196,21 +232,18 @@ print_table_to_word(html_table)
 
 ```
 
-* This is partly driven by the fact that government ITIs offer more trades than private ITIs
 
-```{r Top 10 ITIs by enrollment, echo=FALSE, include=TRUE}
+```{r Top 10 ITIs by enrollment, echo=FALSE, include=TRUE, eval=TRUE}
 html_table <- top_10_itis_by_enrollment_2023 %>% kable( caption = "Top 10 ITIs by enrollment in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
 print_table_to_word(html_table)
 
-
 ```
 
+* Do private ITIs offer more non Electrician, Fitter type trades?
 
-
-
-```{r Top 10 trades, echo=FALSE, include=TRUE}
+```{r Top 10 trades, echo=FALSE, include=TRUE, eval=TRUE}
 html_table <- top_10_trades_by_enrollment_2023 %>% kable( caption = "Top 10 trades by enrollment in 2023") %>%
   kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
@@ -219,34 +252,244 @@ print_table_to_word(html_table)
 
 ```
 
-## Location 
+
+## Household level
+```{r Load household level exhibits, include=FALSE, echo=FALSE}
+path <- file.path(paths$TABLES_DIR, "household_level_exhibits.xlsx")
+sheet_names <- getSheetNames(path)
+
+iti_annual_income_over_time <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+
+diploma_annual_income_over_time <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+
+iti_social_category_over_time <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+
+diploma_social_category_over_time <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+
+```
+
+```{r ITI Annual income over time, echo=FALSE }
+html_table <- iti_annual_income_over_time %>% kable(
+  caption = "Income categories for ITI students over time"
+) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+```{r Diploma Annual income over time, echo=FALSE }
+html_table <- diploma_annual_income_over_time %>% kable(
+  caption = "Income categories for Diploma students over time"
+) %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Compute income category percentages, include=FALSE, echo=FALSE}
+
+below_100_iti <- iti_annual_income_over_time %>% mutate(
+  share_below_100 = round(`0-1,00,000` / (`0-1,00,000` + `1,00,000-2,50,000` + `2,50,000.-.6,00,000` + `Above.6,00,000` + OTHER) * 100, digits = 0)
+)
+
+below_100_iti_2023 <- below_100_iti$share_below_100[8]
+
+below_250_diploma <- diploma_annual_income_over_time %>% mutate(
+  share_below_250 = round(`0-2,50,000`/ (`0-2,50,000` + `2,50,000-8,00,000` + `Above.8,00,000` + `OTHER`) * 100, digits = 0)
+)
+
+below_250_diploma_2023 <- below_250_diploma$share_below_250[7]
+
+
+```
+
+Vocational programs in Odisha largely enroll poor students: as Table *insert_ref* shows, roughly `r below_100_iti_2023`% of students enrolled in ITIs in 2023 had a family income below INR 1,00,000 per year or approximately 60% of the per capita income in the state. For diplomas, the income data is less granular; still, we see that roughly `r below_250_diploma_2023` % of Diploma students in 2023 had family incomes below INR 2,50,000 per year. This is a trend that has held over time, suggesting that vocational training has largely been relegated to the poor and economically marginal sections of the society.
+
+On the other hand, reservation policies have ensured a more equitable *confirm with caste shares in population* representation of castes groups in vocational programs. Nevertheless, even within various social groups, only the poorest students tend to enroll in vocational programs. *add exhibit on crosstabulation*
+
+
+```{r ITI Social category over time, echo=FALSE}
+html_table <- iti_social_category_over_time %>% kable(caption = "Social category of enrolled ITI students over time") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+
+```{r Diploma Social category over time, echo=FALSE}
+html_table <- diploma_social_category_over_time %>% kable(caption = "Social category of enrolled Diploma students over time") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+
+```
+
+ 
+## Individual level
+
+```{r Load individual level exhibits, include=FALSE, echo=FALSE}
+path = file.path(paths$TABLES_DIR, "individual_level_exhibits.xlsx")
+sheet_names = getSheetNames(path)
+
+iti_pass_by_gender <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+
+iti_top_5_boards <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+
+diploma_top_5_boards <- read.xlsx(
+  path,
+  sheet_names[3]
+)
+
+iti_highest_qual_by_gender <- read.xlsx(
+  path,
+  sheet_names[4]
+)
+
+diploma_highest_qual_by_gender <- read.xlsx(
+  path,
+  sheet_names[5]
+)
+
+
+```
+
+As we had noted earlier, ITI and Fresh-entry Diploma students are selected on the basis of their 10th grade marks; as such, in Figures *add_ref*, we see almost the full spectrum of marks represented at vocational institutes, with the modal student scoring 33% (the passing threshold in most board exams). We believe that the concentration around the passing threshold is a phenomenon in the overall distribution of marks among 10th students, largely due to lenient marking for students who are just failing, as opposed to being a feature of the academic profile of vocational students in particular. 
+
+Diploma students have performed marginally better in 10th board exams than ITI students; the former have scored *xx*% on average, whereas the latter have scored *xx*% on average. The main distinguishing feature of Diploma students is that they can enter programs either directly using their 10th grade marks (called "Fresh" entry) or join in the 3rd semester as Lateral entry students, provided they have completed either 12th grade or an ITI course. *Discuss how tenth grade marks may differ for Fresh vs Lateral entry students*
+
+
+
+```{r ITI marks histogram, echo=FALSE}
+knitr::include_graphics(file.path(paths$FIGURES_DIR,"hist_iti_marks_2023.svg"))
+
+```
+
+*Color figure by fresh vs lateral entry -- wait for Dev (CSM) to update* 
+
+```{r Diploma marks histogram, echo=FALSE}
+knitr::include_graphics(file.path(paths$FIGURES_DIR,"hist_diploma_marks_2023.svg"))
+
+```
+
+*Add bridge section to discuss difference in marks between men and women*
+
+Some ITI trades allow trainees who have failed their 10th board exam to nevertheless enroll in their program anyway. Nevertheless, the vast majority of students enrolled at ITIs have passed their 10th exam, 
+
+```{r Share 10th pass by gender among ITI students, echo=FALSE}
+html_table <- iti_pass_by_gender %>% kable(caption = "Share 10th pass at ITIs by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
+```{r ITI top 5 boards, echo=FALSE}
+html_table <- iti_top_5_boards %>% kable(caption = "Top 5 boards for students in ITI (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Diploma top 5 boards, echo=FALSE}
+html_table <- diploma_top_5_boards %>% kable(caption = "Top 5 boards/examiners for students in Diploma programs (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r ITI highest qualifications by gender, echo=FALSE}
+html_table <- iti_highest_qual_by_gender %>% kable(caption = "ITI highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Diploma highest qualifications by gender, echo=FALSE}
+html_table <- diploma_highest_qual_by_gender %>% kable(caption = "Diploma highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+## Institute level
+
+```{r Load insitutes level exhibits, include=FALSE, echo=FALSE}
+path = file.path(paths$TABLES_DIR, "institute_level_exhibits.xlsx")
+sheet_names = getSheetNames(path)
+
+iti_berhampur_cutoffs <- read.xlsx(
+  path,
+  sheet_names[1]
+)
+
+iti_cuttack_cutoffs <- read.xlsx(
+  path,
+  sheet_names[2]
+)
+
+```
+
+
+
+```{r ITI Berhampur cutoffs, echo=FALSE}
+html_table <- iti_berhampur_cutoffs %>% kable(caption = "ITI Berhampur cutoffs (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
+
+```{r ITI Cuttack cutoffs, echo=FALSE}
+html_table <- iti_cuttack_cutoffs %>% kable(caption = "ITI Cuttack cutoffs (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+
+```{r Histogram of vacancies for govt. ITIs, include=TRUE, echo=FALSE}
+knitr::include_graphics(file.path(paths$FIGURES_DIR, "hist_govt_iti_vacancy_ratios_2023.svg"))
+
+```
+
+```{r Histogram of vacancies for pvt. ITIs, include=TRUE, echo=FALSE}
+knitr::include_graphics(file.path(paths$FIGURES_DIR, "hist_pvt_iti_vacancy_ratios_2023.svg"))
+
+```
+
+## Location (TODO)
 
 * Where are they from vs where are they going?
 
 * What proportion is traveling outside the district and then average distance traveled for each category. By gender, by social category.
 
     * Over time are women traveling further? Beginning share of outside district, average distance, and final share outside district, average distance
-
-
-## Household level
-
-* Annual income
-
-* Socioeconomic background
- 
-## Individual level
-
-* Marks 
-    * Share pass fail by gender
-
-* Boards
-
-* Highest qualification (Diploma / ITI)
-
-## Institute level
-
-* Cutoff table
-
-* Vacancy ratios graph
-
 
