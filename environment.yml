@@ -21,6 +21,7 @@ dependencies:
   - schedule
   - pandas
   - scikit-learn
+  - rapidfuzz
   - pip:
     - python-dotenv
     - mkdocs
