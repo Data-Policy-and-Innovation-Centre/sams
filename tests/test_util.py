@@ -9,6 +9,9 @@ from sams.utils import (
     correct_spelling,
     find_null_column,
     hours_since_creation,
+    fuzzy_merge,
+    best_fuzzy_match,
+    _group_dict
 )
 
 
@@ -108,6 +111,88 @@ def test_hours_since_creation(file_exists, mtime, current_time, expected):
         "os.path.getmtime", return_value=mtime
     ), patch("time.time", return_value=current_time):
         assert hours_since_creation("dummy_path") == expected
+
+
+# Mock DataFrames for Testing
+@pytest.fixture
+def df1():
+    return pd.DataFrame({
+        "key1": ["A", "A", "B"],
+        "fuzzy_col": ["apple", "banana", "grape"]
+    })
+
+@pytest.fixture
+def df2():
+    return pd.DataFrame({
+        "key1": ["A", "A", "B"],
+        "fuzzy_col": ["appl", "bananas", "grapes"],
+        "value": [10, 20, 30]
+    })
+
+@pytest.fixture
+def df2_unrelated():
+    return pd.DataFrame({
+        "key1": ["C", "C", "D"],
+        "fuzzy_col": ["carrot", "date", "elderberry"],
+        "value": [40, 50, 60]
+    })
+
+### Test Cases
+
+def test_best_fuzzy_match():
+    """Test the fuzzy matching function."""
+    choices = ["apple", "banana", "grape"]
+    assert best_fuzzy_match("appl", choices, threshold=80) == "apple"
+    assert best_fuzzy_match("bananas", choices, threshold=80) == "banana"
+    assert best_fuzzy_match("unknown", choices, threshold=80) is None
+    assert best_fuzzy_match("grape", choices, threshold=90) == "grape"
+
+def test_group_dict(df2):
+    """Test the _group_dict function."""
+    grouped = _group_dict(df2, group_by=["key1"])
+    assert isinstance(grouped, dict)
+    assert len(grouped) == 2
+    assert grouped[tuple("A")].shape == (2, 3)
+    assert grouped[tuple("B")].shape == (1, 3)
+    assert "value" in grouped[tuple("A")].columns
+
+def test_fuzzy_merge_basic(df1, df2):
+    """Test fuzzy_merge with a simple case."""
+    result = fuzzy_merge(df1, df2, how="left", exact_on=["key1"], fuzzy_on="fuzzy_col")
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == df1.shape[0]  # Same number of rows as df1
+    assert "value" in result.columns
+    assert result["value"].isnull().sum() == 0  # All rows should have matches
+
+def test_fuzzy_merge_no_matches(df1, df2_unrelated):
+    """Test fuzzy_merge when no matches are found."""
+    result = fuzzy_merge(df1, df2_unrelated, how="left", exact_on=["key1"], fuzzy_on="fuzzy_col")
+    assert isinstance(result, pd.DataFrame)
+    assert result.shape[0] == df1.shape[0]  # Same number of rows as df1
+    assert result["value"].isnull().sum() == df1.shape[0]  # No rows should have matches
+
+def test_fuzzy_merge_threshold(df1, df2):
+    """Test fuzzy_merge with a higher threshold."""
+    result = fuzzy_merge(df1, df2, how="left", exact_on=["key1"], fuzzy_on="fuzzy_col")
+    assert result.loc[result["fuzzy_col"] == "bananas", "value"].values[0] == 20
+
+def test_fuzzy_merge_with_duplicates():
+    """Test fuzzy_merge with duplicates in df2."""
+    df1 = pd.DataFrame({
+        "key1": ["A"],
+        "fuzzy_col": ["apple"]
+    })
+    df2 = pd.DataFrame({
+        "key1": ["A", "A"],
+        "fuzzy_col": ["appl", "appl"],
+        "value": [10, 20]
+    })
+    result = fuzzy_merge(df1, df2, how="left", exact_on=["key1"], fuzzy_on="fuzzy_col")
+    assert result.shape[0] == 2
+    assert result["value"].isin([10, 20]).all()  # Both matches valid
+
+
+
 
 
 if __name__ == "__main__":
