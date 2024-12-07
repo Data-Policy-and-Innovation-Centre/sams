@@ -86,6 +86,12 @@ def village_populations(canonical_district_names: list[str]) -> pd.DataFrame:
     df["District"] = df["District"].apply(lambda x: best_fuzzy_match(x, canonical_district_names) if best_fuzzy_match(x, canonical_district_names) else x)
     return df
 
+def state_shapefiles() -> gpd.GeoDataFrame:
+    return load_data(datasets["state_shapefiles"])
+
+def india_border_shapefiles() -> gpd.GeoDataFrame:
+    return load_data(datasets["india_border_shapefiles"])
+
 @parameterize(
     iti_marks_and_cutoffs=dict(module=value("ITI")),   
     diploma_marks_and_cutoffs=dict(module=value("Diploma")),
@@ -495,7 +501,25 @@ def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapef
     map_diploma_students_state_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), state_shapefiles=source("state_shapefiles")),
 )
 def map_students_state_2023(student_enrollments_2023: pd.DataFrame, state_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
-    pass
+    logger.info(f"FIGURE: Map of {student_enrollments_2023.reset_index().module[0]} student enrollment by state (2023)")
+    state_enrollments = student_enrollments_2023.groupby(["state"]).agg({"aadhar_no": "nunique"}).reset_index()
+    state_shapefiles = state_shapefiles.rename(columns={"State_Name": "state"})
+    state_enrollments = fuzzy_merge(state_shapefiles, state_enrollments, how="left", fuzzy_on="state")
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot states by popularion
+    blocks = state_enrollments.to_crs("EPSG:4326")
+    blocks.plot(ax=ax, color="#E4EFF7", edgecolor="black", linewidth=0.1)
+    blocks.plot(column='aadhar_no', 
+         cmap='viridis',  # Choose a color map
+         legend=False, 
+         legend_kwds={'label': "Enrollment by state",
+                      'orientation': "horizontal"},
+         ax=ax)
+    
+    ax.set_axis_off() 
+    return fig
 
 def hist_marks_2023(iti_students_marks_2023: pd.DataFrame, diploma_students_marks_2023: pd.DataFrame) -> tuple[ggplot,ggplot,ggplot]:
     
@@ -850,6 +874,8 @@ def institute_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
 def location_exhibits(map_itis_by_type_2023: plt.Figure,
                       map_iti_students_block_2023: plt.Figure,
                       map_diploma_students_block_2023: plt.Figure,
+                      map_iti_students_state_2023: plt.Figure,
+                      map_diploma_students_state_2023: plt.Figure,
                       iti_home_districts_2023: pd.DataFrame,
                       iti_home_states_2023: pd.DataFrame,
                       diploma_home_states_2023: pd.DataFrame,
@@ -869,10 +895,12 @@ def location_exhibits(map_itis_by_type_2023: plt.Figure,
     save_table_excel(tables, sheet_names, index=[False, False, False, False], outfile=file_path)
 
     # Figures
-    figs = [map_itis_by_type_2023, map_iti_students_block_2023, map_diploma_students_block_2023]
+    figs = [map_itis_by_type_2023, map_iti_students_block_2023, map_diploma_students_block_2023, map_iti_students_state_2023, map_diploma_students_state_2023]
     fig_paths = [FIGURES_DIR / "map_itis_by_type_2023.png",
                  FIGURES_DIR / "map_iti_students_block_2023.png",
-                 FIGURES_DIR / "map_diploma_students_block_2023.png"]
+                 FIGURES_DIR / "map_diploma_students_block_2023.png",
+                 FIGURES_DIR / "map_iti_students_state_2023.png",
+                 FIGURES_DIR / "map_diploma_students_state_2023.png"]
     for fig, fig_path in zip(figs, fig_paths):
         fig.savefig(fig_path)
         logger.info(f"Figure saved at: {fig_path}")

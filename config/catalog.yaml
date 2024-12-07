@@ -19,6 +19,16 @@ datasets:
     path: "data/external/shapefiles_odisha/district_boundaries/Odisha_Admin_District_BND_2021.shp"
     layer: external
 
+  state_shapefiles:
+    type: shapefile
+    path: "data/external/shapefiles_india/India_State_Boundary.shp"
+    layer: external
+
+  india_border_shapefiles:
+    type: shapefile
+    path: "data/external/shapefiles_india/India_Country_Boundary.shp"
+    layer: external
+    
   village_populations:
     type: csv
     path: "data/external/all_districts_villages.csv"
