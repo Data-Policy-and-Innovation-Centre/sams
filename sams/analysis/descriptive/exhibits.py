@@ -1,7 +1,7 @@
 import pandas as pd
 from hamilton.function_modifiers import parameterize, value, source, datasaver
 from sams.config import datasets, exhibits, FIGURES_DIR, TABLES_DIR
-from sams.utils import load_data
+from sams.utils import load_data, best_fuzzy_match, fuzzy_merge
 from sams.analysis.utils import (
     pivot_table,
     save_table_excel
@@ -36,6 +36,10 @@ def pipeline_raw() -> pd.DataFrame:
 def students_enrollments(module: str) -> pd.DataFrame:
     return load_data(datasets[f"{module.lower()}_enrollments"])
 
+
+def canonical_district_names(iti_students_enrollments: pd.DataFrame, diploma_students_enrollments: pd.DataFrame) -> list[str]:
+    return list(set(iti_students_enrollments["district"].unique().tolist() + diploma_students_enrollments["district"].unique().tolist()))
+
 @parameterize(
     iti_students_marks=dict(module=value("ITI")),
     diploma_students_marks=dict(module=value("Diploma")),
@@ -67,14 +71,20 @@ def institutes_enrollments(module: str) -> pd.DataFrame:
 def geocodes() -> pd.DataFrame:
     return load_data(datasets["geocodes"])
 
-def block_shapefiles() -> gpd.GeoDataFrame:
-    return load_data(datasets["block_shapefiles"])
+def block_shapefiles(canonical_district_names: list[str]) -> gpd.GeoDataFrame:
+    df = load_data(datasets["block_shapefiles"])
+    df["district_n"] = df["district_n"].apply(lambda x: best_fuzzy_match(x, canonical_district_names) if best_fuzzy_match(x, canonical_district_names) else x)
+    return df
 
-def district_shapefiles() -> gpd.GeoDataFrame:
-    return load_data(datasets["district_shapefiles"])
+def district_shapefiles(canonical_district_names: list[str]) -> gpd.GeoDataFrame:
+    df = load_data(datasets["district_shapefiles"])
+    df["district_n"] = df["district_n"].apply(lambda x: best_fuzzy_match(x, canonical_district_names) if best_fuzzy_match(x, canonical_district_names) else x)
+    return df
 
-def village_populations() -> pd.DataFrame:
-    return load_data(datasets["village_populations"])
+def village_populations(canonical_district_names: list[str]) -> pd.DataFrame:
+    df = load_data(datasets["village_populations"])
+    df["District"] = df["District"].apply(lambda x: best_fuzzy_match(x, canonical_district_names) if best_fuzzy_match(x, canonical_district_names) else x)
+    return df
 
 @parameterize(
     iti_marks_and_cutoffs=dict(module=value("ITI")),   
@@ -125,6 +135,8 @@ def district_populations(village_populations: pd.DataFrame) -> pd.DataFrame:
     district_populations["district"] = district_populations["district"].str.title()
     district_populations["population"] = district_populations["population"].astype(int)
     return district_populations
+
+
 
 # ========== Exhibits ============
 @parameterize(
@@ -451,6 +463,38 @@ def map_itis_by_type_2023(iti_students_enrollments_2023: pd.DataFrame, block_sha
 
 
 def map_students_district_2023(student_enrollments_2023: pd.DataFrame, district_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
+    pass
+
+@parameterize(
+    map_iti_students_block_2023=dict(student_enrollments_2023=source("iti_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
+    map_diploma_students_block_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
+)
+def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
+    logger.info(f"FIGURE: Map of {student_enrollments_2023.reset_index().module[0]} student enrollment by block (2023)")
+    student_enrollments_2023 = student_enrollments_2023.groupby(["district", "block"]).agg({"aadhar_no": "nunique"}).reset_index()
+    block_shapefiles = block_shapefiles.rename(columns={"district_n": "district", "block_name": "block"})
+    shapefile_enrollments = fuzzy_merge(block_shapefiles, student_enrollments_2023, how="left", exact_on=["district"], fuzzy_on="block")
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Plot the blocks and shade by student enrollment
+    blocks = shapefile_enrollments.to_crs("EPSG:4326")
+    blocks.plot(ax=ax, color="#E4EFF7", edgecolor="black", linewidth=0.1)
+    blocks.plot(column='aadhar_no', 
+         cmap='viridis',  # Choose a color map
+         legend=True, 
+         legend_kwds={'label': "Enrollment by block",
+                      'orientation': "horizontal"},
+         ax=ax)
+    
+    ax.set_axis_off() 
+    return fig
+
+@parameterize(
+    map_iti_students_state_2023=dict(student_enrollments_2023=source("iti_students_enrollments_2023"), state_shapefiles=source("state_shapefiles")),
+    map_diploma_students_state_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), state_shapefiles=source("state_shapefiles")),
+)
+def map_students_state_2023(student_enrollments_2023: pd.DataFrame, state_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
     pass
 
 def hist_marks_2023(iti_students_marks_2023: pd.DataFrame, diploma_students_marks_2023: pd.DataFrame) -> tuple[ggplot,ggplot,ggplot]:
@@ -804,6 +848,8 @@ def institute_level_exhibits(iti_berhampur_cutoffs_2023: pd.DataFrame,
 
 @datasaver()
 def location_exhibits(map_itis_by_type_2023: plt.Figure,
+                      map_iti_students_block_2023: plt.Figure,
+                      map_diploma_students_block_2023: plt.Figure,
                       iti_home_districts_2023: pd.DataFrame,
                       iti_home_states_2023: pd.DataFrame,
                       diploma_home_states_2023: pd.DataFrame,
@@ -823,11 +869,16 @@ def location_exhibits(map_itis_by_type_2023: plt.Figure,
     save_table_excel(tables, sheet_names, index=[False, False, False, False], outfile=file_path)
 
     # Figures
-    fig_path = FIGURES_DIR / "map_itis_by_type_2023.png"
-    map_itis_by_type_2023.savefig(fig_path)
-    logger.info(f"Figure saved at: {fig_path}")
+    figs = [map_itis_by_type_2023, map_iti_students_block_2023, map_diploma_students_block_2023]
+    fig_paths = [FIGURES_DIR / "map_itis_by_type_2023.png",
+                 FIGURES_DIR / "map_iti_students_block_2023.png",
+                 FIGURES_DIR / "map_diploma_students_block_2023.png"]
+    for fig, fig_path in zip(figs, fig_paths):
+        fig.savefig(fig_path)
+        logger.info(f"Figure saved at: {fig_path}")
+
     metadata = {"tables":{"path": file_path, "type": "excel"},
-                "figures":{"path": fig_path, "type": "png"}}
+                "figures":{"path": fig_paths, "type": "png"}}
     return metadata 
 
     
