@@ -437,7 +437,7 @@ def _best_fuzzy_match_group(row: pd.Series, grouped_df: dict, exact_on: list[str
     except KeyError:
         return None
 
-def fuzzy_merge(df1: pd.DataFrame, df2: pd.DataFrame, how: str, fuzzy_on: str, exact_on: list[str] = [], threshold: float = 80) -> pd.DataFrame:
+def fuzzy_merge(df1: pd.DataFrame, df2: pd.DataFrame, how: str, fuzzy_on: str, exact_on: list[str] = [], threshold: float = 70) -> pd.DataFrame | gpd.GeoDataFrame:
     """
     Merge two dataframes using fuzzy matching on specific columns.
 
