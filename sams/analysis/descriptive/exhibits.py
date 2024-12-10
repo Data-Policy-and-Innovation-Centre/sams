@@ -490,7 +490,7 @@ def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapef
          cmap='viridis',  # Choose a color map
          legend=True, 
          legend_kwds={'label': "Enrollment by block",
-                      'orientation': "horizontal"},
+                      'orientation': "vertical"},
          ax=ax)
     
     ax.set_axis_off() 
