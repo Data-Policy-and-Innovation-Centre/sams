@@ -497,26 +497,35 @@ def map_students_district_2023(student_enrollments_2023: pd.DataFrame, district_
     pass
 
 @parameterize(
-    map_iti_students_block_2023=dict(student_enrollments_2023=source("iti_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
-    map_diploma_students_block_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), block_shapefiles=source("block_shapefiles")),
+    map_iti_students_block_2023=dict(student_enrollments_2023=source("iti_students_enrollments_2023"), block_shapefiles=source("block_shapefiles"), district_shapefiles=source("district_shapefiles")),
+    map_diploma_students_block_2023=dict(student_enrollments_2023=source("diploma_students_enrollments_2023"), block_shapefiles=source("block_shapefiles"), district_shapefiles=source("district_shapefiles")),
 )
-def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
+def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame, district_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
     logger.info(f"FIGURE: Map of {student_enrollments_2023.reset_index().module[0]} student enrollment by block (2023)")
+
+    # Block shapefile with enrollments
     student_enrollments_2023 = student_enrollments_2023.groupby(["district", "block"]).agg({"aadhar_no": "nunique"}).reset_index()
     block_shapefiles = block_shapefiles.rename(columns={"district_n": "district", "block_name": "block"})
     shapefile_enrollments = fuzzy_merge(block_shapefiles, student_enrollments_2023, how="left", exact_on=["district"], fuzzy_on="block")
+    
 
     fig, ax = plt.subplots(figsize=(12, 8))
 
+    # Plot the districts with names
+    districts = district_shapefiles.to_crs("EPSG:4326")
+    districts.plot(ax=ax, edgecolor = "black", linewidth=1)
+
     # Plot the blocks and shade by student enrollment
     blocks = shapefile_enrollments.to_crs("EPSG:4326")
-    blocks.plot(ax=ax, color="#E4EFF7", edgecolor="black", linewidth=0.1)
-    blocks.plot(column='aadhar_no', 
-         cmap='viridis',  # Choose a color map
+    blocks.plot(ax=ax, edgecolor="k", linewidth=0.1, alpha=0.8, column='aadhar_no', 
+         cmap='coolwarm',  # Choose a color map
          legend=True, 
          legend_kwds={'label': "Enrollment by block",
-                      'orientation': "vertical"},
-         ax=ax)
+                      'orientation': "vertical"})
+    
+    # Plot district names at centroid
+    for _, row in districts.iterrows():
+        ax.text(row['geometry'].centroid.x, row['geometry'].centroid.y, row['district_n'], ha='center', va='center', fontsize=10)
     
     ax.set_axis_off() 
     return fig
@@ -534,14 +543,20 @@ def map_students_state_2023(student_enrollments_2023: pd.DataFrame, state_shapef
     fig, ax = plt.subplots(figsize=(12, 8))
 
     # Plot states by popularion
-    blocks = state_enrollments.to_crs("EPSG:4326")
-    blocks.plot(ax=ax, color="#E4EFF7", edgecolor="black", linewidth=0.1)
-    blocks.plot(column='aadhar_no', 
-         cmap='viridis',  # Choose a color map
-         legend=False, 
+    states = state_enrollments.to_crs("EPSG:4326")
+    states = states[states["state"] != "Odisha"]
+    states.plot(ax=ax, color="#E4EFF7", edgecolor="black", linewidth=0.1)
+    states.plot(column='aadhar_no', 
+         cmap='coolwarm',  # Choose a color map
+         legend=True, 
          legend_kwds={'label': "Enrollment by state",
-                      'orientation': "horizontal"},
+                      'orientation': "vertical"},
          ax=ax)
+    
+    # Color Odisha white
+    states = state_enrollments.to_crs("EPSG:4326")
+    odisha = states[states['state'] == "Odisha"]
+    odisha.plot(ax=ax, color="white", edgecolor="black", linewidth=0.1)
     
     ax.set_axis_off() 
     return fig
