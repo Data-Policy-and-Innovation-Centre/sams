@@ -171,6 +171,31 @@ def combined_enrollments_over_time(iti_enrollments_over_time: pd.DataFrame, dipl
     return combined_enrollments_over_time
 
 def _get_pct(df: pd.DataFrame, vars: list[str], total_label: str, var_labels: list[str], round: list[int], drop: bool = True) -> pd.DataFrame:
+    """
+    Calculate percentage of values in a set of columns in a DataFrame and
+    add the result as a new column.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the columns to calculate percentages for.
+    vars : list[str]
+        The list of column names to calculate percentages for.
+    total_label : str
+        The label of the column to store the total value.
+    var_labels : list[str]
+        The list of column labels to store the percentage values.
+    round : list[int]
+        The list of decimal places to round each percentage value to.
+    drop : bool, optional
+        Whether to drop the original columns after calculating percentages.
+        The default is True.
+
+    Returns
+    -------
+    pd.DataFrame
+        The DataFrame with the new columns added.
+    """
     df = df.copy()
 
     if len(vars) != len(var_labels):
@@ -646,6 +671,17 @@ def social_category_over_time(student_enrollments: pd.DataFrame) -> pd.DataFrame
     return social_category_over_time
 
 @parameterize(
+        iti_income_by_category_2023 = dict(students_enrollments_2023=source("iti_students_enrollments_2023")),
+        diploma_income_by_category_2023 = dict(students_enrollments_2023=source("diploma_students_enrollments_2023")),
+)
+def income_by_category_2023(students_enrollments_2023: pd.DataFrame) -> pd.DataFrame:
+    logger.info(f"TABLE: {students_enrollments_2023.reset_index().module[0]} Income by Category in 2023")
+    income_by_category_2023 = students_enrollments_2023.groupby(["annual_income", "social_category"]).agg({"aadhar_no":"nunique"}).reset_index()
+    income_by_category_2023 = income_by_category_2023.pivot_table(index="social_category", columns="annual_income", values="aadhar_no").fillna(0).astype(int).reset_index()
+    income_by_category_2023 = income_by_category_2023.rename(columns={"social_category": "Social Category"})
+    return income_by_category_2023
+
+@parameterize(
         iti_top_5_boards_2023 = dict(marks_2023=source("iti_students_marks_2023"), module=value("ITI")),
         diploma_top_5_boards_2023 = dict(marks_2023=source("diploma_students_marks_2023"), module=value("Diploma")),
 )
@@ -789,19 +825,25 @@ def pipeline_exhibits(pipeline_pct: pd.DataFrame,
 def household_level_exhibits(iti_annual_income_over_time: pd.DataFrame,
                              diploma_annual_income_over_time: pd.DataFrame,
                              iti_social_category_over_time: pd.DataFrame,
-                             diploma_social_category_over_time: pd.DataFrame
+                             diploma_social_category_over_time: pd.DataFrame,
+                             iti_income_by_category_2023: pd.DataFrame,
+                             diploma_income_by_category_2023: pd.DataFrame
                              ) -> dict:
     
     tables = [iti_annual_income_over_time, 
               diploma_annual_income_over_time,
               iti_social_category_over_time, 
-              diploma_social_category_over_time]
+              diploma_social_category_over_time,
+              iti_income_by_category_2023, 
+              diploma_income_by_category_2023]
     sheet_names = ["ITI annual income over time", 
                    "Diploma annual income over time",
                    "ITI social category over time", 
-                   "Diploma social category over time"]
+                   "Diploma social category over time",
+                   "ITI income by category in 2023", 
+                   "Diploma income by category in 2023"]
     file_path = TABLES_DIR / "household_level_exhibits.xlsx"
-    save_table_excel(tables, sheet_names, index=[False, False, False, False], outfile=file_path)
+    save_table_excel(tables, sheet_names, index=[False, False, False, False, False, False], outfile=file_path)
     logger.info(f"Household level tables saved at: {file_path}")
 
     metadata = {"tables":{"path": file_path, "type": "excel"}}
