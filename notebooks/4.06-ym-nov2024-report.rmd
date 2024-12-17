@@ -70,7 +70,7 @@ Diploma programs in Odisha, primarily offered by polytechnic institutes, are des
 * Map of Diploma Locations
 
 
-**Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or 12th standard equivalent qualification. The lower age limit of students ranges from 14 to 16; there's no specified upper age limit.
+**Minimum Educational Qualification**: A candidate must have completed Class 10 (Secondary School Certificate or equivalent) for most diploma courses. Some advanced diploma programs may require completion of a related ITI or 12th standard equivalent qualification. The lower age limit of students ranges from 14 to 16; there's no specified upper age limit. 
 
 **Course Duration**: Diploma programs typically last for 3 years, although some institutes may offer shorter courses for specialized subjects or lateral entry for candidates with an ITI / 12th grade background. 
 
@@ -434,6 +434,26 @@ diploma_highest_qual_by_gender <- read.xlsx(
 
 ```
 
+
+Vocational students at ITIs and Polytechnic programs tend to come from different academic backgrounds. While ITI trainees predominantly have a 10th pass background, Polytechnic diploma students are admitted in two tracks: "fresh entry" diploma matriculants typically have a 10th pass background, while "lateral entry" students have an ITI or 12th pass background. Lateral entry students are typically allowed to join a diploma programme in the second year, allowing them to skip the basic courses taught in the first two semesters. As such, we see a that 
+
+
+```{r ITI highest qualifications by gender, echo=FALSE}
+html_table <- iti_highest_qual_by_gender %>% kable(caption = "ITI highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
+```{r Diploma highest qualifications by gender, echo=FALSE}
+html_table <- diploma_highest_qual_by_gender %>% kable(caption = "Diploma highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
+
+print_table_to_word(html_table)
+
+```
+
+
 As we had noted earlier, ITI and Fresh-entry Diploma students are selected on the basis of their 10th grade marks; as such, in Figures *add_ref*, we see almost the full spectrum of marks represented at vocational institutes, with the modal student scoring 33% (the passing threshold in most board exams). We believe that the concentration around the passing threshold is a phenomenon in the overall distribution of marks among 10th students, largely due to lenient marking for students who are just failing, as opposed to being a feature of the academic profile of vocational students in particular. 
 
 Diploma students have performed marginally better in 10th board exams than ITI students; the former have scored 50% on average, whereas the latter have scored 57% on average. The main distinguishing feature of Diploma students is that they can enter programs either directly using their 10th grade marks (called "Fresh" entry) or join in the 3rd semester as Lateral entry students, provided they have completed either 12th grade or an ITI course. 
@@ -461,6 +481,8 @@ print_table_to_word(html_table)
 
 ```
 
+<!-- 
+
 ```{r ITI top 5 boards, echo=FALSE}
 html_table <- iti_top_5_boards %>% kable(caption = "Top 5 boards for students in ITI (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
 
@@ -474,26 +496,13 @@ html_table <- diploma_top_5_boards %>% kable(caption = "Top 5 boards/examiners f
 
 print_table_to_word(html_table)
 
-```
+``` 
+-->
 
 
-```{r ITI highest qualifications by gender, echo=FALSE}
-html_table <- iti_highest_qual_by_gender %>% kable(caption = "ITI highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
-
-print_table_to_word(html_table)
-
-```
-
-
-```{r Diploma highest qualifications by gender, echo=FALSE}
-html_table <- diploma_highest_qual_by_gender %>% kable(caption = "Diploma highest qualifications by gender (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
-
-print_table_to_word(html_table)
-
-```
 
 ## Institutes
-In vocational training institutions, just like in higher education, the process of setting cutoffs for admission is a key mechanism for managing the demand for limited seats in specific courses. These institutions face a diverse pool of applicants with varying academic backgrounds, socio-economic conditions, and preferences for trades and courses. The reservation policy of the state and the centre
+In vocational training institutions, just like in higher education, the process of setting cutoffs for admission is a key mechanism for managing the demand for limited seats in specific courses. These institutions face a diverse pool of applicants with varying academic backgrounds, socio-economic conditions, and preferences for trades and courses. The reservation policy of the state and the centre mandate allotment of seats by gender and social category, which then in turn determine the cutoffs in combination with demand for seats. 
 
 ```{r Load insitutes level exhibits, include=FALSE, echo=FALSE}
 path = file.path(paths$TABLES_DIR, "institute_level_exhibits.xlsx")
@@ -521,8 +530,6 @@ print_table_to_word(html_table)
 
 ```
 
-Suboptimally allocating seats across trades and branches in vocational training institutions can lead to significant inefficiencies, with some trades experiencing oversubscription while others face large vacancies. In popular trades like electrician and fitter, the demand for seats often exceeds availability, resulting in higher competition and oversubscription, particularly when reservation policies are miscalibrated fail to account for gender or category imbalances. This can overwhelm institutional resources and extend waiting times for students. Conversely, less popular trades may suffer from low demand and large vacancies too many seats are allocated to them relative to demand, leading to underutilization of resources and missed opportunities for both students and institutions. Ensuring an accurate, data-driven approach to seat allocations is essential for maintaining balance and aligning training programs with market needs.
-
 
 ```{r ITI Cuttack cutoffs, echo=FALSE}
 html_table <- iti_cuttack_cutoffs %>% kable(caption = "ITI Cuttack cutoffs (2023)") %>% kable_styling(full_width = F, bootstrap_options = c("striped", "hover"))
@@ -531,6 +538,12 @@ print_table_to_word(html_table)
 
 ```
 
+
+
+
+Suboptimally allocating seats across trades and branches in vocational training institutions can lead to significant inefficiencies, with some trades experiencing oversubscription while others face large vacancies. In popular trades like electrician and fitter, the demand for seats often exceeds availability, resulting in higher competition and oversubscription, particularly when reservation policies are miscalibrated fail to account for gender or category imbalances. This can overwhelm institutional resources and extend waiting times for students. Conversely, less popular trades may suffer from low demand and large vacancies too many seats are allocated to them relative to demand, leading to underutilization of resources and missed opportunities for both students and institutions. Ensuring an accurate, data-driven approach to seat allocations is essential for maintaining balance and aligning training programs with market needs. 
+
+As shown in Figures *insert_ref*, we see marked variation in the extent to which seats are left vacant in vocational training institutes in the state. In particular, while public ITIs are largely able to fill seats, private ITIs are often left with large vacancies. The exact cause for this is unclear, but it is likely that many private ITIs offer lower quality / more expensive programs, and do not provide good job market outcomes relative to public ITIs. 
 
 
 ```{r Histogram of vacancies for govt. ITIs, include=TRUE, echo=FALSE}
