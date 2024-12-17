@@ -10,6 +10,7 @@ from loguru import logger
 from shapely.geometry import Point
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from plotnine import ( 
     ggplot, 
     aes, 
@@ -79,6 +80,7 @@ def block_shapefiles(canonical_district_names: list[str]) -> gpd.GeoDataFrame:
 def district_shapefiles(canonical_district_names: list[str]) -> gpd.GeoDataFrame:
     df = load_data(datasets["district_shapefiles"])
     df["district_n"] = df["district_n"].apply(lambda x: best_fuzzy_match(x, canonical_district_names) if best_fuzzy_match(x, canonical_district_names) else x)
+    df["district_n"] = df["district_n"].str.replace("Baleswar", "Balasore")
     return df
 
 def village_populations(canonical_district_names: list[str]) -> pd.DataFrame:
@@ -141,8 +143,6 @@ def district_populations(village_populations: pd.DataFrame) -> pd.DataFrame:
     district_populations["district"] = district_populations["district"].str.title()
     district_populations["population"] = district_populations["population"].astype(int)
     return district_populations
-
-
 
 # ========== Exhibits ============
 @parameterize(
@@ -503,6 +503,9 @@ def map_students_district_2023(student_enrollments_2023: pd.DataFrame, district_
 def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapefiles: gpd.GeoDataFrame, district_shapefiles: gpd.GeoDataFrame) -> plt.Figure:
     logger.info(f"FIGURE: Map of {student_enrollments_2023.reset_index().module[0]} student enrollment by block (2023)")
 
+    # Color map
+    cmap_white_red = mcolors.LinearSegmentedColormap.from_list('white_red', ['white', 'red'])
+
     # Block shapefile with enrollments
     student_enrollments_2023 = student_enrollments_2023.groupby(["district", "block"]).agg({"aadhar_no": "nunique"}).reset_index()
     block_shapefiles = block_shapefiles.rename(columns={"district_n": "district", "block_name": "block"})
@@ -517,8 +520,8 @@ def map_students_block_2023(student_enrollments_2023: pd.DataFrame, block_shapef
 
     # Plot the blocks and shade by student enrollment
     blocks = shapefile_enrollments.to_crs("EPSG:4326")
-    blocks.plot(ax=ax, edgecolor="k", linewidth=0.1, alpha=0.8, column='aadhar_no', 
-         cmap='coolwarm',  # Choose a color map
+    blocks.plot(ax=ax, edgecolor="k", linewidth=0.1, alpha=0.6, column='aadhar_no', 
+         cmap=cmap_white_red,  # Choose a color map
          legend=True, 
          legend_kwds={'label': "Enrollment by block",
                       'orientation': "vertical"})
