@@ -3,8 +3,10 @@ import json
 from sams.api.auth import Auth
 from sams.api.endpoints import Endpoints
 from sams.api.exceptions import APIError
-from sams.config import USERNAME, PASSWORD
+from sams.config import PROJ_ROOT, USERNAME, PASSWORD
 from loguru import logger
+from pathlib import Path
+import os
 
 
 class SAMSClient:
@@ -28,6 +30,8 @@ class SAMSClient:
         Loads the API credentials from the configuration file and
         initializes the Auth and Endpoints instances.
         """
+        if not Path(PROJ_ROOT / ".env").exists():
+            raise FileNotFoundError(f"SAMS Authentication Failed: .env file not found at {os.path.join(PROJ_ROOT, '.env')}")
         self.auth = Auth(USERNAME, PASSWORD)
         self.endpoints = Endpoints()
 
