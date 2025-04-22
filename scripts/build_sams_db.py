@@ -25,5 +25,6 @@ if (
 orchestrator = SamsDataOrchestrator(db_url=f"sqlite:///{SAMS_DB}")
 
 # Download student data
-orchestrator.process_data("institutes", exclude=True, bulk_add=True)
 orchestrator.process_data("students", exclude=True, bulk_add=True)
+orchestrator.process_data("institutes", exclude=True, bulk_add=True)
+
