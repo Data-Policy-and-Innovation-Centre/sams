@@ -96,6 +96,8 @@ class Student(Base):
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
     module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
     academic_year = Column(Integer, nullable=False)
+    contact_no = Column(String, nullable=True)
+    option_data = Column(JSON, nullable=True)
 
     # Example of a unique constraint if needed
     __table_args__ = (
@@ -253,6 +255,7 @@ class SamsDataLoader:
             raise TypeError("Data must be a dictionary")
 
         data = dict_camel_to_snake_case(data)
+        logger.info(data)
         session = self.Session()
         success = False
         try:
