@@ -19,6 +19,7 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
+SCTEVT_DIR = EXTERNAL_DATA_DIR / "sctevt"
 LOGS = PROJ_ROOT / "logs"
 MISSING_VALUES = LOGS / "missing_values"
 OUTPUT_DIR = PROJ_ROOT / "output"
@@ -34,6 +35,7 @@ for path in [
     INTERIM_DATA_DIR,
     PROCESSED_DATA_DIR,
     EXTERNAL_DATA_DIR,
+    SCTEVT_DIR,
     OUTPUT_DIR,
     FIGURES_DIR,
     TABLES_DIR,
