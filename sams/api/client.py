@@ -221,8 +221,9 @@ def main():
     client = SAMSClient()
 
     # Fetch student data
-    pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=False)
-    logger.info(pdis_data[5])
+    pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
+    institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
+    logger.info(institute_diploma_data)
 
     # # Fetch institute data
     # institute_data = client.get_institute_data(module="PDIS", academic_year=2022,count=False)
