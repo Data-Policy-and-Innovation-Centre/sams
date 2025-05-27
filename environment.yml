@@ -22,6 +22,7 @@ dependencies:
   - pandas
   - scikit-learn
   - rapidfuzz
+  - great-expectations
   - pip:
     - python-dotenv
     - mkdocs
@@ -36,4 +37,5 @@ dependencies:
     - geopy
     - geopandas
     - shapely
+    - ipykernel
     - -e .
