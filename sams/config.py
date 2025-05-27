@@ -76,9 +76,11 @@ geolocator = Nominatim(user_agent="sams")
 novatim_geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
 if os.getenv("GOOGLE_MAPS_API_KEY") is not None:
+    logger.info("Google MAPS API key found")
     google_geolocator = GoogleV3(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
     gmaps_geocode = RateLimiter(google_geolocator.geocode, min_delay_seconds=1 / 50)
 else:
+    logger.warning("Google MAPS API key not found, using Nominatim geocoder")
     gmaps_geocode = novatim_geocode
 
 
