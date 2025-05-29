@@ -1,4 +1,5 @@
 import pandas as pd
+from loguru import logger
 
 def summary_stats_table(df: pd.DataFrame, summary_var: str, 
                         grouping_label: str = None, 
@@ -119,4 +120,5 @@ def save_table_excel(dfs: list[pd.DataFrame], sheet_names: list[str], index: lis
 
     with pd.ExcelWriter(outfile, engine='openpyxl', mode='w') as writer:
         for df, sheet_name, index in zip(dfs, sheet_names, index):
+            logger.info(f"Saving DataFrame to sheet: {sheet_name} to {outfile}")
             df.to_excel(writer, sheet_name=sheet_name, index=index)
