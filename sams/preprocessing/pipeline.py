@@ -216,7 +216,7 @@ def marks_df(enrollment_df: pd.DataFrame) -> pd.DataFrame:
 @parameterize(
     iti_institutes_strength = dict(
         sams_institutes_raw_df=source("iti_institutes_raw"),
-        geocoded_institutes_df=source("geocoded_iti_institutes"),
+        geocoded_institutes_df=value(None),
     ),
     diploma_institutes_strength = dict(
         sams_institutes_raw_df=source("diploma_institutes_raw"),
@@ -315,6 +315,39 @@ def iti_vacancies(geocoded_iti_enrollment: pd.DataFrame, iti_institutes_strength
     return iti_enrollments_strength
 
 # ===== Saving data =====
+
+@datasaver()
+@parameterize(
+    save_nongeocoded_iti_students=dict(
+        enrollment_df=source("iti_enrollment"),
+        marks_df=source("iti_marks"),
+        module=value("ITI"),
+    ),
+    save_nongeocoded_diploma_students=dict(
+        enrollment_df=source("diploma_enrollment"),
+        marks_df=source("diploma_marks"),  
+        module=value("Diploma"),
+    ),
+)
+def save_nongeocoded_student_data(
+    enrollment_df: pd.DataFrame, marks_df: pd.DataFrame, module: str
+) -> dict:
+    logger.info(f"Saving non-geocoded student data for {module} module...")
+    module = module.lower()
+    save_data(enrollment_df, datasets[f"{module}_enrollments"])
+    save_data(marks_df, datasets[f"{module}_marks"])
+
+    metadata = {
+        f"{module}_enrollments": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_enrollments"]["path"], enrollment_df
+        ),
+        f"{module}_marks": utils.get_file_and_dataframe_metadata(
+            datasets[f"{module}_marks"]["path"], marks_df
+        ),
+    }
+
+    return metadata
+
 @datasaver()
 @parameterize(
     save_interim_iti_students=dict(
