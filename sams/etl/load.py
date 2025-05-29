@@ -255,7 +255,6 @@ class SamsDataLoader:
             raise TypeError("Data must be a dictionary")
 
         data = dict_camel_to_snake_case(data)
-        logger.info(data)
         session = self.Session()
         success = False
         try:
@@ -373,6 +372,22 @@ class SamsDataLoader:
         return existing_modules
 
     def _get_institute_modules(self):
+        """
+        Retrieves institute module records grouped by module, academic year, and admission type,
+        compares their counts with expected counts, and identifies modules with excess records.
+
+        Returns:
+            list of tuple: A list of tuples (module, academic_year, admission_type) for which
+            the actual count is greater than or equal to the expected count.
+
+        Side Effects:
+            Logs a warning if any modules have more records than expected.
+
+        Notes:
+            - Uses SQLAlchemy session to query the Institute table.
+            - Uses pandas DataFrame for data manipulation and comparison.
+            - Replaces NaN and None values with 0 in the counts.
+        """
         session = self.Session()
         counts = self._get_counts("institutes")
         counts.replace({nan: 0}, inplace=True)

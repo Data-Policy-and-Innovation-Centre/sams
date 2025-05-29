@@ -184,3 +184,4 @@ profile.html
 /.hamilton_cache
 *.pptx
 /notebooks/.hamilton_cache
+.DS_Store

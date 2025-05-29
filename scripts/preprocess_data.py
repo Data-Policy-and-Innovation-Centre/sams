@@ -7,7 +7,9 @@ def main(args):
     if len(args) < 2:
         build = False
         final_vars = [
-            "save_interim_iti_students",
+            "save_nongeocoded_iti_students",
+            "save_nongeocoded_diploma_students",
+            "save_interim_iti_institutes"
         ]
     else:
         build = args[1] == "build"
