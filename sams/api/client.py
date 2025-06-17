@@ -234,6 +234,5 @@ def main():
 
     # logger.info(institute_data)
 
-
 if __name__ == "__main__":
     main()
