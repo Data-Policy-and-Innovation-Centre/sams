@@ -600,7 +600,7 @@ def main(start_page, end_page):
     downloader = SamsDataDownloader()
 
     target_module = "HSS"
-    target_years = [2018]
+    target_years = [2024]
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()
@@ -608,6 +608,9 @@ def main(start_page, end_page):
     for year in target_years:
         last_page = checkpoint.get(str(year), 0)
         start_page = max(start_page, last_page + 1)
+        print(f"\n Last checkpoint for {year}: Page {last_page}")
+        print(f" Will start loading from Page {start_page} to {end_page}\n")
+
 
         print(f"\n=== Loading {target_module} {year} — pages {start_page}-{end_page} ===")
 
