@@ -481,19 +481,24 @@ def main():
     """
 
     downloader = SamsDataDownloader()
-    print("Updating total records (students + institutes)")
-    downloader.update_total_records()
+    test_data = downloader.fetch_students("HSS", 2022, page_number=1, pandify=False)
+    print(test_data[0])
 
-    df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
-    print(df_students.columns)
-    df = downloader.fetch_institutes("ITI", 2020, pandify=True)
-    print(df.columns)
     
-    # Extract HSS 2022 full data
-    df_hss_students = downloader.fetch_students('HSS', 2022, pandify=True)
-    print(df_hss_students.shape)
-    print(f"Total HSS 2022 records fetched: {len(df_hss_students)}")
-    print(df_hss_students.columns)
+    
+    # print("Updating total records (students + institutes)")
+    # downloader.update_total_records()
+
+    # df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
+    # print(df_students.columns)
+    # df = downloader.fetch_institutes("ITI", 2020, pandify=True)
+    # print(df.columns)
+    
+    # # Extract HSS 2022 full data
+    # df_hss_students = downloader.fetch_students('HSS', 2022, pandify=True)
+    # print(df_hss_students.shape)
+    # print(f"Total HSS 2022 records fetched: {len(df_hss_students)}")
+    # print(df_hss_students.columns)
 
 if __name__ == "__main__":
     main()

@@ -16,6 +16,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
 import pandas as pd
+import json
+import sys
 from tqdm import tqdm
 import time
 from loguru import logger
@@ -115,7 +117,6 @@ class Student(Base):
 
     hss_option_details = Column(JSON, nullable=True)
     hss_compartments = Column(JSON, nullable=True)
-
 
 
     # Example of a unique constraint if needed
@@ -580,38 +581,80 @@ class SamsDataLoaderPandas(SamsDataLoader):
 #     main()
 
 
+CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
+LOG_FILE = 'sams/etl/hss_load_log.txt'
 
-def main():
+def load_checkpoint():
+    if os.path.exists(CHECKPOINT_FILE):
+        with open(CHECKPOINT_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_checkpoint(checkpoint):
+    with open(CHECKPOINT_FILE, 'w') as f:
+        json.dump(checkpoint, f)
+
+def main(start_page, end_page):
     db_url = f"sqlite:///{RAW_DATA_DIR}/sams.db"
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
 
-    # CONFIGURATION 
-    target_module = "HSS"  # e.g., "PDIS", "ITI", "Diploma", "HSS"
-    target_years = [2018] 
-    # Ensure table exists
-    Student.__table__.create(bind=loader.engine, checkfirst=True)
+    target_module = "HSS"
+    target_years = [2018]
+    checkpoint_every = 10
+
+    checkpoint = load_checkpoint()
 
     for year in target_years:
-        print(f"\n=== Loading {target_module} {year} ===")
+        last_page = checkpoint.get(str(year), 0)
+        start_page = max(start_page, last_page + 1)
 
-        loader.remove("students", target_module, year)
-        print(f"Removed old records for {target_module} {year}")
+        print(f"\n=== Loading {target_module} {year} — pages {start_page}-{end_page} ===")
 
-        try:
-            data = downloader.fetch_students(target_module, year, pandify=False)
-            if data:
-                print(f"Fetched {len(data)} records for {target_module} {year}")
+        total_records_saved = 0
+
+        for page in range(start_page, end_page + 1):
+            try:
+                data = downloader.fetch_students(target_module, year, page_number=page, pandify=False)
+
+                if not data:
+                    print(f"Page {page}: No more data. Stopping.")
+                    break
+
                 loader.bulk_load(data, "students")
-                print(f"Loaded {target_module} {year} — OK")
-            else:
-                print(f"No data found for {target_module} {year}")
 
-        except Exception as e:
-            print(f"Error loading {target_module} {year}: {e}")
+                total_records_saved += len(data)
 
-    print("\nDONE — Data is loaded in the DB")
+                # Save checkpoint every 10 pages
+                if page % checkpoint_every == 0:
+                    checkpoint[str(year)] = page
+                    save_checkpoint(checkpoint)
 
+                # Print and save to log file
+                msg = f"{year} Page {page}: {len(data)} records saved (Total so far: {total_records_saved})"
+                print(msg)
+
+                with open(LOG_FILE, "a") as logf:
+                    logf.write(msg + "\n")
+
+            except Exception as e:
+                print(f"Page {page}: ERROR — {e}")
+
+        checkpoint[str(year)] = page
+        save_checkpoint(checkpoint)
+
+        msg = f"\nBatch done for {year}. Last page saved: {page}, Total records saved: {total_records_saved}\n"
+        print(msg)
+        with open(LOG_FILE, "a") as logf:
+            logf.write(msg + "\n")
+
+    print("All done")
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 3:
+        print("Usage: python sams/etl/load.py START_PAGE END_PAGE")
+        sys.exit(1)
+
+    start_page = int(sys.argv[1])
+    end_page = int(sys.argv[2])
+    main(start_page, end_page)
