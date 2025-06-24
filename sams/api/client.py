@@ -235,27 +235,16 @@ def main():
     client = SAMSClient()
 
     # Fetch student data
-    # First, get total records reported by API
-    #total_expected_records = client.get_student_data(module="HSS", academic_year=2022, count=True)
-    #logger.info(f"Total records reported by API: {total_expected_records}")
-
-    # Then, fetch page 1 student data
-    hss_data = client.get_student_data(module="HSS", academic_year=2022, page_number=1, count=False)
+    hss_data = client.get_student_data(module = "HSS", academic_year = 2022, page_number = 1, count=False)
     logger.info(f"Fetched {len(hss_data)} HSS student records")
-    
-    # Print first 2 records as sample
-    #print(json.dumps(hss_data[:2], indent=2))
+    print(json.dumps(hss_data[:2], indent=2))
     #print(hss_data)
-
-    # For PDIS 
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
-
-    # For ITI institute data 
     #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
+    # # Fetch institute data
+    # institute_data = client.get_institute_data(module="PDIS", academic_year=2022,count=False)
 
-    # For PDIS institute data 
-    #institute_data = client.get_institute_data(module="PDIS", academic_year=2022, count=False)
-    #logger.info(institute_data)
+    # logger.info(institute_data)
 
 if __name__ == "__main__":
     main()
