@@ -23,14 +23,12 @@ def mock_response():
     }
     return mock_resp
 
-
 @patch("requests.get")
 def test_get_student_data(mock_get, mock_client, mock_response):
     mock_get.return_value = mock_response
     result = mock_client.get_student_data("ITI", 2022, 1)
     assert len(result) == 10
     mock_get.assert_called_once()
-
 
 @patch("requests.get")
 def test_get_student_data_count(mock_get, mock_client, mock_response):
@@ -39,6 +37,21 @@ def test_get_student_data_count(mock_get, mock_client, mock_response):
     assert result == 100
     mock_get.assert_called_once()
 
+@patch("requests.post")
+def test_get_student_data_hss(mock_post, mock_client, mock_response):
+    mock_post.return_value = mock_response
+    result = mock_client.get_student_data("HSS", 2022, 1)
+    assert len(result) == 10
+    
+
+@patch("requests.post")
+def test_get_student_data_hss_count(mock_post, mock_client, mock_response):
+    mock_post.return_value = mock_response
+    result = mock_client.get_student_data("HSS", 2022, 1, count=True)
+    assert result == 100
+    calls = mock_post.call_args_list
+    data_calls = [call for call in calls if "/GetHSSStudentData" in call.args[0]]
+    assert len(data_calls) == 1
 
 @pytest.mark.parametrize("module", ["ITI", "Diploma", "PDIS"])
 def test_get_student_data_valid_inputs(module, mock_client, mock_response):
