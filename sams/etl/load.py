@@ -103,12 +103,10 @@ class Student(Base):
     option_data = Column(JSON, nullable=True)
 
     # new columns for HSS
-    date_of_birth_hss = Column(String, nullable=True)
-    aadhaar_no_hss = Column(String, nullable=True)   
     examination_boardofthe_highest_qualification = Column(String, nullable=True)
     board_exam_namefor_highest_qualification = Column(String, nullable=True)
     examination_type = Column(String, nullable=True)
-    year_of_passing_hss = Column(String, nullable=True)
+    year_of_passing = Column(String, nullable=True)
     roll_no = Column(String, nullable=True)
     total_marks = Column(String, nullable=True)
     secured_marks = Column(String, nullable=True)
@@ -179,7 +177,10 @@ class SamsDataLoader:
         Returns:
             None
         """
-        self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
+        if db_url.startswith("sqlite"):
+            self.engine = create_engine(db_url, echo = False)
+        else:
+            self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
@@ -220,9 +221,7 @@ class SamsDataLoader:
         data = [dict_camel_to_snake_case(unit) for unit in data]
         # If module is HSS, rename fields
         HSS_RENAME_FIELDS = {
-            'date_of_birth': 'date_of_birth_hss',
-            'aadhaar_no': 'aadhaar_no_hss',
-            'yearof_passing': 'year_of_passing_hss'
+            'yearof_passing': 'year_of_passing'
         }
         for unit in data:
             if unit.get('module') == 'HSS':
@@ -513,11 +512,11 @@ class SamsDataLoader:
             if table_name == "institutes":
                 if module == "Diploma":
                     session.query(Institute).filter_by(
-                        module=module, year=year, admission_type=admission_type
+                        module=module, academic_year=year, admission_type=admission_type
                     ).delete()
                 else:
                     session.query(Institute).filter_by(
-                        module=module, year=year
+                        module=module, academic_year=year
                     ).delete()
             else:
                 session.query(Student).filter_by(module=module, year=year).delete()
@@ -600,7 +599,7 @@ def main(start_page, end_page):
     downloader = SamsDataDownloader()
 
     target_module = "HSS"
-    target_years = [2024]
+    target_years = [2019]
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()

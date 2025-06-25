@@ -481,10 +481,11 @@ def main():
     """
 
     downloader = SamsDataDownloader()
-    test_data = downloader.fetch_students("HSS", 2022, page_number=1, pandify=False)
-    print(test_data[0])
-
-    
+    test_data = downloader.fetch_students("HSS", 2018, page_number=1, pandify=False)
+    if test_data:
+        print(test_data[0])
+    else:
+        print('No data returned from API')
     
     # print("Updating total records (students + institutes)")
     # downloader.update_total_records()

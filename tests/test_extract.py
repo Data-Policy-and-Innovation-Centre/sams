@@ -42,6 +42,11 @@ def mock_api_client():
             "PDIS",
             [{"id": 3, "name": "Bob Johnson", "module": "PDIS", "year": 2021}],
         ),
+        (
+            2024,
+            "HSS",
+            [{"id": 4, "name": "Taylor", "module": "HSS", "year": 2024}],
+        )
     ],
 )
 def test_fetch_students(data_downloader, mock_sams_client, year, module, expected_data):
