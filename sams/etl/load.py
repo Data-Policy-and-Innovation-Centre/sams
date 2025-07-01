@@ -580,6 +580,7 @@ class SamsDataLoaderPandas(SamsDataLoader):
 #     main()
 
 
+
 CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
 LOG_FILE = 'sams/etl/hss_load_log.txt'
 
@@ -593,7 +594,7 @@ def save_checkpoint(checkpoint):
     with open(CHECKPOINT_FILE, 'w') as f:
         json.dump(checkpoint, f)
 
-def main(start_page, end_page):
+def main():
     db_url = f"sqlite:///{RAW_DATA_DIR}/sams.db"
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
@@ -606,57 +607,48 @@ def main(start_page, end_page):
 
     for year in target_years:
         last_page = checkpoint.get(str(year), 0)
-        start_page = max(start_page, last_page + 1)
-        print(f"\n Last checkpoint for {year}: Page {last_page}")
-        print(f" Will start loading from Page {start_page} to {end_page}\n")
-
-
-        print(f"\n=== Loading {target_module} {year} — pages {start_page}-{end_page} ===")
-
+        current_page = last_page + 1
         total_records_saved = 0
 
-        for page in range(start_page, end_page + 1):
+        print(f"\nResuming {target_module} {year} from Page {current_page}...")
+
+        while True:
             try:
-                data = downloader.fetch_students(target_module, year, page_number=page, pandify=False)
+                data = downloader.fetch_students(target_module, year, page_number=current_page, pandify=False)
 
                 if not data:
-                    print(f"Page {page}: No more data. Stopping.")
+                    print(f"Page {current_page}: No more data. Stopping.")
                     break
 
                 loader.bulk_load(data, "students")
-
                 total_records_saved += len(data)
 
-                # Save checkpoint every 10 pages
-                if page % checkpoint_every == 0:
-                    checkpoint[str(year)] = page
-                    save_checkpoint(checkpoint)
-
-                # Print and save to log file
-                msg = f"{year} Page {page}: {len(data)} records saved (Total so far: {total_records_saved})"
+                msg = f"{year} Page {current_page}: {len(data)} records saved (Total so far: {total_records_saved})"
                 print(msg)
 
                 with open(LOG_FILE, "a") as logf:
                     logf.write(msg + "\n")
 
-            except Exception as e:
-                print(f"Page {page}: ERROR — {e}")
+                # Save checkpoint every N pages
+                if current_page % checkpoint_every == 0:
+                    checkpoint[str(year)] = current_page
+                    save_checkpoint(checkpoint)
 
-        checkpoint[str(year)] = page
+                current_page += 1
+
+            except Exception as e:
+                print(f"Page {current_page}: ERROR — {e}")
+                break
+
+        checkpoint[str(year)] = current_page - 1
         save_checkpoint(checkpoint)
 
-        msg = f"\nBatch done for {year}. Last page saved: {page}, Total records saved: {total_records_saved}\n"
+        msg = f"\n Batch done for {year}. Last page saved: {current_page - 1}, Total records saved: {total_records_saved}\n"
         print(msg)
         with open(LOG_FILE, "a") as logf:
             logf.write(msg + "\n")
 
-    print("All done")
+    print(" All done.")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python sams/etl/load.py START_PAGE END_PAGE")
-        sys.exit(1)
-
-    start_page = int(sys.argv[1])
-    end_page = int(sys.argv[2])
-    main(start_page, end_page)
+    main()

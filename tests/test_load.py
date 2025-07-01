@@ -1,5 +1,8 @@
 import pytest
-from unittest.mock import Mock, patch
+import json
+import os
+from unittest.mock import Mock, patch, mock_open
+from sams.etl import load
 from sams.etl.load import SamsDataLoader, SamsDataLoaderPandas
 import pandas as pd
 
@@ -69,6 +72,25 @@ def mock_engine():
 @pytest.fixture
 def data_loader_pandas():
     return SamsDataLoaderPandas("sqlite:///:memory:")
+
+def test_load_checkpoint_file_exists():
+    mock_data = {"2019": 3}
+    mock_json = json.dumps(mock_data)
+
+    with patch("os.path.exists", return_value=True), \
+         patch("builtins.open", mock_open(read_data=mock_json)) as mock_file:
+
+        result = load.load_checkpoint()
+
+        assert result == mock_data
+        mock_file.assert_called_once_with(load.CHECKPOINT_FILE, "r")
+
+
+def test_load_checkpoint_file_missing():
+    with patch("os.path.exists", return_value=False):
+        result = load.load_checkpoint()
+        assert result == {}
+
     
 # Tests for SamsDataLoaderPandas
 class TestSamsDataLoaderPandas:
