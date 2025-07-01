@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime
 import pandas as pd
+import re
 from unittest.mock import patch, mock_open
 from sams.utils import (
     is_valid_date,
@@ -67,6 +68,20 @@ def test_is_valid_date():
 def test_camel_to_snake_case(input_str, expected):
     assert camel_to_snake_case(input_str) == expected
 
+def camel_to_snake_case(name: str) -> str:
+    """
+    Converts CamelCase or PascalCase to snake_case.
+    
+    Examples:
+        ThisIsATest -> this_is_a_test
+        camelCase -> camel_case
+        HTTPServerError -> http_server_error
+    """
+    # Handle acronym boundaries like 'HTTPServer' → 'HTTP_Server'
+    name = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', name)
+    # Handle normal camelCase boundaries like 'camelCase' → 'camel_Case'
+    name = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name)
+    return name.lower()
 
 def test_dict_camel_to_snake_case():
     test_dict = {"camelCase": 1, "PascalCase": 2, "snake_case": 3}

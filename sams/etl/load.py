@@ -16,9 +16,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
 import pandas as pd
+import json
+import sys
 from tqdm import tqdm
 import time
 from loguru import logger
+from sams.etl.extract import SamsDataDownloader 
 from sams.config import ERRMAX, RAW_DATA_DIR, LOGS
 from sams.utils import (
     dict_camel_to_snake_case,
@@ -86,18 +89,33 @@ class Student(Base):
     type_of_institute = Column(String, nullable=True)
     phase = Column(String, nullable=True)
     year = Column(Integer, nullable=False)
-    admission_status = Column(String, nullable=False)
-    enrollment_status = Column(String, nullable=False)
-    applied_status = Column(String, nullable=False)
+    admission_status = Column(String, nullable=True)
+    enrollment_status = Column(String, nullable=True)
+    applied_status = Column(String, nullable=True)
     date_of_application = Column(String, nullable=True)
     application_status = Column(String, nullable=True)
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
-    module = Column(Enum("ITI", "Diploma", "PDIS"), nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS"), nullable=False)
     academic_year = Column(Integer, nullable=False)
     contact_no = Column(String, nullable=True)
     option_data = Column(JSON, nullable=True)
+
+    # new columns for HSS
+    examination_boardofthe_highest_qualification = Column(String, nullable=True)
+    board_exam_namefor_highest_qualification = Column(String, nullable=True)
+    examination_type = Column(String, nullable=True)
+    year_of_passing = Column(String, nullable=True)
+    roll_no = Column(String, nullable=True)
+    total_marks = Column(String, nullable=True)
+    secured_marks = Column(String, nullable=True)
+    percentage = Column(String, nullable=True)
+    compartmental_status = Column(String, nullable=True)
+
+    hss_option_details = Column(JSON, nullable=True)
+    hss_compartments = Column(JSON, nullable=True)
+
 
     # Example of a unique constraint if needed
     __table_args__ = (
@@ -133,9 +151,9 @@ class Institute(Base):
     # Nested columns
     strength = Column(JSON)
     cutoff = Column(JSON)
-    enrollment = Column(JSON)
+    enrollment  = Column(JSON)
 
-    __tableargs__ = (
+    __table_args__ = (
         UniqueConstraint(
             "sams_code",
             "module",
@@ -159,7 +177,10 @@ class SamsDataLoader:
         Returns:
             None
         """
-        self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
+        if db_url.startswith("sqlite"):
+            self.engine = create_engine(db_url, echo = False)
+        else:
+            self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
@@ -193,11 +214,22 @@ class SamsDataLoader:
             table_name (str): The name of the table to load the data into.
 
         Returns:
-            None
+            None 
         """
         session = self.Session()
 
         data = [dict_camel_to_snake_case(unit) for unit in data]
+        # If module is HSS, rename fields
+        HSS_RENAME_FIELDS = {
+            'yearof_passing': 'year_of_passing'
+        }
+        for unit in data:
+            if unit.get('module') == 'HSS':
+                for old_key, new_key in HSS_RENAME_FIELDS.items():
+                    if old_key in unit:
+                        unit[new_key] = unit.pop(old_key)
+                if unit.get('year') is None:
+                    unit['year'] = 0
 
         if table_name == "students":
             Unit = Student
@@ -205,12 +237,20 @@ class SamsDataLoader:
             Unit = Institute
         else:
             raise ValueError(f"Invalid table name: {table_name}")
+        
+        # Optimization: skip bulk for HSS students (bulk_save_objects has problems with JSON + Enum)
 
+        if table_name == "students" and any(unit.get("module") == "HSS" for unit in data):
+            print("HSS data detected — using individual inserts.")
+            self.load(data, table_name)
+            return
+    
         with tqdm(total=len(data), desc=f"Loading {table_name} data in bulk") as pbar:
             try:
                 session.bulk_save_objects([Unit(**unit) for unit in data])
                 session.commit()
                 pbar.update(len(data))
+
             except (OperationalError, IntegrityError, DatabaseError) as e:
                 resume_logging_to_console()
                 logger.error(
@@ -253,8 +293,10 @@ class SamsDataLoader:
         """
         if not isinstance(data, dict):
             raise TypeError("Data must be a dictionary")
-
+        
+        
         data = dict_camel_to_snake_case(data)
+        
         session = self.Session()
         success = False
         try:
@@ -449,11 +491,14 @@ class SamsDataLoader:
         counts_path = os.path.join(LOGS, f"{table_name}_count.csv")
 
         if not os.path.exists(counts_path):
-            return []
+            raise FileNotFoundError(
+                f"{counts_path} not found! Please run update_total_records() first to generate it."
+            )
 
         counts = pd.read_csv(counts_path)
 
         return counts
+
 
     def remove(
         self, table_name: str, module: str, year: str, admission_type: int = None
@@ -467,11 +512,11 @@ class SamsDataLoader:
             if table_name == "institutes":
                 if module == "Diploma":
                     session.query(Institute).filter_by(
-                        module=module, year=year, admission_type=admission_type
+                        module=module, academic_year=year, admission_type=admission_type
                     ).delete()
                 else:
                     session.query(Institute).filter_by(
-                        module=module, year=year
+                        module=module, academic_year=year
                     ).delete()
             else:
                 session.query(Student).filter_by(module=module, year=year).delete()
@@ -507,6 +552,7 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 )
                 break
             except IntegrityError as e:
+
                 logger.error(f"Error loading data into {table_name}: {e}")
                 break
             except (DatabaseError, OperationalError) as e:
@@ -516,12 +562,93 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 time.sleep(1)
 
 
-def main():
-    loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
-    print(loader.get_existing_modules("institutes"))
-    # print(loader.get_existing_modules("students"))
-    # loader.remove("students", "Diploma", "2019")
+# def main():
+#     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
+#     downloader = SamsDataDownloader() 
 
+#     # See what is in the DB already
+#     # print(loader.get_existing_modules("students"))
+
+#     loader.remove("students", "HSS", "2022")
+
+#     # Load HSS data into DB
+#     df_hss_students = downloader.fetch_students("HSS", 2022, page_number=1, pandify=True)
+#     loader.bulk_data(df_hss_students, "students")
+#     print("Loaded HSS 2022 into DB")
+
+# if __name__ == "__main__":
+#     main()
+
+
+
+CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
+LOG_FILE = 'sams/etl/hss_load_log.txt'
+
+def load_checkpoint():
+    if os.path.exists(CHECKPOINT_FILE):
+        with open(CHECKPOINT_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_checkpoint(checkpoint):
+    with open(CHECKPOINT_FILE, 'w') as f:
+        json.dump(checkpoint, f)
+
+def main():
+    db_url = f"sqlite:///{RAW_DATA_DIR}/sams.db"
+    loader = SamsDataLoader(db_url)
+    downloader = SamsDataDownloader()
+
+    target_module = "HSS"
+    target_years = [2019]
+    checkpoint_every = 10
+
+    checkpoint = load_checkpoint()
+
+    for year in target_years:
+        last_page = checkpoint.get(str(year), 0)
+        current_page = last_page + 1
+        total_records_saved = 0
+
+        print(f"\nResuming {target_module} {year} from Page {current_page}...")
+
+        while True:
+            try:
+                data = downloader.fetch_students(target_module, year, page_number=current_page, pandify=False)
+
+                if not data:
+                    print(f"Page {current_page}: No more data. Stopping.")
+                    break
+
+                loader.bulk_load(data, "students")
+                total_records_saved += len(data)
+
+                msg = f"{year} Page {current_page}: {len(data)} records saved (Total so far: {total_records_saved})"
+                print(msg)
+
+                with open(LOG_FILE, "a") as logf:
+                    logf.write(msg + "\n")
+
+                # Save checkpoint every N pages
+                if current_page % checkpoint_every == 0:
+                    checkpoint[str(year)] = current_page
+                    save_checkpoint(checkpoint)
+
+                current_page += 1
+
+            except Exception as e:
+                print(f"Page {current_page}: ERROR — {e}")
+                break
+
+        checkpoint[str(year)] = current_page - 1
+        save_checkpoint(checkpoint)
+
+        msg = f"\n Batch done for {year}. Last page saved: {current_page - 1}, Total records saved: {total_records_saved}\n"
+        print(msg)
+        with open(LOG_FILE, "a") as logf:
+            logf.write(msg + "\n")
+
+    print(" All done.")
 
 if __name__ == "__main__":
     main()

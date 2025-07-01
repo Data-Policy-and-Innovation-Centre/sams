@@ -16,7 +16,7 @@ class SamsDataDownloader:
             self.api_client = client
 
     def fetch_students(
-        self, module: str, academic_year: int, pandify=True
+        self, module: str, academic_year: int, pandify=True,  page_number=None
     ) -> pd.DataFrame | list:
         """
         Fetches student data from the SAMS API for the given academic year,
@@ -38,7 +38,9 @@ class SamsDataDownloader:
         )
 
         if module in ["ITI", "Diploma"]:
-            data = self._get_students_iti_diploma(academic_year, module)
+            data = self._get_students_iti_diploma(academic_year, module, page_number)
+        elif module == "HSS":
+            data = self._get_students_hss(academic_year, module, page_number)
         else:
             data = self._get_records("students", academic_year, module)
 
@@ -121,7 +123,7 @@ class SamsDataDownloader:
                 item["admission_type"] = admission_type
             return data
 
-    def _get_students_iti_diploma(self, academic_year: int, module: str) -> list:
+    def _get_students_iti_diploma(self, academic_year: int, module: str, page_number=None) -> list:
         """
         Downloads student data for ITI and Diploma from SAMS API.
 
@@ -133,10 +135,22 @@ class SamsDataDownloader:
             list: The downloaded data.
         """
 
+        if page_number is not None:
+            logger.info(f"Fetching {module} page {page_number}")
+            records = self._get_records(
+                table_name="students",
+                module=module,
+                academic_year=academic_year,
+                page_number=page_number,
+            )
+            return records
+    
+        #Else — fetch all pages
+        data = []        
         page = 1
-        data = []
 
         while True:
+            logger.info(f"Fetching {module} page {page}")
             records = self._get_records(
                 table_name="students",
                 module=module,
@@ -151,6 +165,34 @@ class SamsDataDownloader:
             page += 1
 
         return data
+    
+    
+    
+    def _get_students_hss(self, academic_year: int, module: str, page_number = None) -> list:
+        """
+        Downloads student data for HSS from SAMS API.
+
+        Args:
+            academic_year (int): The academic year for which to fetch the data
+            module (str): The module for which to fetch the data (HSS)
+
+        Returns:
+            list: The downloaded data.
+        """
+
+        if page_number is not None:
+            logger.info(f'Fetching {module} page {page_number}')
+            records = self._get_records(
+                table_name="students",
+                module=module,
+                academic_year=academic_year,
+                page_number=page_number,
+            )
+            return records
+    
+        logger.info(f"Fetching all {module} data for academic year {academic_year}")
+        return self._get_records(table_name='students', academic_year=academic_year, module=module)
+
 
     def _get_records(
         self,
@@ -220,8 +262,8 @@ class SamsDataDownloader:
         Returns:
             int: The adjusted academic year.
         """
-        if module not in ["ITI", "Diploma", "PDIS"]:
-            raise ValueError("Module must be either 'ITI', 'PDIS' or 'Diploma'. ")
+        if module not in ["ITI", "Diploma", "PDIS","HSS"]:
+            raise ValueError("Module must be either 'ITI', 'PDIS', 'Diploma' or 'HSS'.")
 
         if (
             academic_year < STUDENT[module]["yearmin"]
@@ -414,11 +456,19 @@ def main():
     """
 
     downloader = SamsDataDownloader()
-    df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
-    print(df_students.columns)
-    df = downloader.fetch_institutes("ITI", 2020, pandify=True)
-    print(df.columns)
+    print("Updating total records (students + institutes)")
+    downloader.update_total_records()
 
+    # df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
+    # print(df_students.columns)
+    # df = downloader.fetch_institutes("ITI", 2020, pandify=True)
+    # print(df.columns)
+    
+    # # Extract HSS 2019 full data
+    # df_hss_students = downloader.fetch_students('HSS', 2019, pandify=True)
+    # print(df_hss_students.shape)
+    # print(f"Total HSS 2019 records fetched: {len(df_hss_students)}")
+    #print(df_hss_students.columns)
 
 if __name__ == "__main__":
     main()
