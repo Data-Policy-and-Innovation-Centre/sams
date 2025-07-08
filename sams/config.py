@@ -102,6 +102,7 @@ STUDENT = {
     "PDIS": {"yearmin": 2020, "yearmax": 2024},
     "ITI": {"yearmin": 2017, "yearmax": 2024},
     "Diploma": {"yearmin": 2018, "yearmax": 2024},
+    "HSS": {"yearmin": 2018, "yearmax": 2024}, 
 }
 
 

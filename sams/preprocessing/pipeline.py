@@ -201,8 +201,6 @@ def geocoded_enrollment_df(
 
     return geocoded_enrollment_df
 
-
-
 @parameterize(
     iti_marks=dict(enrollment_df=source("iti_enrollment")),
     diploma_marks=dict(enrollment_df=source("diploma_enrollment")),
