@@ -109,6 +109,11 @@ datasets:
     path: "data/processed/iti_vacancies.pq"
     layer: processed
 
+  hss_geocoded_with_marks:
+    type: parquet
+    path: "data/interim_hss/geocoded_with_marks.pq"
+
+
 exhibits:
   students_enrollment_basics:
     type: excel

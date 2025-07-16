@@ -103,8 +103,8 @@ class Student(Base):
     option_data = Column(JSON, nullable=True)
 
     # new columns for HSS
-    examination_boardofthe_highest_qualification = Column(String, nullable=True)
-    board_exam_namefor_highest_qualification = Column(String, nullable=True)
+    examination_board_of_the_highest_qualification = Column(String, nullable=True)
+    board_exam_name_for_highest_qualification = Column(String, nullable=True)
     examination_type = Column(String, nullable=True)
     year_of_passing = Column(String, nullable=True)
     roll_no = Column(String, nullable=True)
@@ -221,7 +221,9 @@ class SamsDataLoader:
         data = [dict_camel_to_snake_case(unit) for unit in data]
         # If module is HSS, rename fields
         HSS_RENAME_FIELDS = {
-            'yearof_passing': 'year_of_passing'
+            'yearof_passing': 'year_of_passing',
+            'examination_boardofthe_highest_qualification': 'examination_board_of_the_highest_qualification',
+            'board_exam_namefor_highest_qualification':'board_exam_name_for_highest_qualification'
         }
         for unit in data:
             if unit.get('module') == 'HSS':
@@ -600,7 +602,7 @@ def main():
     downloader = SamsDataDownloader()
 
     target_module = "HSS"
-    target_years = [2019]
+    target_years = [2022]
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()
