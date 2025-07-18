@@ -48,15 +48,6 @@ This will load and transform raw inputs into a structured format stored in a loc
 
 ## Database Structure
 
-The SAMS database contains two key tables:
-
-- **students**: Individual academic and demographic records.  
-- **institutes**: Institutional metadata (location, type, stream).
-
-Each student record is tagged with one of four modules:  **ITI**, **Diploma**, **PDIS**, **HSS**.
-
----
-
 ## Database Structure
 
 SAMS is built on a **SQLite3** database that contains two main tables:
@@ -73,15 +64,14 @@ Each student record includes a `module` field to indicate whether the student be
 
 The diagram below shows how the tables are structured and related:
 
-![Schema Diagram](output/figures/schema_graph.png)
+![Schema Diagram](schema_graph.png)
 
 ---
 
 
 ## ITI Module Summary
 
-A broader‑level view of the Industrial Training Institutes (ITI) data.
-
+A broader‑level view of the Industrial Training Institutes (ITI) da
 
 ### Variable Descriptions
 
