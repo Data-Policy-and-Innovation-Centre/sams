@@ -10,6 +10,9 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 from geopy.distance import geodesic
 import time
+import logging
+logger = logging.getLogger(__name__)
+
 
 def _make_null(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -202,15 +205,6 @@ def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
         return geodesic(coord_1, coord_2).kilometers
     except:
         return None
-    
-
-def preprocess_distances(df: pd.DataFrame) -> pd.DataFrame:
-    df["distance"] = df.apply(
-        lambda row: _get_distance((row["student_lat"], row["student_long"]),
-                                  (row["institute_lat"], row["institute_long"])),
-        axis=1
-    )
-    return df
 
 def _preprocess_hss_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     """
@@ -398,6 +392,9 @@ def preprocess_students_compartment_marks(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(records)
 
+import logging
+logger = logging.getLogger(__name__)
+
 def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Preprocess HSS student enrollment data for downstream use.
@@ -412,35 +409,40 @@ def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Cleaned and preprocessed HSS enrollment data.
     """
-    # Core cleaning
+    logger.info(f"Initial raw shape: {df.shape}")
+
+    # Drop JSON-heavy columns if present
+    early_drop = ["hss_option_details", "hss_compartments"]
+    dropped_early = [col for col in early_drop if col in df.columns]
+    df = df.drop(columns=dropped_early, errors="ignore")
+    logger.info(f"Dropped JSON columns early: {dropped_early}")
+
+    # Core cleaning from internal helper
     df = _preprocess_hss_students(df, geocode=False)
 
-    # Drop unnecessary columns if present
+    # Drop other unnecessary columns
     drop_cols = [
-        "student_name",
-        "nationality",
-        "address",
-        "pin_code",
-        "board_exam_namefor_highest_qualification",
-        "examination_type",
-        "examination_boardofthe_highest_qualification",
-        "national_cadet_corps",
-        "orphan",
-        "sports", 
-        "year_of_passing", 
-        "hss_option_details",  # flatten separately if needed
-        "hss_compartments",  # handle separately
+        "student_name", "nationality", "address", "pin_code",
+        "board_exam_namefor_highest_qualification", "examination_type",
+        "examination_boardofthe_highest_qualification", "national_cadet_corps",
+        "orphan", "sports", "year_of_passing"
     ]
-    df = df.drop([col for col in drop_cols if col in df.columns], axis=1)
+    cols_to_drop = [col for col in drop_cols if col in df.columns]
+    df = df.drop(columns=cols_to_drop)
+    logger.info(f"Additional dropped columns: {cols_to_drop}")
 
-    # Clean income column if it exists
+    # Clean income if present
     if "annual_income" in df.columns:
+        logger.info("Cleaning 'annual_income' column")
         df = _preprocess_income_data(df)
 
+    # Sort by barcode and academic_year if they exist
     sort_cols = [col for col in ["barcode", "academic_year"] if col in df.columns]
-    df = df.sort_values(by=sort_cols)
+    if sort_cols:
+        df = df.sort_values(by=sort_cols)
+        logger.info(f"Sorted by columns: {sort_cols}")
 
-
+    logger.info(f"Final processed shape: {df.shape}")
     return df
  
 def get_priority_admission_status(df: pd.DataFrame, option_col: str = "hss_option_details", id_col: str = "barcode") -> pd.DataFrame:
@@ -583,24 +585,28 @@ def compute_local_flag(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def merge_institute_geocodes(admitted_df: pd.DataFrame, geocode_df: pd.DataFrame) -> pd.DataFrame:
+def add_institute_location(admitted_df: pd.DataFrame, geocode_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Merge student admission records with institute geocodes using SAMSCode.
+    Combine multiple DataFrames with address columns and geocode them to get latitude and longitude.
+
+    This function concatenates a list of DataFrames, extracts address information from a specified column,
+    and adds geocoded coordinates (latitude and longitude) based on that address.
 
     Parameters
     ----------
-    admitted_df : pd.DataFrame
-        Student-level data with SAMSCode from the admitted option.
-    geocode_df : pd.DataFrame
-        Institute geocodes with columns: SAMSCode, latitude, longitude.
+    dfs : list[pd.DataFrame]
+        List of DataFrames containing address-related data.
+    address_col : str
+        Name of the column in each DataFrame that contains the address to geocode.
 
     Returns
     -------
     pd.DataFrame
-        Student data with `institute_lat`, `institute_long` columns.
+        A single DataFrame with the original address and new 'latitude' and 'longitude' columns added.
     """
+
     if "SAMSCode" not in admitted_df.columns:
-        raise ValueError("Missing 'SAMSCode' column. Run extract_priority_hss_option() first.")
+        raise ValueError("Missing 'SAMSCode' column. Run extract_hss_option() first.")
 
     merged = pd.merge(admitted_df, geocode_df, how="left", on="SAMSCode")
 
@@ -639,7 +645,6 @@ def preprocess_distances(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
-
 
 def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
     try:
