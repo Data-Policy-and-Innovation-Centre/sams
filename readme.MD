@@ -48,7 +48,8 @@ This will load and transform raw inputs into a structured format stored in a loc
 
 ## Database Structure
 
-<<<<<<< HEAD
+## Database Structure
+
 SAMS is built on a **SQLite3** database that contains two main tables:
 
 - **`students`**: Holds information for each student, such as their unique ID (`barcode`), gender, academic year, admission and enrollment status. Some fields also store extra details in JSON format (e.g., admission options or compartment subjects).
@@ -65,37 +66,12 @@ The diagram below shows how the tables are structured and related:
 
 ![Schema Diagram](output/figures/schema_graph.png)
 
-
 ---
 
 
-### Table Descriptions
-
-- **`students`**: Contains individual-level demographic, academic, and admission details. Fields include `barcode` (student ID), `gender`, `admission_status`, `enrollment_status`, `academic_year`, and nested JSON columns like `hss_option_details` or `hss_compartments` for relevant modules.
-
-- **`institutes`**: Includes metadata for educational institutions, such as `institute_name`, `type_of_institute`, `branch`, `cutoff`, and `strength`.
-
-These tables are linked via keys like `barcode`, `sams_code`, and other program identifiers. Each student record has a `module` field identifying which academic program it belongs to.
-
----
-
-
-=======
-The SAMS database contains two key tables:
-
-- **students**: Individual academic and demographic records.  
-- **institutes**: Institutional metadata (location, type, stream).
-
-Each student record is tagged with one of four modules:  **ITI**, **Diploma**, **PDIS**, **HSS**.
-
----
-
->>>>>>> 754d17f8ee53bf1a44b2c8effa2ebb788d3d9af0
 ## ITI Module Summary
 
-A broader‑level view of the Industrial Training Institutes (ITI) data.
-
-<<<<<<< HEAD
+A broader‑level view of the Industrial Training Institutes (ITI) da
 
 ### Variable Descriptions
 
@@ -115,8 +91,6 @@ A broader‑level view of the Industrial Training Institutes (ITI) data.
 -   **ITI applications (2017–2024):** Recorded from 34,702 in 2017 to 83,958 in 2024, peaking at 92,085 in 2023.
 ---
 
-=======
->>>>>>> 754d17f8ee53bf1a44b2c8effa2ebb788d3d9af0
 ### 1. Overview
 
 - **Total Records:** 2,218,951  
@@ -157,7 +131,6 @@ A broader‑level view of the Industrial Training Institutes (ITI) data.
 
 A concise overview of the Higher Secondary School (HSS) data.
 
-<<<<<<< HEAD
 
 ### Variable Descriptions
 
@@ -178,8 +151,6 @@ A concise overview of the Higher Secondary School (HSS) data.
 -   **HSS applications (2019–2024):** Recorded from 390,433 in 2019 to 537,230 in 2024, peaking at 573,911 in 2022.
     
 
-=======
->>>>>>> 754d17f8ee53bf1a44b2c8effa2ebb788d3d9af0
 ### 1. Overview
 
 - **Total Records:** 3,453,401  
@@ -267,7 +238,6 @@ This streamlined summary delivers key metrics and patterns, highlighting data co
 ```mermaid
 flowchart LR
 
-<<<<<<< HEAD
   subgraph "SAMS Database"
     A1[iti_raw]
     A2[diploma_raw]
@@ -312,39 +282,4 @@ flowchart LR
   L2 --> P1[iti_vacancies]
   P1 --> Q1[save.iti_vacancies]
 
-=======
-%% Source
-subgraph SAMS Database
-    A1[iti_raw]
-    A2[diploma_raw]
-     A3[iti_institutes_raw]
-    A4[diploma_institutes_raw]
-    A5[sams_address_raw_df]
-end
-
-%% Enrollment
-A1 --> B1[iti_enrollment]
-A2 --> B2[diploma_enrollment]
-
-%% Marks
-B1 --> C1[iti_marks]
-B2 --> C2[diploma_marks]
-
-%% Save Non-Geocoded Students
-B1 --> D1[save.iti_marks_and_cutoffs]
-B2 --> D2[save.diploma_marks_and_cutoffs]
-
-%% Geocoding
-A5 --> E1[geocodes_df]
-E1 --> F1[iti_institutes_enrollments]
-E1 --> F2[diploma_institutes_enrollments]
-
-%% Strength & Cutoffs
-F1 --> G1[iti_institutes_strength]
-F1 --> G2[iti_institutes_cutoffs]
-F2 --> G3[diploma_institutes_strength]
-
-%% Save Vacancies
-G2 --> H1[save.iti_vacancies]
->>>>>>> 754d17f8ee53bf1a44b2c8effa2ebb788d3d9af0
 
