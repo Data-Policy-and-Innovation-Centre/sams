@@ -109,6 +109,23 @@ datasets:
     path: "data/processed/iti_vacancies.pq"
     layer: processed
 
+  hss_enrollment:
+    type: parquet
+    path: "data/interim/hss_enrollment.pq"
+    layer: interim
+
+  flattened_hss_options:
+    type: parquet
+    path: "data/interim/flattened_hss_options.pq"
+    layer: interim
+
+  hss_compartment_subjects:
+    type: parquet
+    path: "data/interim/hss_compartment_subjects.pq"
+    layer: interim
+
+
+
 exhibits:
   students_enrollment_basics:
     type: excel

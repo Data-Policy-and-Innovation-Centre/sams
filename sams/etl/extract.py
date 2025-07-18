@@ -37,12 +37,16 @@ class SamsDataDownloader:
             "students", academic_year, module, count=True
         )
 
-        if module in ["ITI", "Diploma"]:
-            data = self._get_students_iti_diploma(academic_year, module, page_number)
-        elif module == "HSS":
-            data = self._get_students_hss(academic_year, module, page_number)
+        if module in ["ITI", "Diploma", "HSS"]:
+            if page_number is None:
+                data = self._get_students_iti_diploma_hss(academic_year, module)
+            else:
+                # Fetch only one page for paginated mode (e.g., in checkpointed mode)
+                data = self._get_students_iti_diploma_hss(academic_year, module, page_number=page_number)
         else:
             data = self._get_records("students", academic_year, module)
+
+        logger.info(f"Actual records fetched: {len(data)} | Expected: {expected_records}")
 
         if len(data) < expected_records:
             logger.warning(
@@ -123,9 +127,9 @@ class SamsDataDownloader:
                 item["admission_type"] = admission_type
             return data
 
-    def _get_students_iti_diploma(self, academic_year: int, module: str, page_number=None) -> list:
+    def _get_students_iti_diploma_hss(self, academic_year: int, module: str, page_number=None) -> list:
         """
-        Downloads student data for ITI and Diploma from SAMS API.
+        Downloads student data for ITI, Diploma and HSS from SAMS API.
 
         Args:
             academic_year (int): The academic year for which to fetch the data.
@@ -166,33 +170,6 @@ class SamsDataDownloader:
 
         return data
     
-    
-    
-    def _get_students_hss(self, academic_year: int, module: str, page_number = None) -> list:
-        """
-        Downloads student data for HSS from SAMS API.
-
-        Args:
-            academic_year (int): The academic year for which to fetch the data
-            module (str): The module for which to fetch the data (HSS)
-
-        Returns:
-            list: The downloaded data.
-        """
-
-        if page_number is not None:
-            logger.info(f'Fetching {module} page {page_number}')
-            records = self._get_records(
-                table_name="students",
-                module=module,
-                academic_year=academic_year,
-                page_number=page_number,
-            )
-            return records
-    
-        logger.info(f"Fetching all {module} data for academic year {academic_year}")
-        return self._get_records(table_name='students', academic_year=academic_year, module=module)
-
 
     def _get_records(
         self,
@@ -456,8 +433,8 @@ def main():
     """
 
     downloader = SamsDataDownloader()
-    print("Updating total records (students + institutes)")
-    downloader.update_total_records()
+    # print("Updating total records (students + institutes)")
+    # downloader.update_total_records()
 
     # df_students = downloader.fetch_students("PDIS", 2020, pandify=True)
     # print(df_students.columns)
@@ -465,10 +442,10 @@ def main():
     # print(df.columns)
     
     # # Extract HSS 2019 full data
-    # df_hss_students = downloader.fetch_students('HSS', 2019, pandify=True)
+    df_hss_students = downloader.fetch_students('HSS', 2018, pandify=True)
     # print(df_hss_students.shape)
-    # print(f"Total HSS 2019 records fetched: {len(df_hss_students)}")
-    #print(df_hss_students.columns)
+    #print(f"Total HSS 2019 records fetched: {len(df_hss_students)}")
+    print(df_hss_students.columns)
 
 if __name__ == "__main__":
     main()
