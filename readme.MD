@@ -64,7 +64,7 @@ Each student record includes a `module` field to indicate whether the student be
 
 The diagram below shows how the tables are structured and related:
 
-![Schema Diagram](output/figures/schema_graph.png)
+![Schema Diagram](schema_graph.png)
 
 ---
 
