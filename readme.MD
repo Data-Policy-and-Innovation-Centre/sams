@@ -44,10 +44,6 @@ This will load and transform raw inputs into a structured format stored in a loc
 
 ---
 
-
-
-## Database Structure
-
 ## Database Structure
 
 SAMS is built on a **SQLite3** database that contains two main tables:
@@ -64,171 +60,162 @@ Each student record includes a `module` field to indicate whether the student be
 
 The diagram below shows how the tables are structured and related:
 
-![Schema Diagram](schema_graph.png)
+![Schema Diagram](notebooks/schema_graph.png)
+
 
 ---
 
 
 ## ITI Module Summary
 
-A broader‑level view of the Industrial Training Institutes (ITI) da
+This dataset contains **application-level data** submitted through the **SAMS Odisha portal** for **Industrial Training Institutes (ITI)** from **2017 to 2024**.  
+Each row represents **one application**. A single student may apply to multiple trades or institutes, resulting in multiple application records linked to the same student.
+
+---
 
 ### Variable Descriptions
 
-| Variable             | Description                                                                  |
-|----------------------|------------------------------------------------------------------------------|
-| `barcode`            | Encrypted student ID (SHA‑256)                                               |
-| `gender`             | Student gender (`Male` / `Female`)                                           |
-| `academic_year`      | Application year (2017–2024)                                                 |
-| `course_period`      | Duration of the course (e.g. `2 Years`)                                      |
-| `total_marks`        | Maximum possible score                                                       |
-| `secured_marks`      | Marks obtained                                                               |
-| `percentage`         | Percentage score                                                             |
-| `social_category`    | Category (`GEN`, `OBC/SEBC`, `SC`, `ST`)                                     |
-| `state` / `district` | Student’s home state and district                                            |
-| `option_details`     | JSON array of {`Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`, `SAMSCode`, etc. } |
+| Variable              | Description                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| `barcode`             | Encrypted student ID (SHA‑256)                                              |
+| `gender`              | Student gender (`Male` / `Female`)                                          |
+| `academic_year`       | Application year (2017–2024)                                                |
+| `course_period`       | Duration of the course (e.g. `2 Years`)                                     |
+| `total_marks`         | Total maximum marks                                                         |
+| `secured_marks`       | Marks obtained by the student                                               |
+| `percentage`          | Calculated percentage based on total and secured marks                      |
+| `social_category`     | Category (`GEN`, `OBC/SEBC`, `SC`, `ST`)                                    |
+| `state` / `district`  | Student’s home state and district                                           |
+| `option_details`      | JSON array of options: {`Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`, etc.} |
 
--   **ITI applications (2017–2024):** Recorded from 34,702 in 2017 to 83,958 in 2024, peaking at 92,085 in 2023.
+> **ITI applications (2017–2024):** Started at 34,654 in 2017 and rose to 83,958 in 2024, peaking at 92,085 in 2023.
+
 ---
 
 ### 1. Overview
 
 - **Total Records:** 2,218,951  
-- **Academic Year** 2017-2024
-- **Key Missing Fields** (count of missing values):
-  - `course_period`, `reported_institute`, `reported_branch_or_trade`, `institute_district`, `type_of_institute`: 1,016,232 each  
-  - `Phase`, `Option_No`, `Status`: 280,524 each  
+- **Total Unique Students:** ~573,518  
+- **Academic Years Covered:** 2017–2024  
+- **Average Applications per Student:** ~4.63  
+
+#### Key Missing Fields (by count):
+- `course_period`, `reported_institute`, `reported_branch_or_trade`, `institute_district`, `type_of_institute`: 1,016,232 each  
+- `Phase`, `Option_No`, `Status`: 280,524 each  
 
 ---
 
 ### 2. Admission & Enrollment
 
-| Category           | Yes       | No / Other | Rate (%) |
-|--------------------|-----------|------------|----------|
-| Enrollment Status  | 1,395,890 | 823,061    | 62.9     |
-| Admission Status   | 1,202,719 | 1,016,232  | 54.2     |
+- **`admission_status`** reflects whether an application led to a seat being offered.  
+  Common values include `Yes`, `No`, or descriptive entries like:
+  - `"TC Taken: Institute - ITI Rourkela, Trade - Fitter"`
+- **`enrollment_status`** indicates whether the applicant actually joined the institute.  
+  It typically has values: `Yes` or `No`.
+
+> These fields allow analysis of the student journey from application to admission to actual enrollment.
 
 ---
 
-### 3. Key Categorical Attributes
+### 3. Application Preferences (Option_No)
 
-| Variable              | Most Frequent            | Frequency (%) | Observations |
-|-----------------------|--------------------------|---------------|--------------|
-| Gender                | Male                     | 86.47         | 2,218,951    |
-| State                 | Odisha                   | 97.96         | 2,218,951    |
-| District              | Ganjam                   | 17.92         | 2,218,951    |
-| Social Category       | OBC/SEBC                 | 34.23         | 2,218,951    |
-| Highest Qualification | 10th                     | 65.10         | 2,218,951    |
-| Course Period         | 2 Years                  | 81.46 (filled)| 1,202,719    |
-| Reported Institute    | ITI Berhampur, Ganjam    | 9.02 (filled) | 1,202,719    |
-| Phase (Round)         | 1                        | 74.32         | 1,938,427    |
-| Option_No             | 1                        | 16.52         | 1,938,427    |
-| Status                | Opted                    | 100.00        | 1,938,427    |
+| Variable     | Observations | Mean | 25% | 50% | 75% |
+|--------------|--------------|------|-----|-----|-----|
+| `Option_No`  | 1,938,427    | 4.63 | 2.0 | 4.0 | 5.0 |
+
+> Students generally list 4–5 on average preferences when applying.
 
 ---
 
-## HSS Module Summary
+### 4. Key Categorical Attributes
 
-A concise overview of the Higher Secondary School (HSS) data.
 
+#### Demographic Patterns: `gender`, `social_category`, `highest_qualification`
+#### Regional Distribution: `state`, `district`
+#### Application Behavior: `course_period`, `reported_institute`, `Phase`, `Option_No`, `Status`
+
+
+---
+
+## HSS Application Module Summary
+
+This dataset represents **application-level admission records** submitted by students applying to Higher Secondary Schools (HSS) via the SAMS Odisha portal between 2018 and 2024.  
+Each row corresponds to **a single admission option** selected by a student which means one student can have multiple rows depending on how many options they selected.
+
+---
+
+### Source & Structure
+
+This dataset was constructed by expanding two **JSON string variables** embedded in the student-level dataset:
+
+- **`hss_option_details`** – Admission preferences like institute, stream, phase, admission status, etc.  
+- **`hss_compartments`** – Subject-wise marks for compartmental students, including fail/pass marks.
+
+> After exploding these JSON strings, the data grows from **3.4 million student records** to **18.3 million application-level rows**.
+
+---
+
+### Dataset Overview
+
+- **Total Applicants (Base Data):** 3,453,401  
+- **Total Application Options (Exploded Rows):** 18,379,224  
+- **Academic Years Covered:** 2017–2024  
+- **Compartment Info Present In:** 110,251 rows (~0.6%)
+
+#### Sparse or Missing Fields
+
+- `Stream`, `ReportedInstitute`, `SAMSCode`: 23,471 missing (0.13%)  
+- `COMPSubject`, `COMPFailMark`, `COMPPassMark`: Present only for 0.6% of records (compartmental students)
+
+---
 
 ### Variable Descriptions
 
-| Variable                     | Description                                                           |
-|------------------------------|-----------------------------------------------------------------------|
-| `barcode`                    | Encrypted student ID (SHA‑256)                                        |
-| `academic_year`              | Application year (2018–2024)                                          |       
-| `gender`                     | Student gender (`Male` / `Female`)                                    |
-| `annual_income`              | Family income bracket (INR)                                           |
-| `total_marks`                | Maximum exam marks (typically 600)                                    |
-| `secured_marks`              | Marks obtained                                                        |
-| `percentage`                 | Percentage score                                                      |
-| `social_category`            | Category (`GEN`, `OBC/SEBC`, `SC`, `ST`)                              |
-| `state` / `district`         | Student’s home state and district                                     |
-| `hss_option_details`         | JSON array of {`Option No`, `Reported Institute`, `Applied Institute`, `AdmissionStatus`, `Applied Program`,etc. }       |
-| `hss_compartments`          | JSON array of {`Subject`, `Fail Mark`, `Pass Mark`}           |
-
--   **HSS applications (2019–2024):** Recorded from 390,433 in 2019 to 537,230 in 2024, peaking at 573,911 in 2022.
-    
-
-### 1. Overview
-
-- **Total Records:** 3,453,401  
-- **Major Missing Fields**:
-  - `social_category`: 4,91,991  
-  - `gender`: 207  
-  - `address`: 95  
-  - `pin_code`: 98  
-
-**Compartmental Status**  
-| Status | Count    |
-|--------|----------|
-| NO     | 3,443,600|
-| YES    | 9,801    |
+| Variable                | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `barcode`               | Encrypted student ID (SHA‑256)                                              |
+| `academic_year`         | Year of application (2017–2024)                                             |
+| `gender`                | Student gender (Male / Female)                                              |
+| `annual_income`         | Family income bracket (e.g. `0–1,50,000 INR`)                               |
+| `social_category`       | Student category (GEN, OBC/SEBC, SC, ST)                                    |
+| `state` / `district`    | Student’s residence location                                                |
+| `total_marks`           | Total maximum marks (typically 600)                                         |
+| `secured_marks`         | Marks obtained by the student                                               |
+| `percentage`            | Calculated percentage based on total and secured marks                     |
+| `compartmental_status`  | Whether the student had compartments (`Yes` / `No`)                         |
+| `hss_option_details`    | JSON array with details like Option No, Institute, Stream, Admission Status |
+| `hss_compartments`      | JSON array with COMPSubject, COMPFailMark, COMPPassMark                     |
 
 ---
 
-### 2. Academic Performance
+### Compartmental Marks Summary (110K rows)
 
-| Variable       | Observations | Mean   | Median | Std Dev | 25%   | 75%   |
-|----------------|--------------|--------|--------|---------|-------|-------|
-| Total Marks    | 3,453,401    | 596.13 | 600.0  | 33.26   | 600.0 | 600.0 |
-| Secured Marks  | 3,453,401    | 329.60 | 322.0  | 88.22   | 258.0 | 394.0 |
-| Percentage     | 3,453,401    | 55.57  | 54.17  | 34.41   | 43.33 | 66.0  |
-
----
-
-### 3. Key Categorical Attributes
-
-| Variable                           | Most Frequent                                     | Frequency (%) | Observations |
-|------------------------------------|---------------------------------------------------|---------------|--------------|
-| Gender                             | Female                                            | 50.25         | 3,453,194    |
-| Annual Income                      | 0 – 1,50,000 INR                                  | 74.00         | 3,453,401    |
-| State                              | Odisha                                            | 99.86         | 3,453,401    |
-| District                           | Ganjam                                            | 7.80          | 3,453,401    |
-| Social Category                    | General                                           | 27.53         | 2,961,410    |
-| Highest Qualification              | 10th                                              | 100.00        | 3,453,401    |
-| Board Exam Name (Qualification)    | BSE Orissa (2001 +)                              | 94.78         | 3,453,401    |
-| Examination Type                   | Annual                                            | 98.69         | 3,453,401    |
-| Compartmental Status               | NO                                                | 99.72         | 3,453,401    |
+| Variable        | Observations | Mean  | Median | Std Dev | 25%  | 75%  |
+|-----------------|--------------|-------|--------|---------|------|------|
+| COMPFailMark    | 110,251      | 21.53 | 21.0   | 9.58    | 17.0 | 26.0 |
+| COMPPassMark    | 110,251      | 38.72 | 33.0   | 19.31   | 30.0 | 40.0 |
 
 ---
 
-### HSS Option Details (Exploded View)
+### Most Common Admission Attributes
 
-Each student may have multiple admission options, yielding over 18 million rows.
+#### Academic Streams & Preferences: `Stream`, `TypeofInstitute`, `Phase`, `Year`, `OptionNo`
 
-#### 1. Overview
+#### Institute Location Details: `InstituteDistrict`, `InstituteBlock`
 
-- **Total Rows:** 18,379,224  
-- **Columns:** `barcode`, `ReportedInstitute`, `SAMSCode`, `Stream`, `InstituteDistrict`, `InstituteBlock`, `TypeofInstitute`, `Phase`, `Year`, `AdmissionStatus`, `OptionNo`,  `COMPSubject`, `COMPFailMark`, `COMPPassMark`
-- **Sparse Fields:**  
-  - `ReportedInstitute`, `Stream`, `SAMSCode`, etc.: 23,471 missing (0.13%)  
-  - `COMPSubject`, `COMPFailMark`, `COMPPassMark`: present only in 110,251 rows  
-
-#### 2. Compartmental Marks
-
-| Variable       | Observations | Mean   | Median | Std Dev | 25%   | 75%   |
-|----------------|--------------|--------|--------|---------|-------|-------|
-| COMPFailMark   | 110,251      | 21.53  | 21.0   | 9.58    | 17.0  | 26.0  |
-| COMPPassMark   | 110,251      | 38.72  | 33.0   | 19.31   | 30.0  | 40.0  |
-
-#### 3. Admission Preferences
-
-| Variable           | Most Frequent                    | Frequency (%) | Observations  |
-|--------------------|-----------------------------------|---------------|---------------|
-| Stream             | Arts                              | 68.31         | 18,355,753    |
-| Institute District | Ganjam                            | 8.10          | 18,355,753    |
-| Institute Block    | Bhubaneswar (MC)                  | 4.61          | 18,355,753    |
-| Type of Institute  | Non‑Govt Aided (488 categories)   | 49.52         | 18,355,753    |
-| Phase              | 1                                 | 88.66         | 18,355,753    |
-| Year               | 2023                              | 16.97         | 18,355,753    |
-| Academic Year      | 2023                              | 16.95         | 18,379,224    |
-| COMPSubject        | MATHEMATICS                       | 32.35         | 110,251       |
+#### Compartment Information: `COMPSubject`
 
 ---
 
-This streamlined summary delivers key metrics and patterns, highlighting data completeness, student demographics, academic performance, and preference structures across ITI and HSS modules.
+###  Additional Notes:
+
+- This is an **application-level** dataset, each row represents one application or admission option.
+- A single student (`barcode`) may appear multiple times,it has to be unique, reflecting multiple choices submitted.
+- Exploded fields like `Option_No` (ITI) and `hss_option_details` (HSS) reveal student preferences and help analyze application patterns.
+- In ITI data, missing `reported_institute` often implies **no selection** was made for that application.
+- In the HSS dataset, only about 0.6% of students have `compartmental_status` records, indicating they were eligible to reappear in one or more subjects.
+- Fields like `Phase`, `TypeofInstitute`, and `Stream` are important to understanding **seat allocation**, **preference behavior**, and **institutional demand**.
+- These datasets are valuable for broader research in **allocation efficiency**, **student decision-making**, **supply-demand analysis**, and **regional access to education**.
 
 
 ---
