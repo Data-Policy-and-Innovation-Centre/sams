@@ -65,7 +65,7 @@ Each student record includes a `module` field to indicate whether the student be
 
 The diagram below shows how the tables are structured and related:
 
-![Schema Diagram](notebooks/schema_graph.png)
+![Schema Diagram](schema_graph.png)
 
 
 ---
@@ -124,7 +124,7 @@ Each row represents **one application**. A single student may apply to multiple 
 
 ### 3. Application Preferences (Option_No)
 
-| Variable     | Observations | Mean | 25% | 50% | 75% |
+| Variable     | No. of Students | Mean | 25% | 50% | 75% |
 |--------------|--------------|------|-----|-----|-----|
 | `Option_No`  | 1,938,427    | 4.63 | 2.0 | 4.0 | 5.0 |
 
@@ -135,9 +135,9 @@ Each row represents **one application**. A single student may apply to multiple 
 ### 4. Key Categorical Attributes
 
 
-#### Demographic Patterns: `gender`, `social_category`, `highest_qualification`
-#### Regional Distribution: `state`, `district`
-#### Application Behavior: `course_period`, `reported_institute`, `Phase`, `Option_No`, `Status`
+1. Demographic Patterns: `gender`, `social_category`, `highest_qualification`
+2. Regional Distribution: `state`, `district`
+3. Application Behavior: `course_period`, `reported_institute`, `Phase`, `Option_No`, `Status`
 
 
 ---
@@ -195,7 +195,7 @@ This dataset was constructed by expanding two **JSON string variables** embedded
 
 ### Compartmental Marks Summary (110K rows)
 
-| Variable        | Observations | Mean  | Median | Std Dev | 25%  | 75%  |
+| Variable        | No. of Students | Mean  | Median | Std Dev | 25%  | 75%  |
 |-----------------|--------------|-------|--------|---------|------|------|
 | COMPFailMark    | 110,251      | 21.53 | 21.0   | 9.58    | 17.0 | 26.0 |
 | COMPPassMark    | 110,251      | 38.72 | 33.0   | 19.31   | 30.0 | 40.0 |
@@ -204,11 +204,9 @@ This dataset was constructed by expanding two **JSON string variables** embedded
 
 ### Most Common Admission Attributes
 
-#### Academic Streams & Preferences: `Stream`, `TypeofInstitute`, `Phase`, `Year`, `OptionNo`
-
-#### Institute Location Details: `InstituteDistrict`, `InstituteBlock`
-
-#### Compartment Information: `COMPSubject`
+1. Academic Streams & Preferences: `Stream`, `TypeofInstitute`, `Phase`, `Year`, `OptionNo`
+2. Institute Location Details: `InstituteDistrict`, `InstituteBlock`
+3. Compartment Information: `COMPSubject`
 
 ---
 
