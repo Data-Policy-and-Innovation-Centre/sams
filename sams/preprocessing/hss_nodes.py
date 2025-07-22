@@ -1,15 +1,10 @@
 import pandas as pd
 import numpy as np
 import json
-from sams.utils import dict_camel_to_snake_case, flatten, geocode
+from sams.utils import dict_camel_to_snake_case, flatten
+from pandarallel import pandarallel
 from loguru import logger
-from sams.config import GEOCODES, GEOCODES_CACHE
-import pickle
 from tqdm import tqdm
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut
-from geopy.distance import geodesic
-import time
 import logging
 logger = logging.getLogger(__name__)
 
@@ -113,99 +108,6 @@ def _correct_addresses(address: str, block: str, district: str, state: str, pinc
         return f"{block}, {district}, {state} {pincode or ''}".strip()
 
 
-def _lat_long(df: pd.DataFrame, noisy: bool = True) -> pd.DataFrame:
-    """
-    Geocode latitude and longitude from block, district, and state columns with fallbacks.
-
-    Tries in order:
-        1. "block, district, state, India"
-        2. "block, state, India"
-        3. "block, India"
-        4. "district, state, India"
-        5. "district, India"
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Must contain columns: 'block', 'district', 'state'
-    noisy : bool
-        Print geocoding progress
-
-    Returns
-    -------
-    pd.DataFrame
-        With 'latitude', 'longitude', 'used_address', 'geocode_level'
-    """
-    geolocator = Nominatim(user_agent="hss-geocoder")
-    df = df.copy()
-
-    def build_attempts(row):
-        block = str(row.get("block", "") or "").strip()
-        district = str(row.get("district", "") or "").strip()
-        state = str(row.get("state", "") or "").strip()
-
-        return [
-            (f"{block}, {district}, {state}, India", "block+district+state"),
-            (f"{block}, {state}, India", "block+state"),
-            (f"{block}, India", "block"),
-            (f"{district}, {state}, India", "district+state"),
-            (f"{district}, India", "district")
-        ]
-
-    # Build all attempts
-    df["attempts"] = df.apply(build_attempts, axis=1)
-
-    # Flatten unique address attempts
-    unique_attempts = {}
-    for attempt_list in df["attempts"]:
-        for addr, level in attempt_list:
-            if addr not in unique_attempts:
-                unique_attempts[addr] = level
-
-    if noisy:
-        print(f"[Geocoding] Unique fallback addresses to try: {len(unique_attempts)}")
-
-    # Geocode each unique address
-    locations = {}
-    for addr in tqdm(unique_attempts, desc="Geocoding address variants"):
-        try:
-            location = geolocator.geocode(addr, timeout=10)
-            if location:
-                locations[addr] = (location.latitude, location.longitude)
-        except GeocoderTimedOut:
-            continue
-        time.sleep(1)
-
-    # Resolve for each row
-    def resolve_row(attempts):
-        for addr, level in attempts:
-            if addr in locations:
-                lat, lon = locations[addr]
-                return pd.Series([lat, lon, addr, level])
-        return pd.Series([np.nan, np.nan, None, None])
-
-    df[["latitude", "longitude", "used_address", "geocode_level"]] = df["attempts"].apply(resolve_row)
-
-    return df[["latitude", "longitude", "used_address", "geocode_level"]]
-
-
-def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
-    """
-    Computes geodesic distance between two coordinate points (lat/lng).
-
-    Parameters
-    ----------
-    coord_1, coord_2 : tuples of (latitude, longitude)
-
-    Returns
-    -------
-    float : distance in kilometers
-    """
-    try:
-        return geodesic(coord_1, coord_2).kilometers
-    except:
-        return None
-
 def _preprocess_hss_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
     """
     Preprocess HSS student data.
@@ -261,11 +163,6 @@ def _preprocess_hss_students(df: pd.DataFrame, geocode=True) -> pd.DataFrame:
             ), axis=1
         )
 
-    # Geocode address
-    if all(col in df.columns for col in ["block", "district", "state"]):
-        geocoded_df = _lat_long(df[["block", "district", "state"]].copy())
-        df = pd.concat([df.reset_index(drop=True), geocoded_df.reset_index(drop=True)], axis=1)
-
     return df
 
 
@@ -277,48 +174,51 @@ def _preprocess_income_data(df: pd.DataFrame) -> pd.DataFrame:
         df["annual_income"] = df["annual_income"].astype(str).str.strip()
     return df
 
+def extract_hss_options(df: pd.DataFrame, id_col: str = "barcode", year_col: str = "academic_year", option_col: str = "hss_option_details") -> pd.DataFrame:
 
-def extract_hss_options(df: pd.DataFrame, id_col: str = "barcode", option_col: str = "hss_option_details") -> pd.DataFrame:
     """
     Explodes the 'hss_option_details' JSON array into long-format rows per student.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with at least [student_id, hss_option_details] columns.
+        DataFrame with at least [barcode, academic_year, hss_option_details] columns.
     id_col : str
-        Column name for the student ID (used to track rows).
+        Column name for the student ID.
     option_col : str
         Column name containing the JSON string or list of options.
+    year_col : str
+        Column name for academic year to include in the output.
 
     Returns
     -------
     pd.DataFrame
-        Flattened DataFrame with one row per option, including student ID.
+        Flattened DataFrame with one row per option, including student ID and academic year.
     """
-    records = []
+    # Pre-filter out empty or null JSON fields
+    df_filtered = df[df[option_col].notna() & (df[option_col] != "[]")]
 
-    for _, row in df.iterrows():
-        student_id = row.get(id_col)
-        options_raw = row.get(option_col)
-
-        # Parse safely
-        if pd.isna(options_raw):
-            continue
+    def parse_options(row):
         try:
-            options = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
-            for opt in options:
-                opt = opt.copy()
-                opt[id_col] = student_id
-                records.append(opt)
-        except Exception as e:
-            # Optionally log or print parsing errors
-            continue
+            options = json.loads(row[option_col]) if isinstance(row[option_col], str) else row[option_col]
+            if isinstance(options, list):
+                return [
+                    {**opt, id_col: row[id_col], year_col: row[year_col]}
+                    for opt in options
+                ]
+        except Exception:
+            return []
+        return []
 
-    return pd.DataFrame.from_records(records)
+    # Apply in parallel
+    all_options = df_filtered.parallel_apply(parse_options, axis=1)
+
+    # Flatten the list of lists into a DataFrame
+    flat_records = [record for sublist in all_options if sublist for record in sublist]
+    return pd.DataFrame(flat_records)
 
 
-def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compartments", id_col: str = "barcode") -> pd.DataFrame:
+def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compartments", id_col: str = "barcode", year_col: str = "academic_year") -> pd.DataFrame:
     """
     Flatten the 'hss_compartments' JSON field into long format.
 
@@ -341,10 +241,11 @@ def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compa
 
     for _, row in df.iterrows():
         barcode = row.get(id_col)
+        academic_year = row.get(year_col)
         raw = row.get(compartment_col)
 
         if pd.isna(raw):
-            records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode})
+            records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode, year_col: academic_year})
             continue
 
         try:
@@ -354,12 +255,13 @@ def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compa
                 for subject in compartments:
                     record = subject.copy()
                     record[id_col] = barcode
+                    record[year_col] = academic_year
                     records.append(record)
             else:
-                records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode})
+                records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode, year_col: academic_year})
 
         except Exception:
-            records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode})
+            records.append({"COMPSubject": None, "COMPFailMark": None, "COMPPassMark": None, id_col: barcode, year_col: academic_year})
 
     return pd.DataFrame(records)
 
@@ -392,8 +294,6 @@ def preprocess_students_compartment_marks(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(records)
 
-import logging
-logger = logging.getLogger(__name__)
 
 def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -585,71 +485,4 @@ def compute_local_flag(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_institute_location(admitted_df: pd.DataFrame, geocode_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Combine multiple DataFrames with address columns and geocode them to get latitude and longitude.
-
-    This function concatenates a list of DataFrames, extracts address information from a specified column,
-    and adds geocoded coordinates (latitude and longitude) based on that address.
-
-    Parameters
-    ----------
-    dfs : list[pd.DataFrame]
-        List of DataFrames containing address-related data.
-    address_col : str
-        Name of the column in each DataFrame that contains the address to geocode.
-
-    Returns
-    -------
-    pd.DataFrame
-        A single DataFrame with the original address and new 'latitude' and 'longitude' columns added.
-    """
-
-    if "SAMSCode" not in admitted_df.columns:
-        raise ValueError("Missing 'SAMSCode' column. Run extract_hss_option() first.")
-
-    merged = pd.merge(admitted_df, geocode_df, how="left", on="SAMSCode")
-
-    merged.rename(columns={
-        "latitude": "institute_lat",
-        "longitude": "institute_long"
-    }, inplace=True)
-
-    return merged
-
-
-def preprocess_distances(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add a 'distance' column with geodesic distance (in km) between student and institute coordinates.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Must contain: student_lat, student_long, institute_lat, institute_long
-
-    Returns
-    -------
-    pd.DataFrame
-        With new 'distance' column added (NaN if coordinates missing)
-    """
-    required_cols = ["student_lat", "student_long", "institute_lat", "institute_long"]
-    if not all(col in df.columns for col in required_cols):
-        raise ValueError(f"Missing one of required columns: {required_cols}")
-
-    df["distance"] = df.apply(
-        lambda row: _get_distance(
-            (row["student_lat"], row["student_long"]),
-            (row["institute_lat"], row["institute_long"])
-        ) if not pd.isnull(row["student_lat"]) and not pd.isnull(row["institute_lat"]) else None,
-        axis=1
-    )
-
-    return df
-
-def _get_distance(coord_1: tuple, coord_2: tuple) -> float:
-    try:
-        return geodesic(coord_1, coord_2).kilometers
-    except ValueError as e:
-        return None
-    
     

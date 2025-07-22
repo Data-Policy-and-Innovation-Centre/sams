@@ -16,7 +16,6 @@ from sams.etl.extract import SamsDataDownloader
 from sams.etl.orchestrate import SamsDataOrchestrator
 from sams.utils import save_data, hours_since_creation, load_data
 from sams.preprocessing.hss_nodes import (
-    preprocess_distances,
     extract_hss_options,
     extract_hss_compartments,
     preprocess_students_compartment_marks,
@@ -24,12 +23,8 @@ from sams.preprocessing.hss_nodes import (
     preprocess_hss_students_enrollment_data,
     filter_admitted_on_first_choice,
     compute_local_flag,
-    add_institute_location,
     analyze_stream_trends,
-    _correct_addresses,
-    _lat_long,
     _make_null
-    
 )
 
 # Connect to or build the database
@@ -134,68 +129,7 @@ def flatten_admission_options(df: pd.DataFrame) -> pd.DataFrame:
 def first_choice_admitted_students(df: pd.DataFrame) -> pd.DataFrame:
     return filter_admitted_on_first_choice(df)
 
-
-# ===== Load Raw Address Subset =====
-@parameterize(
-    hss_address_raw=dict(sams_db=source("sams_db")),
-)
-@cache(behavior="DISABLE")
-def load_hss_address_raw(sams_db: sqlite3.Connection) -> pd.DataFrame:
-    return pd.read_sql_query(
-        "SELECT barcode, address, state, block, district, pin_code FROM students WHERE module = 'HSS';",
-        sams_db,
-    )
-
-
-# ===== Clean Student Address Fields =====
-@parameterize(
-    cleaned_hss_address=dict(df=source("hss_address_raw")),
-)
-def cleaned_hss_address(df: pd.DataFrame) -> pd.DataFrame:
-    df["cleaned_address"] = df.apply(
-        lambda row: _correct_addresses(
-            row.get("address"),
-            row.get("block"),
-            row.get("district"),
-            row.get("state"),
-            row.get("pin_code"),
-        ),
-        axis=1,
-    )
-    return df[["barcode", "cleaned_address", "block", "district", "state", "pin_code"]]
-
-
-# ===== Geocode Cleaned Addresses =====
-@parameterize(
-    geocoded_hss_address=dict(df=source("cleaned_hss_address")),
-)
-def geocoded_hss_address(df: pd.DataFrame) -> pd.DataFrame:
-    return _lat_long(df)
-
-
-# ===== Merge Geocoded Coordinates to Enrollment =====
-@parameterize(
-    hss_enrollment_with_student_coords=dict(
-        enrollment_df=source("hss_enrollment"),
-        geocoded_df=source("geocoded_hss_address"),
-    ),
-)
-def hss_enrollment_with_student_coords(
-    enrollment_df: pd.DataFrame,
-    geocoded_df: pd.DataFrame,
-) -> pd.DataFrame:
-    return pd.merge(
-        enrollment_df,
-        geocoded_df[["barcode", "latitude", "longitude"]],
-        on="barcode",
-        how="left"
-    ).rename(columns={
-        "latitude": "student_lat",
-        "longitude": "student_long"
-    })
-
-    
-
+ 
 # # ===== save to parquet =====
 @save_to.parquet(path=value(datasets["hss_enrollment"]["path"]))
 def save_hss_enrollment(hss_enrollment: pd.DataFrame) -> pd.DataFrame:
