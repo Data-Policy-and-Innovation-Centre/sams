@@ -309,13 +309,6 @@ def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Cleaned and preprocessed HSS enrollment data.
     """
-    logger.info(f"Initial raw shape: {df.shape}")
-
-    # Drop JSON-heavy columns if present
-    early_drop = ["hss_option_details", "hss_compartments"]
-    dropped_early = [col for col in early_drop if col in df.columns]
-    df = df.drop(columns=dropped_early, errors="ignore")
-    logger.info(f"Dropped JSON columns early: {dropped_early}")
 
     # Core cleaning from internal helper
     df = _preprocess_hss_students(df, geocode=False)
@@ -329,20 +322,16 @@ def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     ]
     cols_to_drop = [col for col in drop_cols if col in df.columns]
     df = df.drop(columns=cols_to_drop)
-    logger.info(f"Additional dropped columns: {cols_to_drop}")
 
     # Clean income if present
     if "annual_income" in df.columns:
-        logger.info("Cleaning 'annual_income' column")
         df = _preprocess_income_data(df)
 
     # Sort by barcode and academic_year if they exist
     sort_cols = [col for col in ["barcode", "academic_year"] if col in df.columns]
     if sort_cols:
         df = df.sort_values(by=sort_cols)
-        logger.info(f"Sorted by columns: {sort_cols}")
 
-    logger.info(f"Final processed shape: {df.shape}")
     return df
  
 def get_priority_admission_status(df: pd.DataFrame, option_col: str = "hss_option_details", id_col: str = "barcode") -> pd.DataFrame:

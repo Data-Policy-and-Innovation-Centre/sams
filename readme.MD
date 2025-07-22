@@ -106,7 +106,7 @@ Each row represents **one application**. A single student may apply to multiple 
 
 #### Key Missing Fields (by count):
 - `course_period`, `reported_institute`, `reported_branch_or_trade`, `institute_district`, `type_of_institute`: 1,016,232 each  
-- `Phase`, `Option_No`, `Status`: 280,524 each  
+- `Phase`, `Option_No`, `Status`: 280,524 each 
 
 ---
 

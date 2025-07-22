@@ -27,23 +27,6 @@ from sams.preprocessing.hss_nodes import (
     _make_null
 )
 
-# Connect to or build the database
-@cache(behavior="DISABLE")
-def sams_db(build: bool = False) -> sqlite3.Connection:
-    if Path(SAMS_DB).exists() and not build:
-        logger.info(f"Using existing database at {SAMS_DB}")
-        return sqlite3.connect(SAMS_DB)
-
-    if build:
-        logger.info("Building SAMS database...")
-        downloader = SamsDataDownloader()
-        orchestrator = SamsDataOrchestrator(db_url=f"sqlite:///{SAMS_DB}")
-        orchestrator.process_data("institutes", exclude=True, bulk_add=True)
-        orchestrator.process_data("students", exclude=True, bulk_add=True)
-        return sqlite3.connect(SAMS_DB)
-
-    raise FileNotFoundError(f"No database found at {SAMS_DB}")
-
 # ===== Building raw SAMS database from API =====
 @cache(behavior="DISABLE")
 def sams_db(build: bool = True) -> sqlite3.Connection:

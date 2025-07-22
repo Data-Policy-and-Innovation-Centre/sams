@@ -7,7 +7,6 @@ from sams.config import ERRMAX, STUDENT, INSTITUTE, LOGS
 import pandas as pd
 from tqdm import tqdm
 
-
 class SamsDataDownloader:
     def __init__(self, client=None):
         if not client:
@@ -45,8 +44,6 @@ class SamsDataDownloader:
                 data = self._get_students_iti_diploma_hss(academic_year, module, page_number=page_number)
         else:
             data = self._get_records("students", academic_year, module)
-
-        logger.info(f"Actual records fetched: {len(data)} | Expected: {expected_records}")
 
         if len(data) < expected_records:
             logger.warning(
@@ -442,7 +439,7 @@ def main():
     # print(df.columns)
     
     # # Extract HSS 2019 full data
-    df_hss_students = downloader.fetch_students('HSS', 2018, pandify=True)
+    df_hss_students = downloader.fetch_students('Diploma', 2020, pandify=True)
     # print(df_hss_students.shape)
     #print(f"Total HSS 2019 records fetched: {len(df_hss_students)}")
     print(df_hss_students.columns)
