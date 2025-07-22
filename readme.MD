@@ -7,7 +7,7 @@ The **Student Academic Management System (SAMS)** is a data pipeline and analyti
 
 ## Prerequisites
 
-Before using SAMS, ensure you have **Conda** installed and available in your system's PATH.
+Before using SAMS, ensure you have **Conda** installed and available in your system's PATH. You should also install `make`, if you want to make extracting and cleaning data single short commands. `make` is usually pre-installed on Unix based systems (if not, the default package managers such as `apt` and `brew` can easily install stable binaries). If you're on Windows, installing `make` takes a little bit more work. 
 
 ---
 
@@ -37,10 +37,15 @@ To set up the development environment:
 To build the dataset and initialize the database:
 
 ```bash
-make dataset
+make sams_db
 ```
 
-This will load and transform raw inputs into a structured format stored in a local SQLite database.
+This will load and transform raw inputs into a structured format stored in a local SQLite database stored at `/data`
+
+Next, to produce cleaned intermediate outputs, type
+```bash
+make clean_data
+```
 
 ---
 
