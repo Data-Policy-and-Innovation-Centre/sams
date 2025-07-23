@@ -4,6 +4,7 @@ from sams.config import PROJ_ROOT, LOGS, SAMS_DB
 from pathlib import Path
 from loguru import logger
 from sams.utils import hours_since_creation
+import requests
 
 if not Path(PROJ_ROOT / ".env").exists():
     raise FileNotFoundError(f".env file not found at {PROJ_ROOT}/.env")
@@ -20,7 +21,10 @@ if (
     logger.info(
         "Total records file out of date (if it exists), updating total records..."
     )
-    downloader.update_total_records()
+    try:
+        downloader.update_total_records()
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Skipping total records update due to API error: {e}")
 
 orchestrator = SamsDataOrchestrator(db_url=f"sqlite:///{SAMS_DB}")
 
