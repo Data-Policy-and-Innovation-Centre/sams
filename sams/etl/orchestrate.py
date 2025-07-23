@@ -20,7 +20,23 @@ class SamsDataOrchestrator:
         student_data = self.downloader.fetch_students(
             module, academic_year, pandify=False
         )
+        #print(f"Fetched student data for {module} {academic_year}: {student_data}")
+
+        # Check if data is empty 
+        if not student_data:
+            logger.warning(f"No student data for module: {module}, year: {academic_year} — possibly due to API issues. Skipping.")
+            resume_logging_to_console()
+            return
+        
+        # Check if required columns exist
+        required_fields = {"module", "academic_year"}
+        missing = required_fields - set(student_data[0].keys())
+        if missing:
+            logger.warning(f"Missing required fields in student data: {missing}. Skipping validation and load.")
+            resume_logging_to_console()
+            return
         validate(student_data, table_name="students")
+
         if bulk_add:
             self.loader.bulk_load(student_data, "students")
         else:
@@ -38,10 +54,30 @@ class SamsDataOrchestrator:
         institute_data = self.downloader.fetch_institutes(
             module, academic_year, admission_type, pandify=False
         )
+
+
+        # Check if data is empty (API down or no results)
+        if not institute_data:
+            logger.warning(
+                f"No institute data for module: {module}, year: {academic_year}, type: {admission_type} — possibly due to API issues. Skipping."
+            )
+            resume_logging_to_console()
+            return
+
+        # Check for required fields (if any — adjust as needed)
+        required_fields = {"module", "academic_year"}
+        missing = required_fields - set(institute_data.columns)
+        if missing:
+            logger.warning(f"Missing required fields in institute data: {missing}. Skipping load.")
+            resume_logging_to_console()
+            return
+
+        # Proceed to load
         if bulk_add:
-            self.loader.bulk_load(institute_data, "institutes")
+            self.loader.bulk_load(institute_data, "institutes") 
         else:
             self.loader.load(institute_data, "institutes")
+
         resume_logging_to_console()
 
     def process_data(
