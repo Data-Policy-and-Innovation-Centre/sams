@@ -104,6 +104,19 @@ Each row represents **one application**. A single student may apply to multiple 
 - **Academic Years Covered:** 2017–2024  
 - **Average Applications per Student:** ~4.63  
 
+| Academic Year | No of Students |
+|---------------|----------------|
+| 2017          | 26,362         |
+| 2018          | 29,115         |
+| 2019          | 32,977         |
+| 2020          | 25,378         |
+| 2021          | 40,666         |
+| 2022          | 37,694         |
+| 2023          | 47,590         |
+| 2024          | 46,670         |
+
+
+
 #### Key Missing Fields (by count):
 - `course_period`, `reported_institute`, `reported_branch_or_trade`, `institute_district`, `type_of_institute`: 1,016,232 each  
 - `Phase`, `Option_No`, `Status`: 280,524 each 
@@ -166,6 +179,16 @@ This dataset was constructed by expanding two **JSON string variables** embedded
 - **Total Application Options (Exploded Rows):** 18,379,224  
 - **Academic Years Covered:** 2017–2024  
 - **Compartment Info Present In:** 110,251 rows (~0.6%)
+
+| Academic Year |No of Studnets |
+|---------------|---------------|
+| 2018          | 439,528       |
+| 2019          | 411,118       |
+| 2020          | 431,636       |
+| 2021          | 498,180       |
+| 2022          | 574,238       |
+| 2023          | 560,769       |
+| 2024          | 537,932       |
 
 #### Sparse or Missing Fields
 
