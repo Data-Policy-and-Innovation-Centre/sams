@@ -586,8 +586,6 @@ class SamsDataLoaderPandas(SamsDataLoader):
 # if __name__ == "__main__":
 #     main()
 
-
-
 CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
 LOG_FILE = 'sams/etl/hss_load_log.txt'
 
