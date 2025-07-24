@@ -111,19 +111,23 @@ datasets:
   
   hss_enrollment:
     type: parquet
-    path: "data/interim/hss_enrollment.pq"
-    layer: interim
+    path: "data/hss_interim/hss_enrollment.pq"
+    layer: hss_interim
 
-  flattened_hss_options:
+  hss_flattened_options:
     type: parquet
-    path: "data/interim/flattened_hss_options.pq"
-    layer: interim
+    path: "data/hss_interim/hss_flattened_options.pq"
+    layer: hss_interim
 
   hss_compartment_subjects:
     type: parquet
-    path: "data/interim/hss_compartment_subjects.pq"
-    layer: interim
+    path: "data/hss_interim/hss_compartment_subjects.pq"
+    layer: hss_interim
 
+  first_choice_admitted:
+    type: parquet
+    path: "data/hss_interim/first_choice_admitted.pq"
+    layer: hss_interim
 
 
 exhibits:

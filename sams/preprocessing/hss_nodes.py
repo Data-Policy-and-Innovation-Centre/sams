@@ -5,9 +5,6 @@ from sams.utils import dict_camel_to_snake_case, flatten
 from pandarallel import pandarallel
 from loguru import logger
 from tqdm import tqdm
-import logging
-logger = logging.getLogger(__name__)
-
 
 def _make_null(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -174,48 +171,56 @@ def _preprocess_income_data(df: pd.DataFrame) -> pd.DataFrame:
         df["annual_income"] = df["annual_income"].astype(str).str.strip()
     return df
 
-def extract_hss_options(df: pd.DataFrame, id_col: str = "barcode", year_col: str = "academic_year", option_col: str = "hss_option_details") -> pd.DataFrame:
-
+def extract_hss_options(df: pd.DataFrame, option_col: str = "hss_option_details", id_col: str = "barcode", year_col: str = "academic_year") -> pd.DataFrame:
     """
-    Explodes the 'hss_option_details' JSON array into long-format rows per student.
+    Flatten the 'hss_option_details' JSON field into long format.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with at least [barcode, academic_year, hss_option_details] columns.
-    id_col : str
-        Column name for the student ID.
+        The input DataFrame containing a JSON string column with option data.
     option_col : str
-        Column name containing the JSON string or list of options.
+        The name of the column containing JSON string (list of option dicts).
+    id_col : str
+        The column used to carry over the student ID ('barcode').
     year_col : str
-        Column name for academic year to include in the output.
+        The column for academic year to carry through in the output.
 
     Returns
     -------
     pd.DataFrame
-        Flattened DataFrame with one row per option, including student ID and academic year.
+        A long-format DataFrame with individual option records, each including
+        student ID and academic year. If the list is empty or invalid, returns a row
+        with None values for options and includes the ID and year.
     """
-    # Pre-filter out empty or null JSON fields
-    df_filtered = df[df[option_col].notna() & (df[option_col] != "[]")]
+    records = []
 
-    def parse_options(row):
+    for _, row in df.iterrows():
+        barcode = row.get(id_col)
+        academic_year = row.get(year_col)
+        raw = row.get(option_col)
+
+        if pd.isna(raw):
+            records.append({id_col: barcode, year_col: academic_year})
+            continue
+
         try:
-            options = json.loads(row[option_col]) if isinstance(row[option_col], str) else row[option_col]
-            if isinstance(options, list):
-                return [
-                    {**opt, id_col: row[id_col], year_col: row[year_col]}
-                    for opt in options
-                ]
+            options = json.loads(raw) if isinstance(raw, str) else raw
+
+            if isinstance(options, list) and options:
+                for option in options:
+                    record = option.copy()
+                    record[id_col] = barcode
+                    record[year_col] = academic_year
+                    records.append(record)
+            else:
+                records.append({id_col: barcode, year_col: academic_year})
+
         except Exception:
-            return []
-        return []
+            records.append({id_col: barcode, year_col: academic_year})
 
-    # Apply in parallel
-    all_options = df_filtered.parallel_apply(parse_options, axis=1)
+    return pd.DataFrame(records)
 
-    # Flatten the list of lists into a DataFrame
-    flat_records = [record for sublist in all_options if sublist for record in sublist]
-    return pd.DataFrame(flat_records)
 
 
 def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compartments", id_col: str = "barcode", year_col: str = "academic_year") -> pd.DataFrame:

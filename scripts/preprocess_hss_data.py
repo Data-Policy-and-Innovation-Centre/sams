@@ -1,23 +1,31 @@
-# sams/run_hss_pipeline.py
 import sys
 from hamilton import driver
-from sams.preprocessing import hss_pipeline 
+from loguru import logger
+
+from sams import config  # triggers folder creation logic
+from sams.preprocessing import hss_pipeline
+from sams.config import datasets
 
 def main(args):
-    if len(args) < 2:
-        build = False
-        final_vars = [
-            "save_hss_enrollment",
-            "save_flattened_options",
-            "save_compartment_subjects",
-        ]
-    else:
+    build = False
+    final_vars = [
+        "save_hss_enrollment",
+        "save_flattened_options",
+        "save_compartment_subjects",
+        "save_first_choice_admitted",
+    ]
+
+    if len(args) >= 2:
         build = args[1] == "build"
-        final_vars = args[2:]
+        if len(args) > 2:
+            final_vars = args[2:]
 
     dr = driver.Builder().with_modules(hss_pipeline).build()
-    inputs = dict(build=build)
-    dr.execute(final_vars=final_vars, inputs=inputs)
+    results = dr.execute(final_vars=final_vars, inputs={"build": build})
+
+    logger.info("Pipeline execution complete.")
+    for key, value in results.items():
+        logger.info(f"{key}: {type(value)} - {getattr(value, 'shape', 'N/A')}")
 
 if __name__ == "__main__":
     main(sys.argv)
