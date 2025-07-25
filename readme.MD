@@ -70,15 +70,85 @@ The diagram below shows how the tables are structured and related:
 
 ---
 
+# Student Admission Summary
 
-## ITI Module Summary
-
-This dataset contains **application-level data** submitted through the **SAMS Odisha portal** for **Industrial Training Institutes (ITI)** from **2017 to 2024**.  
-Each row represents **one application**. A single student may apply to multiple trades or institutes, resulting in multiple application records linked to the same student.
+This summarizes application and admission counts across four academic modules in Odisha, India - **ITI**, **Diploma**, **PDIS**, and **HSS**, using data collected via the SAMS Odisha portal. 
 
 ---
 
-### Variable Descriptions
+## 1. Student Overview
+
+### 1.1. Overall Totals
+
+- **Total ITI Students**:            529,085  
+- **Total Diploma Students**:  417,756  
+- **Total PDIS Students**:        5,717  
+- **Total HSS Students**:         2,643,387  
+
+---
+
+### 1.2. Unique Students by Module and Year
+
+This table shows how many unique students were present in each module (ITI, Diploma, PDIS, HSS) for each academic year from 2017 to 2024.
+
+| Academic Year |   ITI   | Diploma | PDIS |   HSS    | Total Students  |
+|:-------------:|--------:|--------:|-----:|---------:|----------------:|
+| 2017          |  27,337 |       0 |    0 |       0  | 27,337          |
+| 2018          |  70,613 |  52,530 |    0 | 367,581  | 490,724         |
+| 2019          |  64,148 |  44,080 |    0 | 355,308  | 463,536         |
+| 2020          |  67,412 |  56,533 |  916 | 341,822  | 466,683         |
+| 2021          |  81,948 |  59,278 |  874 | 375,368  | 517,468         |
+| 2022          |  74,104 |  78,196 |1,187 | 417,040  | 570,527         |
+| 2023          |  92,085 |  79,700 |1,287 | 419,135  | 592,207         |
+| 2024          |  83,958 |  81,789 |1,453 | 473,097  | 640,297         |
+| **Total**     |561,605  |452,106  |5,717 |2,749,351 | **3,768,779**   |
+
+---
+
+### 1.3. Students Who Appeared in Multiple Academic Years
+
+- **ITI**: 32,520 students  
+- **Diploma**: 34,350 students  
+- **PDIS**: 0 students  
+- **HSS**: 105,964 students  
+
+---
+
+## 2. Applications per Student Statistics
+
+Each tables summarize how many **applications** each student made, per academic year.
+
+Each table includes:
+
+- **Number of Students**: Unique students who submitted at least one application that year
+- **Mean**: Average number of applications per student
+- **Std Dev**: Standard deviation
+- **25th / Median / 75th**: Percentiles of number of applications per student
+
+---
+
+### 2.1 All Students Combined
+
+| Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
+|:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
+| 2017          | 27,337             | 5.24 | 76.48   | 2.0  | 4.0    | 6.0  |
+| 2018          |490,724             | 3.00 | 48.71   | 0.0  | 1.0    | 3.0  |
+| 2019          |463,536             | 3.85 | 65.61   | 0.0  | 1.0    | 5.0  |
+| 2020          |466,683             | 2.78 |  4.68   | 0.0  | 1.0    | 5.0  |
+| 2021          |517,468             | 3.09 |  4.68   | 0.0  | 1.0    | 5.0  |
+| 2022          |570,527             | 3.35 |  5.15   | 0.0  | 1.0    | 5.0  |
+| 2023          |592,207             | 3.67 |  4.96   | 0.0  | 2.0    | 5.0  |
+| 2024          |640,297             | 4.03 |  5.57   | 1.0  | 2.0    | 5.0  |
+
+---
+
+### 2.2. ITI Module Summary
+
+This section focuses on students who applied to **Industrial Training Institutes (ITI)** from 2017–2024 via the SAMS Odisha portal. Each application represents a trade/institute preference of the student.
+
+---
+
+### a. Variable Descriptions
 
 | Variable              | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
@@ -93,111 +163,53 @@ Each row represents **one application**. A single student may apply to multiple 
 | `state` / `district`  | Student’s home state and district                                           |
 | `option_details`      | JSON array of options: {`Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`, etc.} |
 
-> **ITI applications (2017–2024):** Started at 34,654 in 2017 and rose to 83,958 in 2024, peaking at 92,085 in 2023.
+---
+
+### 3.2 Admission & Enrollment Status
+
+- **`admission_status`** indicates if a seat was offered.  
+  Values include: `Yes`, `No`
+
+- **`enrollment_status`** captures whether the student actually enrolled (`Yes` / `No`)
 
 ---
 
-### 1. Overview
+### 3.3 ITI Students – Application Statistics
 
-- **Total Records:** 2,218,951  
-- **Total Unique Students:** ~573,518  
-- **Academic Years Covered:** 2017–2024  
-- **Average Applications per Student:** ~4.63  
-
-| Academic Year | No of Students |
-|---------------|----------------|
-| 2017          | 26,362         |
-| 2018          | 29,115         |
-| 2019          | 32,977         |
-| 2020          | 25,378         |
-| 2021          | 40,666         |
-| 2022          | 37,694         |
-| 2023          | 47,590         |
-| 2024          | 46,670         |
-
-
-
-#### Key Missing Fields (by count):
-- `course_period`, `reported_institute`, `reported_branch_or_trade`, `institute_district`, `type_of_institute`: 1,016,232 each  
-- `Phase`, `Option_No`, `Status`: 280,524 each 
+| Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
+|:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
+| 2017          | 27,337             | 5.24 | 76.48   | 2.0  | 4.0    | 6.0  |
+| 2018          | 70,613             | 2.41 |  4.64   | 0.0  | 0.0    | 3.0  |
+| 2019          | 64,148             | 3.59 |  4.49   | 0.0  | 5.0    | 5.0  |
+| 2020          | 67,412             | 2.47 |  3.90   | 0.0  | 0.0    | 5.0  |
+| 2021          | 81,948             | 3.16 |  3.93   | 0.0  | 0.0    | 5.0  |
+| 2022          | 74,104             | 3.60 |  4.64   | 0.0  | 5.0    | 5.0  |
+| 2023          | 92,085             | 3.73 |  4.88   | 0.0  | 5.0    | 5.0  |
+| 2024          | 83,958             | 4.27 |  5.46   | 0.0  | 5.0    | 5.0  |
 
 ---
 
-### 2. Admission & Enrollment
+## 4. Diploma Students – Application Statistics
 
-- **`admission_status`** reflects whether an application led to a seat being offered.  
-  Common values include `Yes`, `No`, or descriptive entries like:
-  - `"TC Taken: Institute - ITI Rourkela, Trade - Fitter"`
-- **`enrollment_status`** indicates whether the applicant actually joined the institute.  
-  It typically has values: `Yes` or `No`.
-
-> These fields allow analysis of the student journey from application to admission to actual enrollment.
-
----
-
-### 3. Application Preferences (Option_No)
-
-| Variable     | No. of Students | Mean | 25% | 50% | 75% |
-|--------------|--------------|------|-----|-----|-----|
-| `Option_No`  | 1,938,427    | 4.63 | 2.0 | 4.0 | 5.0 |
-
-> Students generally list 4–5 on average preferences when applying.
+| Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
+|:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
+| 2018          | 52,530             | 3.60 | 73.30   | 1.0  | 1.0    | 4.0  |
+| 2019          | 44,080             | 3.97 |101.25   | 1.0  | 1.0    | 4.0  |
+| 2020          | 56,533             | 3.02 |  5.17   | 1.0  | 1.0    | 3.0  |
+| 2021          | 59,278             | 2.80 |  5.10   | 1.0  | 1.0    | 3.0  |
+| 2022          | 78,196             | 2.94 |  5.18   | 1.0  | 1.0    | 3.0  |
+| 2023          | 79,700             | 3.35 |  4.43   | 1.0  | 2.0    | 4.0  |
+| 2024          | 81,789             | 3.51 |  4.79   | 1.0  | 2.0    | 5.0  |
 
 ---
 
-### 4. Key Categorical Attributes
+## 5. HSS Application Module Summary
 
-
-1. Demographic Patterns: `gender`, `social_category`, `highest_qualification`
-2. Regional Distribution: `state`, `district`
-3. Application Behavior: `course_period`, `reported_institute`, `Phase`, `Option_No`, `Status`
-
+The HSS dataset includes student-level admission options submitted to **Higher Secondary Schools** from 2018–2024. Each student record can expand to multiple rows depending on the number of options selected.
 
 ---
 
-## HSS Application Module Summary
-
-This dataset represents **application-level admission records** submitted by students applying to Higher Secondary Schools (HSS) via the SAMS Odisha portal between 2018 and 2024.  
-Each row corresponds to **a single admission option** selected by a student which means one student can have multiple rows depending on how many options they selected.
-
----
-
-### Source & Structure
-
-This dataset was constructed by expanding two **JSON string variables** embedded in the student-level dataset:
-
-- **`hss_option_details`** – Admission preferences like institute, stream, phase, admission status, etc.  
-- **`hss_compartments`** – Subject-wise marks for compartmental students, including fail/pass marks.
-
-> After exploding these JSON strings, the data grows from **3.4 million student records** to **18.3 million application-level rows**.
-
----
-
-### Dataset Overview
-
-- **Total Applicants (Base Data):** 3,453,401  
-- **Total Application Options (Exploded Rows):** 18,379,224  
-- **Academic Years Covered:** 2017–2024  
-- **Compartment Info Present In:** 110,251 rows (~0.6%)
-
-| Academic Year |No of Studnets |
-|---------------|---------------|
-| 2018          | 439,528       |
-| 2019          | 411,118       |
-| 2020          | 431,636       |
-| 2021          | 498,180       |
-| 2022          | 574,238       |
-| 2023          | 560,769       |
-| 2024          | 537,932       |
-
-#### Sparse or Missing Fields
-
-- `Stream`, `ReportedInstitute`, `SAMSCode`: 23,471 missing (0.13%)  
-- `COMPSubject`, `COMPFailMark`, `COMPPassMark`: Present only for 0.6% of records (compartmental students)
-
----
-
-### Variable Descriptions
+### 5.1 Variable Descriptions
 
 | Variable                | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
@@ -209,40 +221,40 @@ This dataset was constructed by expanding two **JSON string variables** embedded
 | `state` / `district`    | Student’s residence location                                                |
 | `total_marks`           | Total maximum marks (typically 600)                                         |
 | `secured_marks`         | Marks obtained by the student                                               |
-| `percentage`            | Calculated percentage based on total and secured marks                     |
+| `percentage`            | Calculated percentage based on total and secured marks                      |
 | `compartmental_status`  | Whether the student had compartments (`Yes` / `No`)                         |
 | `hss_option_details`    | JSON array with details like Option No, Institute, Stream, Admission Status |
 | `hss_compartments`      | JSON array with COMPSubject, COMPFailMark, COMPPassMark                     |
 
 ---
 
-### Compartmental Marks Summary (110K rows)
+### 5.2 Missing Fields
 
-| Variable        | No. of Students | Mean  | Median | Std Dev | 25%  | 75%  |
-|-----------------|--------------|-------|--------|---------|------|------|
-| COMPFailMark    | 110,251      | 21.53 | 21.0   | 9.58    | 17.0 | 26.0 |
-| COMPPassMark    | 110,251      | 38.72 | 33.0   | 19.31   | 30.0 | 40.0 |
+- `Stream`, `ReportedInstitute`, `SAMSCode`: Missing in 0.13% of records  
+- `COMPSubject`, `COMPFailMark`, `COMPPassMark`: Available for only 0.6% (compartmental students)
 
 ---
 
-### Most Common Admission Attributes
+### 5.3 HSS Students – Application Statistics
 
-1. Academic Streams & Preferences: `Stream`, `TypeofInstitute`, `Phase`, `Year`, `OptionNo`
-2. Institute Location Details: `InstituteDistrict`, `InstituteBlock`
-3. Compartment Information: `COMPSubject`
+| Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
+|:-------------:|-------------------:|------:|--------:|-----:|--------:|-----:|
+| 2018          | 367,553            | 6.02 | 394.77  | 5.0  | 5.0    | 5.0  |
+| 2019          | 353,042            | 5.71 | 238.26  | 5.0  | 5.0    | 5.0  |
+| 2020          | 341,761            | 6.52 | 458.01  | 5.0  | 5.0    | 5.0  |
+| 2021          | 375,280            | 6.83 | 710.93  | 5.0  | 5.0    | 5.0  |
+| 2022          | 416,964            | 7.07 | 620.25  | 5.0  | 5.0    | 6.0  |
+| 2023          | 419,054            | 7.06 | 621.13  | 5.0  | 5.0    | 6.0  |
+| 2024          | 473,009            | 6.03 | 93.99   | 5.0  | 5.0    | 6.0  |
+
 
 ---
 
-###  Additional Notes:
+These statistics will help understand:
 
-- This is an **application-level** dataset, each row represents one application or admission option.
-- A single student (`barcode`) may appear multiple times,it has to be unique, reflecting multiple choices submitted.
-- Exploded fields like `Option_No` (ITI) and `hss_option_details` (HSS) reveal student preferences and help analyze application patterns.
-- In ITI data, missing `reported_institute` often implies **no selection** was made for that application.
-- In the HSS dataset, only about 0.6% of students have `compartmental_status` records, indicating they were eligible to reappear in one or more subjects.
-- Fields like `Phase`, `TypeofInstitute`, and `Stream` are important to understanding **seat allocation**, **preference behavior**, and **institutional demand**.
-- These datasets are valuable for broader research in **allocation efficiency**, **student decision-making**, **supply-demand analysis**, and **regional access to education**.
-
+- Enrollment trends across different academic programs
+- Application behavior patterns (how many options students typically select)
+- Year-over-year changes in student engagement and preferences
 
 ---
 
