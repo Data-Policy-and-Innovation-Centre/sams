@@ -72,9 +72,9 @@ The diagram below shows how the tables are structured and related:
 
 # Student Admission Summary
 
-This summary provides application and admission counts across four academic modules in Odisha, India - **ITI**, **Diploma**, **PDIS**, and **HSS**, using data collected via the SAMS Odisha portal. 
+This summary presents the number of students who applied through the SAMS Odisha portal across four educational modules: Industrial Training Institutes (ITI), Diploma, Post Diploma in Industrial Safety (PDIS), and Higher Secondary Schools (HSS), and the number of applications they submitted each year.
 
-> **Terminology note:** *Module* refers to an education stream within the SAMS database (ITI, Diploma, PDIS, HSS).
+> **Terminology note:** *Module* refers to a specific type of educational program within the SAMS system (ITI, Diploma, PDIS, HSS).
 
 
 ---
@@ -82,19 +82,23 @@ This summary provides application and admission counts across four academic modu
 
 The list below shows some of the main variables in the database to provide a general understanding of the data structure.
 
-
 | Variable                | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
-| `barcode`               | Encrypted student ID (SHA‑256)                                              |
+| `aadhar_no`             | Encrypted Aadhar number (SHA‑256 key used)                                  |
+| `barcode`               | application ID                                                              |
 | `academic_year`         | Academic year of application (2017–2024)                                    |
 | `state` / `district`    | Student’s home state and district                                           |
-| `course_period`         | Duration of the course (e.g., `2 Years`)                                    |
+| `compartmental_status`  | Whether the student had compartmental subjects (`Yes` / `No`)               |
 | `admission_status`      | Whether a seat was offered (`Yes` / `No`)                                   |
 | `enrollment_status`     | Whether the student enrolled (`Yes` / `No`)                                 |
-| `compartmental_status`  | Whether the student had compartmental subjects (`Yes` / `No`)               |
-| `option_details`        |  JSON array of an ITI student’s choices (e.g., `Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`) for ITI/Diploma |
-| `hss_option_details`    |  JSON array of an HSS student’s choices (`OptionNo`, `Institute`, `Stream`, `Admission Status`, etc.)   |
+| `option_details`        | JSON array of an ITI or Diploma student's choices (`Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`, etc.) |
+| `hss_option_details`    | JSON array of an HSS student’s choices (`OptionNo`, `Institute`, `Stream`, `Admission Status`, etc.) |
 | `hss_compartments`      | JSON array with `COMPSubject`, `COMPFailMark`, `COMPPassMark`               |
+| `sams_code`             | Unique code for each institutes                                             |
+| `type_of_institute`     | Type of institution (`Government`, `Private`, etc.)                         |
+| `strength`              | Total seats available for a specific trade and module                       |
+| `cutoff`                | Minimum required percentage ````````````````````````````                    |
+
 
 ---
 
@@ -124,26 +128,16 @@ This table shows how many unique students were present in each module (ITI, Dipl
 | 2022          |  74,104 |  78,196 |1,187 | 417,040  | 570,527         |
 | 2023          |  92,085 |  79,700 |1,287 | 419,135  | 592,207         |
 | 2024          |  83,958 |  81,789 |1,453 | 473,097  | 640,297         |
-| **Total**     |561,605  |452,106  |5,717 |2,749,351 | **3,768,779**   |
-
----
-
-### 2.3. Students Who Appeared in Multiple Academic Years
-
-- **ITI**: 32,520 students  
-- **Diploma**: 34,350 students  
-- **PDIS**: 0 students  
-- **HSS**: 105,964 students  
 
 ---
 
 ## 3. Applications per Student Statistics
 
-The tables below summarize how many **applications** each student submitted in an academic year.
+The following tables show statistical summaries of the number of applications submitted per student in each academic year.
 
 Each table includes:
 
-- **Number of Students**: No. of unique students who submitted at least one application that year
+- **Number of Students**: Count of unique students who submitted at least one application that year
 - **Mean**: Average number of applications per student
 - **Std Dev**: Standard deviation
 - **25th / Median / 75th**: Percentiles of number of applications per student
