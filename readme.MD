@@ -72,24 +72,47 @@ The diagram below shows how the tables are structured and related:
 
 # Student Admission Summary
 
-This summarizes application and admission counts across four academic modules in Odisha, India - **ITI**, **Diploma**, **PDIS**, and **HSS**, using data collected via the SAMS Odisha portal. 
+This summary provides application and admission counts across four academic modules in Odisha, India - **ITI**, **Diploma**, **PDIS**, and **HSS**, using data collected via the SAMS Odisha portal. 
+
+> **Terminology note:** *Module* refers to an education stream within the SAMS database (ITI, Diploma, PDIS, HSS).
+
+
+---
+## 1. Overview of Key Variables
+
+The list below shows some of the main variables in the database to provide a general understanding of the data structure.
+
+
+| Variable                | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `barcode`               | Encrypted student ID (SHA‑256)                                              |
+| `academic_year`         | Academic year of application (2017–2024)                                    |
+| `state` / `district`    | Student’s home state and district                                           |
+| `course_period`         | Duration of the course (e.g., `2 Years`)                                    |
+| `admission_status`      | Whether a seat was offered (`Yes` / `No`)                                   |
+| `enrollment_status`     | Whether the student enrolled (`Yes` / `No`)                                 |
+| `compartmental_status`  | Whether the student had compartmental subjects (`Yes` / `No`)               |
+| `option_details`        |  JSON array of an ITI student’s choices (e.g., `Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`) for ITI/Diploma |
+| `hss_option_details`    |  JSON array of an HSS student’s choices (`OptionNo`, `Institute`, `Stream`, `Admission Status`, etc.)   |
+| `hss_compartments`      | JSON array with `COMPSubject`, `COMPFailMark`, `COMPPassMark`               |
 
 ---
 
-## 1. Student Overview
 
-### 1.1. Overall Totals
+## 2. Student Overview
 
-- **Total ITI Students**:            529,085  
+### 2.1. Overall totals by module
+
+- **Total ITI (Industrial Training Institutes) Students**:      529,085  
 - **Total Diploma Students**:  417,756  
-- **Total PDIS Students**:        5,717  
-- **Total HSS Students**:         2,643,387  
+- **Total PDIS (Post Diploma in Industrial Safety) Students**:     5,717  
+- **Total HSS (Higher Secondary Schools) Students**:      2,643,387  
 
 ---
 
-### 1.2. Unique Students by Module and Year
+### 2.2. Number of students by module and year
 
-This table shows how many unique students were present in each module (ITI, Diploma, PDIS, HSS) for each academic year from 2017 to 2024.
+This table shows how many unique students were present in each module (ITI, Diploma, PDIS, HSS) for each academic year.
 
 | Academic Year |   ITI   | Diploma | PDIS |   HSS    | Total Students  |
 |:-------------:|--------:|--------:|-----:|---------:|----------------:|
@@ -105,7 +128,7 @@ This table shows how many unique students were present in each module (ITI, Dipl
 
 ---
 
-### 1.3. Students Who Appeared in Multiple Academic Years
+### 2.3. Students Who Appeared in Multiple Academic Years
 
 - **ITI**: 32,520 students  
 - **Diploma**: 34,350 students  
@@ -114,20 +137,20 @@ This table shows how many unique students were present in each module (ITI, Dipl
 
 ---
 
-## 2. Applications per Student Statistics
+## 3. Applications per Student Statistics
 
-Each tables summarize how many **applications** each student made, per academic year.
+The tables below summarize how many **applications** each student submitted in an academic year.
 
 Each table includes:
 
-- **Number of Students**: Unique students who submitted at least one application that year
+- **Number of Students**: No. of unique students who submitted at least one application that year
 - **Mean**: Average number of applications per student
 - **Std Dev**: Standard deviation
 - **25th / Median / 75th**: Percentiles of number of applications per student
 
 ---
 
-### 2.1 All Students Combined
+### 3.1 All Modules (Combined)
 
 | Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
 |:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
@@ -142,39 +165,8 @@ Each table includes:
 
 ---
 
-### 2.2. ITI Module Summary
+### 3.2. ITI (Industrial Training Institutes) 
 
-This section focuses on students who applied to **Industrial Training Institutes (ITI)** from 2017–2024 via the SAMS Odisha portal. Each application represents a trade/institute preference of the student.
-
----
-
-### a. Variable Descriptions
-
-| Variable              | Description                                                                 |
-|-----------------------|-----------------------------------------------------------------------------|
-| `barcode`             | Encrypted student ID (SHA‑256)                                              |
-| `gender`              | Student gender (`Male` / `Female`)                                          |
-| `academic_year`       | Application year (2017–2024)                                                |
-| `course_period`       | Duration of the course (e.g. `2 Years`)                                     |
-| `total_marks`         | Total maximum marks                                                         |
-| `secured_marks`       | Marks obtained by the student                                               |
-| `percentage`          | Calculated percentage based on total and secured marks                      |
-| `social_category`     | Category (`GEN`, `OBC/SEBC`, `SC`, `ST`)                                    |
-| `state` / `district`  | Student’s home state and district                                           |
-| `option_details`      | JSON array of options: {`Option_No`, `Applied Institute`, `Applied Trade`, `Reported Institute`, etc.} |
-
----
-
-### 3.2 Admission & Enrollment Status
-
-- **`admission_status`** indicates if a seat was offered.  
-  Values include: `Yes`, `No`
-
-- **`enrollment_status`** captures whether the student actually enrolled (`Yes` / `No`)
-
----
-
-### 3.3 ITI Students – Application Statistics
 
 | Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
 |:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
@@ -189,7 +181,7 @@ This section focuses on students who applied to **Industrial Training Institutes
 
 ---
 
-## 4. Diploma Students – Application Statistics
+### 3.3. Diploma
 
 | Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
 |:-------------:|-------------------:|-----:|--------:|-----:|-------:|-----:|
@@ -203,39 +195,8 @@ This section focuses on students who applied to **Industrial Training Institutes
 
 ---
 
-## 5. HSS Application Module Summary
+### 3.4. HSS (Higher Secondary Schools) 
 
-The HSS dataset includes student-level admission options submitted to **Higher Secondary Schools** from 2018–2024. Each student record can expand to multiple rows depending on the number of options selected.
-
----
-
-### 5.1 Variable Descriptions
-
-| Variable                | Description                                                                 |
-|-------------------------|-----------------------------------------------------------------------------|
-| `barcode`               | Encrypted student ID (SHA‑256)                                              |
-| `academic_year`         | Year of application (2017–2024)                                             |
-| `gender`                | Student gender (Male / Female)                                              |
-| `annual_income`         | Family income bracket (e.g. `0–1,50,000 INR`)                               |
-| `social_category`       | Student category (GEN, OBC/SEBC, SC, ST)                                    |
-| `state` / `district`    | Student’s residence location                                                |
-| `total_marks`           | Total maximum marks (typically 600)                                         |
-| `secured_marks`         | Marks obtained by the student                                               |
-| `percentage`            | Calculated percentage based on total and secured marks                      |
-| `compartmental_status`  | Whether the student had compartments (`Yes` / `No`)                         |
-| `hss_option_details`    | JSON array with details like Option No, Institute, Stream, Admission Status |
-| `hss_compartments`      | JSON array with COMPSubject, COMPFailMark, COMPPassMark                     |
-
----
-
-### 5.2 Missing Fields
-
-- `Stream`, `ReportedInstitute`, `SAMSCode`: Missing in 0.13% of records  
-- `COMPSubject`, `COMPFailMark`, `COMPPassMark`: Available for only 0.6% (compartmental students)
-
----
-
-### 5.3 HSS Students – Application Statistics
 
 | Academic Year | Number of Students | Mean | Std Dev | 25th | Median | 75th |
 |:-------------:|-------------------:|------:|--------:|-----:|--------:|-----:|
