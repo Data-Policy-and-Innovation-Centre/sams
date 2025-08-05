@@ -1,54 +1,68 @@
 import sys
 from hamilton import driver
-from loguru import logger
-
-from sams import config  
-from sams.preprocessing import pipeline as interim_pipeline
+from sams.preprocessing import iti_diploma_pipeline as interim_pipeline
 from sams.preprocessing import hss_pipeline
+
+pipeline_configs = {
+    "hss": {
+        "module": hss_pipeline,
+        "default_vars": [
+            "save_hss_enrollments",
+            "save_hss_applications",
+            "save_hss_marks",
+            "save_hss_first_choice_admissions"
+        ],
+        "inputs": {}
+    },
+    "interim": {
+        "module": interim_pipeline,
+        "default_vars": [
+            "save_nongeocoded_iti_students",
+            "save_nongeocoded_diploma_students",
+            "save_interim_iti_institutes"
+        ],
+        "inputs": {
+            "google_maps": True
+        }
+    }
+}
+
+
+def run_pipeline(name, build=False, final_vars=None):
+    config = pipeline_configs[name]
+    module = config["module"]
+    inputs = config["inputs"].copy()
+    inputs["build"] = build
+    final_vars = final_vars or config["default_vars"]
+
+    dr = driver.Builder().with_modules(module).build()
+    dr.execute(final_vars=final_vars, inputs=inputs)
 
 def main(args):
     if len(args) < 2:
-        sys.exit(1)
-
-    pipeline_name = args[1].lower()
-    build = False
-    final_vars = []
-
-    if len(args) >= 3:
-        build = args[2] == "build"
-        final_vars = args[3:]
-
-    if pipeline_name == "interim":
-        pipeline_module = interim_pipeline
-        if not final_vars:
-            final_vars = [
-                "save_nongeocoded_iti_students",
-                "save_nongeocoded_diploma_students",
-                "save_interim_iti_institutes"
-            ]
-        inputs = dict(build=build, google_maps=True)
-
-    elif pipeline_name == "hss":
-        pipeline_module = hss_pipeline
-        if not final_vars:
-            final_vars = [
-                "save_hss_enrollment",
-                "save_flattened_options",
-                "save_compartment_subjects",
-                "save_first_choice_admitted"
-            ]
-        inputs = dict(build=build)
-
+        pipelines_to_run = list(pipeline_configs.keys())
+        build = False
+        custom_final_vars = {}
     else:
-        print(f"Unknown pipeline: {pipeline_name}. Use 'interim' or 'hss'.")
-        sys.exit(1)
+        arg = args[1].lower()
+        if arg in pipeline_configs:
+            pipelines_to_run = [arg]
+        elif arg == "all":
+            pipelines_to_run = list(pipeline_configs.keys())
+        else:
+            return  # Unknown pipeline, silently skip
 
-    dr = driver.Builder().with_modules(pipeline_module).build()
-    results = dr.execute(final_vars=final_vars, inputs=inputs)
+        build = "build" in args[2:]
+        final_vars = [a for a in args[2:] if a != "build"]
+        custom_final_vars = {pipelines_to_run[0]: final_vars} if final_vars else {}
 
-    logger.info("Pipeline execution complete.")
-    for key, value in results.items():
-        logger.info(f"{key}: {type(value)} - {getattr(value, 'shape', 'N/A')}")
+    for pipeline in pipelines_to_run:
+        run_pipeline(
+            pipeline,
+            build=build,
+            final_vars=custom_final_vars.get(pipeline)
+        )
 
 if __name__ == "__main__":
     main(sys.argv)
+

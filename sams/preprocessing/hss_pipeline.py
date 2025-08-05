@@ -77,24 +77,15 @@ def preprocess_hss_enrollment(df: pd.DataFrame) -> pd.DataFrame:
 
 # ===== Extract and Preprocess Marks =====
 @parameterize(
-    hss_student_compartment_marks=dict(hss_student_enrollments=source("hss_student_enrollments")),
+    hss_student_marks=dict(hss_student_enrollments=source("hss_student_enrollments")),
 )
 def extract_preprocess_hss_marks(hss_student_enrollments: pd.DataFrame) -> pd.DataFrame:
     return preprocess_students_compartment_marks(hss_student_enrollments)
 
 
-# ===== Extract Compartment Subject Info =====
-@parameterize(
-    hss_student_compartment_marks=dict(hss_raw=source("hss_raw")),
-)
-def extract_compartments(hss_raw: pd.DataFrame) -> pd.DataFrame:
-    enrollment = preprocess_hss_students_enrollment_data(hss_raw)
-    return extract_hss_compartments(enrollment)
-
-
 # ===== Flatten choice admitted students ======
 @parameterize(
-    hss_student_flattened_options=dict(hss_raw=source("hss_raw")),
+    hss_student_applications=dict(hss_raw=source("hss_raw")),
 )
 def flatten_student_options(hss_raw: pd.DataFrame) -> pd.DataFrame:
     enrollment = preprocess_hss_students_enrollment_data(hss_raw)
@@ -103,28 +94,27 @@ def flatten_student_options(hss_raw: pd.DataFrame) -> pd.DataFrame:
 
 # ===== First choice admitted ======
 @parameterize(
-    hss_first_choice_admissions=dict(hss_student_flattened_options=source("hss_student_flattened_options")),
+    hss_first_choice_admissions=dict(hss_student_applications=source("hss_student_applications")),
 )
-def filter_first_choice(hss_student_flattened_options: pd.DataFrame) -> pd.DataFrame:
-    return filter_admitted_on_first_choice(hss_student_flattened_options)
+def filter_first_choice(hss_student_applications: pd.DataFrame) -> pd.DataFrame:
+    return filter_admitted_on_first_choice(hss_student_applications)
 
 
 # ===== Save Outputs =====
 @save_to.parquet(path=value(datasets["hss_student_enrollments"]["path"]))
-def save_hss_enrollment(hss_student_enrollments: pd.DataFrame) -> pd.DataFrame:
+def save_hss_enrollments(hss_student_enrollments: pd.DataFrame) -> pd.DataFrame:
     return hss_student_enrollments
 
+@save_to.parquet(path=value(datasets["hss_student_applications"]["path"]))
+def save_hss_applications(hss_student_applications: pd.DataFrame) -> pd.DataFrame:
+    return hss_student_applications
 
-@save_to.parquet(path=value(datasets["hss_student_flattened_options"]["path"]))
-def save_flattened_options(hss_student_flattened_options: pd.DataFrame) -> pd.DataFrame:
-    return hss_student_flattened_options
 
-
-@save_to.parquet(path=value(datasets["hss_student_compartment_marks"]["path"]))
-def save_compartment_subjects(hss_student_compartment_marks: pd.DataFrame) -> pd.DataFrame:
-    return hss_student_compartment_marks
+@save_to.parquet(path=value(datasets["hss_student_marks"]["path"]))
+def save_hss_marks(hss_student_marks: pd.DataFrame) -> pd.DataFrame:
+    return hss_student_marks
 
 
 @save_to.parquet(path=value(datasets["hss_first_choice_admissions"]["path"]))
-def save_first_choice_admitted(hss_first_choice_admissions: pd.DataFrame) -> pd.DataFrame:
+def save_hss_first_choice_admissions(hss_first_choice_admissions: pd.DataFrame) -> pd.DataFrame:
     return hss_first_choice_admissions
