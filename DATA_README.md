@@ -170,16 +170,17 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `percentage`: Calculated percentage
 - `subject_marks`: Subject-wise performance
 
-#### 14. **first_choice_admitted.pq**
+#### 14. **hss_first_choice_admissions.pq**
 **Description**: Students who got admitted to their first choice institution
 
 **Key Fields**:
-- `barcode`: Unique student identifier
-- `academic_year`: Year of application
-- `first_choice_institute`: Institute name
-- `first_choice_course`: Course/trade name
-- `admission_status`: Whether admitted to first choice
-- `module`: Academic program type
+- `barcode`: Unique student identifier  
+- `academic_year`: Year of application  
+- `stream`: Chosen stream (Arts, Science, Commerce)  
+- `phase`: Admission round number  
+- `option_no`: Choice number (always 1 for first choice)  
+- `admission_status`: Admitted to first choice (Yes/No)  
+- `module`: Always 'HSS'  
 
 ---
 
