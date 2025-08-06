@@ -105,12 +105,10 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Description**: Institute capacity and strength data for Diploma programs
 
 **Key Fields**:
-- `institute_code`: Unique institute identifier
-- `institute_name`: Name of the institute
-- `district`, `block`: Location information
-- `total_seats`: Total available seats
+- `sams_code`: Unique institute identifier
+- `strength`: Total available seats
 - `academic_year`: Year of data
-- `branch_code`, `branch_name`: Course information
+- `branch`: Course information (used for Polytechnic/Diploma programs)  
 
 #### 9. **diploma_institutes_cutoffs.pq**
 **Description**: Cutoff marks and admission criteria for Diploma institutes
