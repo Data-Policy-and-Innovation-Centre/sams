@@ -1,67 +1,53 @@
 import sys
 from hamilton import driver
-from sams.preprocessing import iti_diploma_pipeline as interim_pipeline
-from sams.preprocessing import hss_pipeline
+from sams.preprocessing import iti_diploma_pipeline, hss_pipeline
 
+# Pipeline configurations
 pipeline_configs = {
     "hss": {
         "module": hss_pipeline,
-        "default_vars": [
+        "default_nodes": [
             "save_hss_enrollments",
             "save_hss_applications",
             "save_hss_marks",
-            "save_hss_first_choice_admissions"
+            "save_hss_first_choice_admissions",
         ],
-        "inputs": {}
+        "default_inputs": {},
     },
-    "interim": {
-        "module": interim_pipeline,
-        "default_vars": [
+    "iti_diploma": {
+        "module": iti_diploma_pipeline,
+        "default_nodes": [
             "save_nongeocoded_iti_students",
             "save_nongeocoded_diploma_students",
-            "save_interim_iti_institutes"
+            "save_interim_iti_institutes",
+            "save_interim_diploma_institutes",
         ],
-        "inputs": {
-            "google_maps": True
-        }
-    }
+        "default_inputs": {"google_maps": True},
+    },
 }
 
 
-def run_pipeline(name, build=False, final_vars=None):
-    config = pipeline_configs[name]
-    module = config["module"]
-    inputs = config["inputs"].copy()
-    inputs["build"] = build
-    final_vars = final_vars or config["default_vars"]
+def run_pipeline(pipeline_name, build=False, override_nodes=None):
+    pipeline_config = pipeline_configs[pipeline_name]
+    inputs = {**pipeline_config["default_inputs"], "build": build}
+    target_nodes = override_nodes or pipeline_config["default_nodes"]
 
-    dr = driver.Builder().with_modules(module).build()
-    dr.execute(final_vars=final_vars, inputs=inputs)
+    print(f"\nRunning pipeline: {pipeline_name.upper()}")
+    pipeline_driver = driver.Builder().with_modules(pipeline_config["module"]).build()
+    results = pipeline_driver.execute(final_vars=target_nodes, inputs=inputs)
+
+    completed_nodes = [node for node in target_nodes if node in results]
+    if completed_nodes:
+        print(f"Completed: {', '.join(completed_nodes)}")
+
+    print(f"Finished pipeline: {pipeline_name.upper()}\n")
+
 
 def main(args):
-    if len(args) < 2:
-        pipelines_to_run = list(pipeline_configs.keys())
-        build = False
-        custom_final_vars = {}
-    else:
-        arg = args[1].lower()
-        if arg in pipeline_configs:
-            pipelines_to_run = [arg]
-        elif arg == "all":
-            pipelines_to_run = list(pipeline_configs.keys())
-        else:
-            return  # Unknown pipeline, silently skip
+    build_mode = "build" in args
+    for pipeline_name in pipeline_configs:
+        run_pipeline(pipeline_name, build=build_mode)
 
-        build = "build" in args[2:]
-        final_vars = [a for a in args[2:] if a != "build"]
-        custom_final_vars = {pipelines_to_run[0]: final_vars} if final_vars else {}
-
-    for pipeline in pipelines_to_run:
-        run_pipeline(
-            pipeline,
-            build=build,
-            final_vars=custom_final_vars.get(pipeline)
-        )
 
 if __name__ == "__main__":
     main(sys.argv)
