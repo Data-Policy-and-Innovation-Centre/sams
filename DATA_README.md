@@ -31,12 +31,12 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Description**: Academic performance data for ITI students
 
 **Key Fields**:
-- `barcode`: Unique student identifier
 - `academic_year`: Year of application
 - `total_marks`: Maximum possible marks
 - `secured_marks`: Marks obtained by student
 - `percentage`: Calculated percentage
-- `option_details`: JSON array of application choices
+- `compartmental_fail_mark`: Pass and fail marks for compartment subjects
+- `subject_wise_marks`: Marks obtained per subject with maximum marks
 
 ### Institute-Level Data
 
