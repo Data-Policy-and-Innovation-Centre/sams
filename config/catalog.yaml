@@ -109,24 +109,24 @@ datasets:
     path: "data/processed/iti_vacancies.pq"
     layer: processed
   
-  hss_student_enrollments:
+  hss_enrollments:
     type: parquet
-    path: "data/interim/hss_enrollment.pq"
+    path: "data/interim/hss_enrollments.pq"
     layer: interim
 
-  hss_student_applications:
+  hss_applications:
     type: parquet
-    path: "data/interim/hss_student_applications.pq"
+    path: "data/interim/hss_applications.pq"
     layer: interim
 
-  hss_student_marks:
+  hss_marks:
     type: parquet
-    path: "data/interim/hss_student_marks.pq"
+    path: "datcleara/interim/hss_marks.pq"
     layer: interim
 
   hss_first_choice_admissions:
     type: parquet
-    path: "data/interim/first_choice_admitted.pq"
+    path: "data/interim/hss_first_choice_admissions.pq"
     layer: interim
 
 
