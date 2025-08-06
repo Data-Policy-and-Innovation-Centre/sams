@@ -8,8 +8,10 @@ from hamilton.function_modifiers import (
     value,
     save_to,
     cache,
+    datasaver,
 )
 from sams.config import LOGS, PROJ_ROOT, SAMS_DB, datasets
+from sams import utils
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.orchestrate import SamsDataOrchestrator
 from sams.utils import save_data, hours_since_creation, load_data
@@ -55,21 +57,39 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
 
     raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-
-# ===== Load Raw HSS Student Data =====
+# ===== Load Raw HSS Student Data (testing with 2018 only, 50k rows) =====
 @parameterize(
     hss_raw=dict(sams_db=source("sams_db"), module=value("HSS")),
 )
 @cache(behavior="DISABLE")
-def load_hss_students_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
-    logger.info(f"Loading raw {module} student data from database")
-    query = f"SELECT * FROM students WHERE module = '{module}';"
-    return pd.read_sql_query(query, sams_db)
+def hss_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
+    focus_year = 2018
+    row_limit = 10000
+    
+    logger.info(f"Loading raw {module} student data from database (year={focus_year}, limit={row_limit})...")
 
+    # Get available academic years (for info only)
+    academic_year_query = "SELECT DISTINCT academic_year FROM students WHERE module = ?;"
+    years = pd.read_sql_query(academic_year_query, sams_db, params=(module,))
+    
+    print(f"\n Starting to load raw {module} student data...")
+    print(f" Found academic years for {module}: {list(years['academic_year'])}")
+
+    # Focus on 2018 only with row limit
+    query = f"""
+        SELECT * 
+        FROM students 
+        WHERE module = ? AND academic_year = ? 
+        LIMIT {row_limit};
+    """
+    df = pd.read_sql_query(query, sams_db, params=(module, focus_year))
+
+    print(f"Loaded {len(df)} records for {module} in {focus_year} (limited to {row_limit}).")
+    return df
 
 # ===== Preprocess Enrollment Data from Raw =====
 @parameterize(
-    hss_student_enrollments=dict(df=source("hss_raw")),
+    hss_enrollments=dict(df=source("hss_raw")),
 )
 def preprocess_hss_enrollment(df: pd.DataFrame) -> pd.DataFrame:
     return preprocess_hss_students_enrollment_data(df)
@@ -77,44 +97,49 @@ def preprocess_hss_enrollment(df: pd.DataFrame) -> pd.DataFrame:
 
 # ===== Extract and Preprocess Marks =====
 @parameterize(
-    hss_student_marks=dict(hss_student_enrollments=source("hss_student_enrollments")),
+    hss_marks=dict(hss_raw=source("hss_raw")),
 )
-def extract_preprocess_hss_marks(hss_student_enrollments: pd.DataFrame) -> pd.DataFrame:
-    return preprocess_students_compartment_marks(hss_student_enrollments)
+def extract_preprocess_hss_marks(hss_raw: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_students_compartment_marks(hss_raw)
 
 
 # ===== Flatten choice admitted students ======
 @parameterize(
-    hss_student_applications=dict(hss_raw=source("hss_raw")),
+    hss_applications=dict(hss_raw=source("hss_raw")),
 )
 def flatten_student_options(hss_raw: pd.DataFrame) -> pd.DataFrame:
     enrollment = preprocess_hss_students_enrollment_data(hss_raw)
     return extract_hss_options(enrollment)
 
-
 # ===== First choice admitted ======
 @parameterize(
-    hss_first_choice_admissions=dict(hss_student_applications=source("hss_student_applications")),
+    hss_first_choice_admissions=dict(hss_student_applications=source("hss_applications")),
 )
 def filter_first_choice(hss_student_applications: pd.DataFrame) -> pd.DataFrame:
     return filter_admitted_on_first_choice(hss_student_applications)
 
 
-# ===== Save Outputs =====
-@save_to.parquet(path=value(datasets["hss_student_enrollments"]["path"]))
-def save_hss_enrollments(hss_student_enrollments: pd.DataFrame) -> pd.DataFrame:
-    return hss_student_enrollments
-
-@save_to.parquet(path=value(datasets["hss_student_applications"]["path"]))
-def save_hss_applications(hss_student_applications: pd.DataFrame) -> pd.DataFrame:
-    return hss_student_applications
-
-
-@save_to.parquet(path=value(datasets["hss_student_marks"]["path"]))
-def save_hss_marks(hss_student_marks: pd.DataFrame) -> pd.DataFrame:
-    return hss_student_marks
-
-
-@save_to.parquet(path=value(datasets["hss_first_choice_admissions"]["path"]))
-def save_hss_first_choice_admissions(hss_first_choice_admissions: pd.DataFrame) -> pd.DataFrame:
-    return hss_first_choice_admissions
+# ===== Saving HSS Outputs =====
+@parameterize(
+    save_hss_enrollments=dict(
+        df=source("hss_enrollments"),
+        dataset_key=value("hss_enrollments"),
+    ),
+    save_hss_applications=dict(
+        df=source("hss_applications"),
+        dataset_key=value("hss_applications"),
+    ),
+    save_hss_marks=dict(
+        df=source("hss_marks"),
+        dataset_key=value("hss_marks"),
+    ),
+    save_hss_first_choice_admissions=dict(
+        df=source("hss_first_choice_admissions"),
+        dataset_key=value("hss_first_choice_admissions"),
+    ),
+)
+def save_hss_data(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
+    """Generic saver for HSS outputs."""
+    logger.info(f"Saving HSS data → {dataset_key}")
+    save_data(df, datasets[dataset_key])  # handles directory creation + writing
+    return df
