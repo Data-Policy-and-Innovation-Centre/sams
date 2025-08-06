@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from geopy.location import Location
 from geopy.point import Point
-import sams.preprocessing.nodes as nodes
+import sams.preprocessing.iti_diploma_nodes as iti_diploma_nodes
 from pytest import approx
 
 
@@ -44,14 +44,14 @@ def sample_df():
 # Test _make_date function
 def test_make_date():
     series = pd.Series(['2023-01-01', '2023-12-31', 'invalid'])
-    result = nodes._make_date(series)
+    result = iti_diploma_nodes._make_date(series)
     assert pd.api.types.is_datetime64_dtype(result)
     assert result.iloc[0] == pd.Timestamp('2023-01-01')
     assert pd.isna(result.iloc[2])
 
 # Test _make_null function
 def test_make_null(sample_df):
-    result = nodes._make_null(sample_df)
+    result = iti_diploma_nodes._make_null(sample_df)
     assert pd.isna(result['empty_col'].iloc[0])  # Empty string
     assert pd.isna(result['empty_col'].iloc[1])  # Space
     # assert pd.isna(result['empty_col'].iloc[2])  # "NA"
@@ -60,7 +60,7 @@ def test_make_null(sample_df):
 # Test _make_bool function
 def test_make_bool():
     series = pd.Series(['Yes', 'No', 'Invalid'])
-    result = nodes._make_bool(series)
+    result = iti_diploma_nodes._make_bool(series)
     assert result.iloc[0] is True
     assert result.iloc[1] is False
     assert pd.isna(result.iloc[2])
@@ -68,7 +68,7 @@ def test_make_bool():
 # Test _fix_qual_names function
 def test_fix_qual_names():
     series = pd.Series(['BA', 'diploma', '12th', '10th', 'matric', 'b.tech', 'iti'])
-    result = nodes._fix_qual_names(series)
+    result = iti_diploma_nodes._fix_qual_names(series)
     assert result.iloc[0] == 'Graduate and above'
     assert result.iloc[1] == 'Diploma'
     assert result.iloc[2] == '12th'
@@ -79,13 +79,13 @@ def test_fix_qual_names():
 
 # Test _extract_highest_qualification function
 def test_extract_highest_qualification(sample_df):
-    result = nodes._extract_highest_qualification(sample_df['mark_data'])
+    result = iti_diploma_nodes._extract_highest_qualification(sample_df['mark_data'])
     assert result.iloc[0] == '12th'  # Should pick 12th over 10th
     assert result.iloc[1] == 'ITI'   # Should pick ITI over 10th
 
 # Test _extract_mark_data function
 def test_extract_mark_data(sample_df):
-    result = nodes._extract_mark_data(
+    result = iti_diploma_nodes._extract_mark_data(
         sample_df['mark_data'],
         'ExamName',
         '10th',
@@ -104,9 +104,9 @@ def test_preprocess_students(sample_df, monkeypatch):
         df['latitude'] = [28.0, 29.0]
         return df
     
-    monkeypatch.setattr(nodes, '_lat_long', mock_lat_long)
+    monkeypatch.setattr(iti_diploma_nodes, '_lat_long', mock_lat_long)
     
-    result = nodes._preprocess_students(sample_df)
+    result = iti_diploma_nodes._preprocess_students(sample_df)
     
     # Check date conversions
     assert isinstance(result['dob'].iloc[0], pd.Timestamp)
@@ -124,13 +124,13 @@ def test_preprocess_students(sample_df, monkeypatch):
 def test_get_distance():
     coord_1 = (28.6139, 77.2090)  # Delhi coordinates
     coord_2 = (19.0760, 72.8777)  # Mumbai coordinates
-    distance = nodes._get_distance(coord_1, coord_2)
+    distance = iti_diploma_nodes._get_distance(coord_1, coord_2)
     assert isinstance(distance, float)
     assert round(distance) == pytest.approx(1163, abs=20)  # Approximate distance in km # <-- relaxed check
 
     # Test with invalid coordinates
     invalid_coord = (91.0, 181.0)  # Invalid lat/long
-    assert nodes._get_distance(coord_1, invalid_coord) is None
+    assert iti_diploma_nodes._get_distance(coord_1, invalid_coord) is None
 
 # Test preprocess_distances function
 def test_preprocess_distances():
@@ -141,7 +141,7 @@ def test_preprocess_distances():
         'institute_long': [72.8777, 77.2090]
     })
     
-    result = nodes.preprocess_distances(df)
+    result = iti_diploma_nodes.preprocess_distances(df)
     assert 'distance' in result.columns
     assert isinstance(result['distance'].iloc[0], float)
     assert result['distance'].iloc[0] == approx(1163, abs=25) # Approximate distance in km
@@ -154,12 +154,12 @@ def test_preprocess_geocodes(monkeypatch):
         df['latitude'] = [28.0] * len(df)
         return df
     
-    monkeypatch.setattr(nodes, '_lat_long', mock_lat_long)
+    monkeypatch.setattr(iti_diploma_nodes, '_lat_long', mock_lat_long)
     
     df1 = pd.DataFrame({'address': ['Address 1', 'Address 2']})
     df2 = pd.DataFrame({'location': ['Location 1', 'Location 2']})
     
-    result = nodes.preprocess_geocodes([df1, df2], ['address', 'location'])
+    result = iti_diploma_nodes.preprocess_geocodes([df1, df2], ['address', 'location'])
     
     assert 'longitude' in result.columns
     assert 'latitude' in result.columns
@@ -182,7 +182,7 @@ def test_extract_cutoff_cols():
 
     })
     
-    result = nodes._extract_cutoff_cols(cutoffs_df)
+    result = iti_diploma_nodes._extract_cutoff_cols(cutoffs_df)
     assert 'selection_stage' in result.columns
     assert 'applicant_type' in result.columns
     assert 'cutoff' in result.columns
@@ -192,31 +192,31 @@ def test_extract_cutoff_cols():
 def test_preprocess_geocodes_error_handling():
     with pytest.raises(ValueError):
         # Mismatched number of dataframes and column names
-        nodes.preprocess_geocodes([pd.DataFrame()], ['col1', 'col2'])
+        iti_diploma_nodes.preprocess_geocodes([pd.DataFrame()], ['col1', 'col2'])
 
 
 class TestAddressCorrection:
 
     def test_correct_address_no_changes(self):
-        assert nodes._correct_addresses("123 Main St, A, B, C, 123456", "A", "B", "C", "123456") == "123 Main St, A, B, C 123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St, A, B, C, 123456", "A", "B", "C", "123456") == "123 Main St, A, B, C 123456"
 
     def test_correct_addresses_add_block(self):
-        assert nodes._correct_addresses("123 Main St", "A", "", "", "123456") == "123 Main St, A, ,  123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St", "A", "", "", "123456") == "123 Main St, A, ,  123456"
 
     def test_correct_addressesadd_district(self):
-        assert nodes._correct_addresses("123 Main St", "A", "District B", "C", "123456") == "123 Main St, A, District B, C 123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St", "A", "District B", "C", "123456") == "123 Main St, A, District B, C 123456"
 
     def test_correct_addresses_add_state(self):
-        assert nodes._correct_addresses("123 Main St", "A", "B", "State C", "123456") == "123 Main St, A, B, State C 123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St", "A", "B", "State C", "123456") == "123 Main St, A, B, State C 123456"
 
     def test_correct_addresses_add_all(self):
-        assert nodes._correct_addresses("123 Main St", "Block A", "District B", "State C", "123456") == "123 Main St, Block A, District B, State C 123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St", "Block A", "District B", "State C", "123456") == "123 Main St, Block A, District B, State C 123456"
 
     def test_correct_addresses_case_insensitivity(self):
-        assert nodes._correct_addresses("123 Main St Block A", "block a", "B", "C", "123456") == "123 Main St Block A, block a, B, C 123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St Block A", "block a", "B", "C", "123456") == "123 Main St Block A, block a, B, C 123456"
 
     def test_correct_addresses_empty_address(self):
-        assert nodes._correct_addresses("", "Block A", "District B", "State C", "123456") == ", Block A, District B, State C 123456"
+        assert iti_diploma_nodes._correct_addresses("", "Block A", "District B", "State C", "123456") == ", Block A, District B, State C 123456"
 
     def test_correct_addresses_empty_block_district_state(self):
-        assert nodes._correct_addresses("123 Main St", "", "", "", "123456") == "123 Main St, , ,  123456"
+        assert iti_diploma_nodes._correct_addresses("123 Main St", "", "", "", "123456") == "123 Main St, , ,  123456"

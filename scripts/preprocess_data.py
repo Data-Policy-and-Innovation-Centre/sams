@@ -1,25 +1,54 @@
-from hamilton import driver
-from sams.preprocessing import pipeline as interim_pipeline
 import sys
+from hamilton import driver
+from sams.preprocessing import iti_diploma_pipeline, hss_pipeline
+
+# Pipeline configurations
+pipeline_configs = {
+    "hss": {
+        "module": hss_pipeline,
+        "default_nodes": [
+            "save_hss_enrollments",
+            "save_hss_applications",
+            "save_hss_marks",
+            "save_hss_first_choice_admissions",
+        ],
+        "default_inputs": {},
+    },
+    "iti_diploma": {
+        "module": iti_diploma_pipeline,
+        "default_nodes": [
+            "save_nongeocoded_iti_students",
+            "save_nongeocoded_diploma_students",
+            "save_interim_iti_institutes",
+            "save_interim_diploma_institutes",
+        ],
+        "default_inputs": {"google_maps": True},
+    },
+}
+
+
+def run_pipeline(pipeline_name, build=False, override_nodes=None):
+    pipeline_config = pipeline_configs[pipeline_name]
+    inputs = {**pipeline_config["default_inputs"], "build": build}
+    target_nodes = override_nodes or pipeline_config["default_nodes"]
+
+    print(f"\nRunning pipeline: {pipeline_name.upper()}")
+    pipeline_driver = driver.Builder().with_modules(pipeline_config["module"]).build()
+    results = pipeline_driver.execute(final_vars=target_nodes, inputs=inputs)
+
+    completed_nodes = [node for node in target_nodes if node in results]
+    if completed_nodes:
+        print(f"Completed: {', '.join(completed_nodes)}")
+
+    print(f"Finished pipeline: {pipeline_name.upper()}\n")
 
 
 def main(args):
-    if len(args) < 2:
-        build = False
-        final_vars = [
-            "save_nongeocoded_iti_students",
-            "save_nongeocoded_diploma_students",
-            "save_interim_iti_institutes"
-        ]
-    else:
-        build = args[1] == "build"
-        final_vars = args[2:]
-
-    dr = driver.Builder().with_modules(interim_pipeline).build()
-    
-    inputs = dict(build=build, google_maps=True)
-    dr.execute(final_vars=final_vars, inputs=inputs)
+    build_mode = "build" in args
+    for pipeline_name in pipeline_configs:
+        run_pipeline(pipeline_name, build=build_mode)
 
 
 if __name__ == "__main__":
     main(sys.argv)
+
