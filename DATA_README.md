@@ -149,15 +149,18 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `state`, `district`: Location information
 - `module`: Always "HSS"
 
-#### 12. **hss_student_applications.pq**
-**Description**: Application behavior data for HSS students
+#### 12. **hss_applications.pq**
+**Description**: Application behavior data for HSS students  
 
 **Key Fields**:
-- `barcode`: Unique student identifier
-- `academic_year`: Year of application
-- `num_applications`: Number of applications submitted
-- `application_choices`: Detailed choice data
-- `preference_order`: Student preference rankings
+- `sams_code`: Unique institute identifier  
+- `barcode`: Unique student identifier  
+- `academic_year`: Year of application  
+- `num_applications`: Number of applications   
+- `option_no`: Student’s preference order for the institute (1 = first choice, 2 = second, etc.)  
+- `reported_institute`: Name of the reported institute  
+- `stream`: Academic stream chosen
+
 
 #### 13. **hss_marks.pq**
 **Description**: Academic performance data for HSS students  
