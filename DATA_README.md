@@ -159,7 +159,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `num_applications`: Number of applications   
 - `option_no`: Student’s preference order for the institute (1 = first choice, 2 = second, etc.)  
 - `reported_institute`: Name of the reported institute  
-- `stream`: Academic stream chosen
+- `stream`: Chosen stream (Arts, Science, Commerce)
 
 
 #### 13. **hss_marks.pq**
@@ -199,7 +199,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 ### Data Coverage
 - **ITI**: 2017-2024 (8 years)
-- **Diploma**: 2017-2024 (8 years)
+- **Diploma**: 2018-2024 (7 years)
 - **HSS**: 2018-2024 (7 years)
 
 Use the comprehensive README on the [GitHub repository](https://github.com/Data-Policy-and-Innovation-Centre/sams/tree/plus2-data) for more information.
