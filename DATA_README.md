@@ -63,12 +63,12 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Description**: Actual enrollment data for ITI institutes
 
 **Key Fields**:
-- `institute_code`: Unique institute identifier
+- `sams_code`: Unique institute identifier
 - `academic_year`: Year of data
-- `enrolled_students`: Number of enrolled students
-- `vacant_seats`: Number of vacant seats
-- `enrollment_rate`: Percentage of seats filled
-- `trade_code`: Course/trade information
+- `enrollments`: Number of enrolled students
+- `institute_name`: Name of the institute
+- `category`: Student gender category
+- `module`: Always "ITI"
 
 ---
 
