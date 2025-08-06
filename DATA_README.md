@@ -125,12 +125,12 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Description**: Actual enrollment data for Diploma institutes
 
 **Key Fields**:
-- `institute_code`: Unique institute identifier
+- `sams_code`: Unique institute identifier
+- `module`: Always "Diploma"
 - `academic_year`: Year of data
-- `enrolled_students`: Number of enrolled students
-- `vacant_seats`: Number of vacant seats
-- `enrollment_rate`: Percentage of seats filled
-- `branch_code`: Course/branch information
+- `institute_name`: Name of the institute
+- `category`: Student gender category
+- `enrollments`: Number of enrolled students
 
 ---
 
