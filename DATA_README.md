@@ -52,12 +52,12 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 #### 4. **iti_institutes_cutoffs.pq**
 **Description**: Cutoff marks and admission criteria for ITI institutes
 **Key Fields**:
-- `institute_code`: Unique institute identifier
-- `trade_code`: Trade/course code
+- `sams_code`: Unique institute identifier
+- `trade`: Trade information
 - `academic_year`: Year of data
-- `cutoff_marks`: Minimum marks required
-- `cutoff_percentage`: Minimum percentage required
+- `cutoff`: Minimum marks required
 - `social_category`: Category-specific cutoffs
+- `institute_name`: Name of the institute
 
 #### 5. **iti_institutes_enrollments.pq**
 **Description**: Actual enrollment data for ITI institutes
