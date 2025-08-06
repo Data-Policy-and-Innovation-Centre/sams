@@ -159,16 +159,17 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `application_choices`: Detailed choice data
 - `preference_order`: Student preference rankings
 
-#### 13. **hss_student_marks.pq**
-**Description**: Academic performance data for HSS students
+#### 13. **hss_marks.pq**
+**Description**: Academic performance data for HSS students  
 
 **Key Fields**:
-- `barcode`: Unique student identifier
-- `academic_year`: Year of application
-- `total_marks`: Maximum possible marks
-- `secured_marks`: Marks obtained by student
-- `percentage`: Calculated percentage
-- `subject_marks`: Subject-wise performance
+- `barcode`: Unique student identifier  
+- `academic_year`: Year of application  
+- `compartmental_status`:  Whether the student has a compartment in any subject  
+- `subject`: Name of the subject   
+- `failed_mark`: Marks obtained in the subject  
+- `pass_mark`: Minimum marks required to pass  
+
 
 #### 14. **hss_first_choice_admissions.pq**
 **Description**: Students who got admitted to their first choice institution
