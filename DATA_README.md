@@ -45,18 +45,18 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
+- `academic_year`: Year of application
 - `strength`: Total available seats
-- `academic_year`: Year of data
-- `trade`: Course information
+- `trade`: Course information (for ITI programs)
 
 #### 4. **iti_institutes_cutoffs.pq**
 **Description**: Cutoff marks and admission criteria for ITI institutes
 **Key Fields**:
 - `sams_code`: Unique institute identifier
-- `trade`: Trade information
-- `academic_year`: Year of data
+- `academic_year`: Year of application
+- `trade`: Course information
 - `cutoff`: Minimum marks required
-- `social_category`: Category-specific cutoffs
+- `social_category`: Student eligibility category
 - `institute_name`: Name of the institute
 
 #### 5. **iti_institutes_enrollments.pq**
@@ -64,10 +64,10 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
-- `academic_year`: Year of data
+- `academic_year`: Year of application
 - `enrollments`: Number of enrolled students
 - `institute_name`: Name of the institute
-- `category`: Student gender category
+- `category`: Gender category
 - `module`: Always "ITI"
 
 ---
@@ -81,9 +81,9 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 **Key Fields**:
 - `barcode`: Unique student identifier
-- `academic_year`: Year of application (2017-2024)
+- `academic_year`: Year of application (2018-2024)
 - `gender`: Student gender
-- `social_category`: Caste category
+- `social_category`: Caste category (SC, ST, Other)
 - `state`, `district`: Location information
 - `module`: Always "Diploma"
 
@@ -96,7 +96,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `total_marks`: Maximum possible marks  
 - `secured_marks`: Marks obtained by student  
 - `percentage`: Calculated percentage  
-- `compartmental_fail_mark`: Pass/fail marks for compartment subjects  
+- `compartmental_fail_mark`: Pass and fail marks for compartment subjects  
 - `subject_wise_marks`: Marks obtained per subject with maximum marks  
 
 ### Institute-Level Data
@@ -106,30 +106,30 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
+- `academic_year`: Year of application
 - `strength`: Total available seats
-- `academic_year`: Year of data
-- `branch`: Course information (used for Polytechnic/Diploma programs)  
+- `branch`: Course information (for Polytechnic/Diploma programs)
 
 #### 9. **diploma_institutes_cutoffs.pq**
 **Description**: Cutoff marks and admission criteria for Diploma institutes
 
 **Key Fields**:
 - `institute_code`: Unique institute identifier
-- `branch_code`: Branch/course code
-- `academic_year`: Year of data
+- `branch_code`: Course information
+- `academic_year`: Year of application
 - `cutoff_marks`: Minimum marks required
 - `cutoff_percentage`: Minimum percentage required
-- `social_category`: Category-specific cutoffs
+- `social_category`: Caste category 
 
 #### 10. **diploma_institutes_enrollments.pq**
 **Description**: Actual enrollment data for Diploma institutes
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
+- `academic_year`: Year of application
 - `module`: Always "Diploma"
-- `academic_year`: Year of data
 - `institute_name`: Name of the institute
-- `category`: Student gender category
+- `category`: Enrollment category (includes gender, caste & reservation types)
 - `enrollments`: Number of enrolled students
 
 ---
@@ -154,12 +154,12 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier  
-- `barcode`: Unique student identifier  
+- `barcode`: Unique student identifier 
 - `academic_year`: Year of application  
 - `num_applications`: Number of applications   
 - `option_no`: Student’s preference order for the institute (1 = first choice, 2 = second, etc.)  
-- `reported_institute`: Name of the reported institute  
-- `stream`: Chosen stream (Arts, Science, Commerce)
+- `reported_institute`: Name of the institute they are reported to  
+- `stream`: Chosen stream (Arts, Science, Commerce, etc.)
 
 
 #### 13. **hss_marks.pq**
@@ -168,10 +168,10 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Key Fields**:
 - `barcode`: Unique student identifier  
 - `academic_year`: Year of application  
-- `compartmental_status`:  Whether the student has a compartment in any subject  
+- `compartmental_status`:  Whether the student has a compartment in any subject (Yes/No)  
 - `subject`: Name of the subject   
-- `failed_mark`: Marks obtained in the subject  
-- `pass_mark`: Minimum marks required to pass  
+- `failed_mark`: Marks obtained in failed subject(s)
+- `pass_mark`: Minimum passing marks
 
 
 #### 14. **hss_first_choice_admissions.pq**
@@ -180,10 +180,11 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 **Key Fields**:
 - `barcode`: Unique student identifier  
 - `academic_year`: Year of application  
-- `stream`: Chosen stream (Arts, Science, Commerce)  
+- `reported_institute`: Name of the institute they are reported to
+- `stream`: Chosen stream (Arts, Science, Commerce, etc.)  
 - `phase`: Admission round number  
-- `option_no`: Choice number (always 1 for first choice)  
-- `admission_status`: Admitted to first choice (Yes/No)  
+- `option_no`: Prefrence order (always 1)  
+- `admission_status`: Status of student admissions 
 - `module`: Always 'HSS'  
 
 ---
