@@ -180,19 +180,6 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `pass_mark`: Minimum passing marks
 
 
-#### 13. **hss_first_choice_admissions.pq**
-**Description**: Student level data at the 
-
-**Key Fields**:
-- `barcode`: Unique student identifier  
-- `academic_year`: Year of application  
-- `reported_institute`: Name of the institute they are reported to
-- `stream`: Chosen stream (Arts, Science, Commerce, etc.)  
-- `phase`: Admission round number  
-- `option_no`: Prefrence order (always 1)  
-- `admission_status`: Status of student admissions 
-- `module`: Always 'HSS'  
-
 ---
 
 
