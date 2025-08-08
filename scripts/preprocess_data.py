@@ -19,7 +19,9 @@ pipeline_configs = {
         "default_vars": [
             "save_nongeocoded_iti_students",
             "save_nongeocoded_diploma_students",
-            "save_interim_iti_institutes"
+            "save_interim_iti_institutes",
+            "save_interim_diploma_institutes",
+
         ],
         "inputs": {
             "google_maps": True

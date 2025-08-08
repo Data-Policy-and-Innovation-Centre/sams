@@ -38,6 +38,22 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `compartmental_fail_mark`: Pass and fail marks for compartment subjects
 - `subject_wise_marks`: Marks obtained per subject with maximum marks
 
+#### 3. **iti_applications.pq**
+**Description**: Application behavior data for ITI students
+
+**Key Fields**:
+- `barcode`: Unique student identifier  
+- `academic_year`: Year of application  
+- `annual_income`: Annual income of the student’s household  
+- `social_category`: Social category
+- `institute_name`: Name of the institute applied to 
+- `reported_institute`:  Institute where student reported
+- `trade`: Course information  
+- `reported_branch_or_trade`: Branch or trade where the student reported
+- `phase`: Admission round number  
+- `option_no`: Student’s preference order for the institute/trade (1 = first choice, 2 = second, etc.)    
+- `num_applications`: Total number of applications submitted by the student   
+
 ### Institute-Level Data
 
 #### 3. **iti_institutes_strength.pq**
@@ -67,7 +83,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `academic_year`: Year of application
 - `enrollments`: Number of enrolled students
 - `institute_name`: Name of the institute
-- `category`: Gender category
+- `category`: Reservation category
 - `module`: Always "ITI"
 
 ---
@@ -119,7 +135,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `academic_year`: Year of application
 - `module`: Always "Diploma"
 - `institute_name`: Name of the institute
-- `category`: Enrollment category (includes gender, caste & reservation types)
+- `category`: Reservation category
 - `enrollments`: Number of enrolled students
 
 ---
