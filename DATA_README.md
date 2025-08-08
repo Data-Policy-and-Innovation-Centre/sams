@@ -16,7 +16,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 ### Student-Level Data
 
 #### 1. **iti_enrollments.pq**
-**Description**: Student enrollment data for Industrial Training Institutes (ITI)
+**Description**: Student level enrollment data for Industrial Training Institutes (ITI) programs
 
 **Key Fields**:
 - `barcode`: Unique student identifier
@@ -28,7 +28,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `module`: Always "ITI"
 
 #### 2. **iti_marks.pq**
-**Description**: Academic performance data for ITI students
+**Description**: Student level data containing fields describing academic performance in the class 10 exams for students enrolled in ITI programs 
 
 **Key Fields**:
 - `academic_year`: Year of application
@@ -41,7 +41,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 ### Institute-Level Data
 
 #### 3. **iti_institutes_strength.pq**
-**Description**: Institute capacity and strength data for ITI
+**Description**: Institute level data on sanctioned strength and seat allocation for ITI programs by trade
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
@@ -50,7 +50,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `trade`: Course information (for ITI programs)
 
 #### 4. **iti_institutes_cutoffs.pq**
-**Description**: Cutoff marks and admission criteria for ITI institutes
+**Description**: Institute level data on cutoff marks for ITI institutes
 **Key Fields**:
 - `sams_code`: Unique institute identifier
 - `academic_year`: Year of application
@@ -60,7 +60,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `institute_name`: Name of the institute
 
 #### 5. **iti_institutes_enrollments.pq**
-**Description**: Actual enrollment data for ITI institutes
+**Description**: Institute level enrollment data for ITI institutes
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
@@ -77,7 +77,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 ### Student-Level Data
 
 #### 6. **diploma_enrollments.pq**
-**Description**: Student enrollment data for Diploma programs
+**Description**: Student level enrollment data for Polytechnic / Diploma programs
 
 **Key Fields**:
 - `barcode`: Unique student identifier
@@ -88,7 +88,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `module`: Always "Diploma"
 
 #### 7. **diploma_marks.pq**
-**Description**: Academic performance data for Diploma students
+**Description**: Student level data containing fields describing academic performance in the class 10 exams for students enrolled in Polytechnic / Diploma programs 
 
 **Key Fields**:
 - `academic_year`: Year of application 
@@ -102,7 +102,7 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 ### Institute-Level Data
 
 #### 8. **diploma_institutes_strength.pq**
-**Description**: Institute capacity and strength data for Diploma programs
+**Description**: Institute level data on sanctioned strength and seat allocation for Polytechnic / Diploma programs by branch
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
@@ -110,19 +110,9 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `strength`: Total available seats
 - `branch`: Course information (for Polytechnic/Diploma programs)
 
-#### 9. **diploma_institutes_cutoffs.pq**
-**Description**: Cutoff marks and admission criteria for Diploma institutes
 
-**Key Fields**:
-- `institute_code`: Unique institute identifier
-- `branch_code`: Course information
-- `academic_year`: Year of application
-- `cutoff_marks`: Minimum marks required
-- `cutoff_percentage`: Minimum percentage required
-- `social_category`: Caste category 
-
-#### 10. **diploma_institutes_enrollments.pq**
-**Description**: Actual enrollment data for Diploma institutes
+#### 9. **diploma_institutes_enrollments.pq**
+**Description**: Institute level enrollment data for Polytechnic / Diploma institutes.
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier
@@ -138,8 +128,8 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 
 ### Student-Level Data
 
-#### 11. **hss_enrollment.pq**
-**Description**: Student enrollment data for Higher Secondary Schools (HSS)
+#### 10. **hss_enrollment.pq**
+**Description**: Student level enrollment data for higher secondary schools (HSS).
 
 **Key Fields**:
 - `barcode`: Unique student identifier
@@ -149,8 +139,8 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `state`, `district`: Location information
 - `module`: Always "HSS"
 
-#### 12. **hss_applications.pq**
-**Description**: Application behavior data for HSS students  
+#### 11. **hss_applications.pq**
+**Description**: Application level data from applications to higher secondary program seats.  
 
 **Key Fields**:
 - `sams_code`: Unique institute identifier  
@@ -162,8 +152,8 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `stream`: Chosen stream (Arts, Science, Commerce, etc.)
 
 
-#### 13. **hss_marks.pq**
-**Description**: Academic performance data for HSS students  
+#### 12. **hss_marks.pq**
+**Description**: Student level data containing fields describing academic performance in the class 10 exams for students enrolled in higher secondary education 
 
 **Key Fields**:
 - `barcode`: Unique student identifier  
@@ -174,8 +164,8 @@ All files are stored in **Parquet (.pq)** format for efficient storage and fast 
 - `pass_mark`: Minimum passing marks
 
 
-#### 14. **hss_first_choice_admissions.pq**
-**Description**: Students who got admitted to their first choice institution
+#### 13. **hss_first_choice_admissions.pq**
+**Description**: Student level data at the 
 
 **Key Fields**:
 - `barcode`: Unique student identifier  
