@@ -12,3 +12,4 @@ class Endpoints:
     
     def get_deg_student_data(self):
         return f"{self.BASE_URL}GETDEGStudentData"
+

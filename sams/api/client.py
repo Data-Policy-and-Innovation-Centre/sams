@@ -66,7 +66,7 @@ class SAMSClient:
             list: List of dictionaries contained in the 'Data' field of the JSON response from the SAMS API.
             int: Total number of records if count is True.
         """
-        if module not in ["ITI", "Diploma", "PDIS"]:
+        if module not in ["ITI", "Diploma", "PDIS", "HSS"]:
             raise ValueError(f"Module {module} not supported.")
 
         if count:
@@ -79,28 +79,42 @@ class SAMSClient:
             )
 
         # Set up packet
-        url = self.endpoints.get_student_data()
+        if module == "HSS":
+            url = self.endpoints.get_plus2_student_data()
+        else:
+            url = self.endpoints.get_student_data()
+
         headers = self.auth.get_auth_header()
         params = {
             "Module": module,
             "AcademicYear": academic_year,
         }
-        if module != "PDIS":
+
+        if module in ['ITI','Diploma','HSS']:
             params["PageNumber"] = page_number
 
         # Make HTTP request
         try:
-            response = requests.get(url, headers=headers, json=params)
+            if module == "HSS":
+                response = requests.post(url,headers=headers,json=params)
+            else:
+                response = requests.get(url, headers=headers, json=params)
         except requests.ConnectTimeout as e:
             logger.error(f"Connection timeout: {e}")
             logger.info("Resetting connection...")
             self.refresh()
-            response = requests.get(url, headers=headers, json=params)
+            if module == "HSS":
+                response = requests.post(url,headers=headers,json=params)
+            else:
+                response = requests.get(url, headers=headers, json=params)
         except requests.exceptions.ChunkedEncodingError as chk:
             logger.error(f"Chunked encoding error: {chk}")
             logger.info("Resetting connection...")
             self.refresh()
-            response = requests.get(url, headers=headers, json=params)
+            if module == "HSS":
+                response = requests.post(url,headers=headers,json=params)
+            else:
+                response = requests.get(url, headers=headers, json=params)
 
         return self._handle_response(response, count)
 
@@ -128,7 +142,7 @@ class SAMSClient:
         """
 
         # Check if module and admission type is valid
-        if module not in ["PDIS", "ITI", "Diploma"]:
+        if module not in ["PDIS", "ITI", "Diploma", "HSS"]:
             raise ValueError(f"Module {module} not supported.")
 
         if module == "Diploma" and admission_type not in [1, 2]:
@@ -221,13 +235,16 @@ def main():
     client = SAMSClient()
 
     # Fetch student data
-    pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=False)
-    logger.info(pdis_data[5])
-
+    hss_data = client.get_student_data(module = "HSS", academic_year = 2022, page_number = 1, count=False)
+    logger.info(f"Fetched {len(hss_data)} HSS student records")
+    print(json.dumps(hss_data[:2], indent=2))
+    #print(hss_data)
+    #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
+    #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
     # # Fetch institute data
     # institute_data = client.get_institute_data(module="PDIS", academic_year=2022,count=False)
-    # logger.info(institute_data)
 
+    # logger.info(institute_data)
 
 if __name__ == "__main__":
     main()

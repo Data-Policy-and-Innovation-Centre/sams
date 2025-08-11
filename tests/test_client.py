@@ -23,14 +23,12 @@ def mock_response():
     }
     return mock_resp
 
-
 @patch("requests.get")
 def test_get_student_data(mock_get, mock_client, mock_response):
     mock_get.return_value = mock_response
     result = mock_client.get_student_data("ITI", 2022, 1)
     assert len(result) == 10
     mock_get.assert_called_once()
-
 
 @patch("requests.get")
 def test_get_student_data_count(mock_get, mock_client, mock_response):
@@ -39,15 +37,33 @@ def test_get_student_data_count(mock_get, mock_client, mock_response):
     assert result == 100
     mock_get.assert_called_once()
 
+@patch("requests.post")
+def test_get_student_data_hss(mock_post, mock_client, mock_response):
+    mock_post.return_value = mock_response
+    result = mock_client.get_student_data("HSS", 2022, 1)
+    assert len(result) == 10
+    
 
-@pytest.mark.parametrize("module", ["ITI", "Diploma", "PDIS"])
+@patch("requests.post")
+def test_get_student_data_hss_count(mock_post, mock_client, mock_response):
+    mock_post.return_value = mock_response
+    result = mock_client.get_student_data("HSS", 2022, 1, count=True)
+    assert result == 100
+    calls = mock_post.call_args_list
+    data_calls = [call for call in calls if "/GetHSSStudentData" in call.args[0]]
+    assert len(data_calls) == 1
+
+@pytest.mark.parametrize("module", ["ITI", "Diploma", "PDIS", "HSS"])
 def test_get_student_data_valid_inputs(module, mock_client, mock_response):
-    with patch("requests.get", return_value=mock_response):
-        result = mock_client.get_student_data(module, 2022)
+    if module == "HSS":
+        patch_target = "sams.api.client.requests.post"
+    else:        
+        patch_target = "sams.api.client.requests.get"
+    with patch(patch_target, return_value=mock_response):
+        result = mock_client.get_student_data(module, 2022, page_number=1)
         assert len(result) == 10
 
-
-@pytest.mark.parametrize("module", [("ITI", 2), ("Diploma", 2), ("InvalidModule", 1)])
+@pytest.mark.parametrize("module", [("ITI", 2), ("Diploma", 2), ("HSS",3), ("InvalidModule", 1)])
 def test_get_student_data_invalid_inputs(module, mock_client):
     with pytest.raises(ValueError):
         mock_client.get_student_data(module, 2022)
