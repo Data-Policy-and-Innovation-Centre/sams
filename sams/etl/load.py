@@ -63,6 +63,8 @@ class Student(Base):
     residence_barcode_number = Column(String, nullable=True)
     tenth_exam_school_address = Column(String, nullable=True)
     eighth_exam_school_address = Column(String, nullable=True)
+    highest_qualification_exam_board = Column(String, nullable=True)
+    board_exam_name_for_highest_qualification = Column(String, nullable=True)
     highest_qualification = Column(String, nullable=True)
     had_two_year_full_time_work_exp_after_tenth = Column(
         String, nullable=True
@@ -103,8 +105,8 @@ class Student(Base):
     option_data = Column(JSON, nullable=True)
 
     # new columns for HSS
-    examination_boardofthe_highest_qualification = Column(String, nullable=True)
-    board_exam_namefor_highest_qualification = Column(String, nullable=True)
+    examination_board_of_the_highest_qualification = Column(String, nullable=True)
+    board_exam_name_for_highest_qualification = Column(String, nullable=True)
     examination_type = Column(String, nullable=True)
     year_of_passing = Column(String, nullable=True)
     roll_no = Column(String, nullable=True)
@@ -221,13 +223,18 @@ class SamsDataLoader:
         data = [dict_camel_to_snake_case(unit) for unit in data]
         # If module is HSS, rename fields
         HSS_RENAME_FIELDS = {
-            'yearof_passing': 'year_of_passing'
+            'yearof_passing': 'year_of_passing',
+            'examination_boardofthe_highest_qualification': 'examination_board_of_the_highest_qualification',
+            'board_exam_namefor_highest_qualification':'board_exam_name_for_highest_qualification'
         }
+        # Rename HSS-specific fields to match database schema
         for unit in data:
-            if unit.get('module') == 'HSS':
+            module_name = unit.get('module')
+            if module_name == 'HSS':
                 for old_key, new_key in HSS_RENAME_FIELDS.items():
                     if old_key in unit:
                         unit[new_key] = unit.pop(old_key)
+                # Add HSS-specific defaults if needed
                 if unit.get('year') is None:
                     unit['year'] = 0
 
@@ -579,8 +586,6 @@ class SamsDataLoaderPandas(SamsDataLoader):
 # if __name__ == "__main__":
 #     main()
 
-
-
 CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
 LOG_FILE = 'sams/etl/hss_load_log.txt'
 
@@ -600,7 +605,7 @@ def main():
     downloader = SamsDataDownloader()
 
     target_module = "HSS"
-    target_years = [2019]
+    target_years = [2018]
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()

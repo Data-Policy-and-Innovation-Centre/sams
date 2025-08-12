@@ -13,35 +13,72 @@ class SamsDataOrchestrator:
         self.downloader = SamsDataDownloader()
         self.loader = SamsDataLoader(db_url)
 
-    def download_and_add_student_data(
-        self, module: str, academic_year: int, bulk_add: bool = False
-    ):
+    def download_and_add_student_data(self, module: str, academic_year: int, bulk_add: bool = False):
         stop_logging_to_console(os.path.join(LOGS, "students_data_download.log"))
-        student_data = self.downloader.fetch_students(
-            module, academic_year, pandify=False
-        )
-        validate(student_data, table_name="students")
-        if bulk_add:
-            self.loader.bulk_load(student_data, "students")
-        else:
-            self.loader.load(student_data, "students")
-        resume_logging_to_console()
 
-    def download_and_add_institute_data(
-        self,
-        module: str,
-        academic_year: int,
-        admission_type: int = None,
-        bulk_add: bool = False,
-    ):
+        # Try to call the API
+        try:
+            student_data = self.downloader.fetch_students(module, academic_year, pandify=False)
+        
+        # Check if data is empty
+            if not student_data:
+                logger.error(f"No student data returned for module: {module}, year: {academic_year}. API may be down or no records exist.")
+                return
+        
+            logger.debug(f"[DEBUG] Fetched student data for {module} {academic_year}: {student_data}")
+
+            # Check for required fields
+            required_fields = {"module", "academic_year"}
+            missing = required_fields - set(student_data[0].keys())
+            if missing:
+                logger.warning(f"Student data missing required fields: {missing}. Skipping validation and load.")
+                return
+
+            # Continue as normal
+            validate(student_data, table_name="students")
+            if bulk_add:
+                self.loader.bulk_load(student_data, "students")
+            else:
+                self.loader.load(student_data, "students")
+
+        except Exception as e:
+            logger.error(f"API request failed for module: {module}, year: {academic_year}. Error: {e}")
+
+        finally:
+            resume_logging_to_console()
+
+    def download_and_add_institute_data(self,module: str,academic_year: int,admission_type: int = None,bulk_add: bool = False,):
         stop_logging_to_console(os.path.join(LOGS, f"institutes_data_download.log"))
-        institute_data = self.downloader.fetch_institutes(
-            module, academic_year, admission_type, pandify=False
-        )
+        
+        try:
+            institute_data = self.downloader.fetch_institutes(module, academic_year, admission_type, pandify=False)
+            logger.debug(f"[DEBUG] Fetched institute data for {module} {academic_year} type {admission_type}: {institute_data}")
+        except Exception as e:
+            logger.error(f"API call failed for institute module={module}, year={academic_year}, type={admission_type}: {e}")
+            resume_logging_to_console()
+            return
+        
+
+        # Check if data is empty (API down or no results)
+        if not institute_data:
+            logger.warning(f"No institute data for module={module}, year={academic_year}, type={admission_type}. API may be down or no records exist.")
+            resume_logging_to_console()
+            return
+
+        # Check for required fields 
+        required_fields = {"module", "academic_year"}
+        missing = required_fields - set(institute_data.columns)
+        if missing:
+            logger.warning(f"Missing required fields {missing} in institute data for module={module}, year={academic_year}. Skipping.")
+            resume_logging_to_console()
+            return
+
+        # Proceed to load
         if bulk_add:
-            self.loader.bulk_load(institute_data, "institutes")
+            self.loader.bulk_load(institute_data, "institutes") 
         else:
             self.loader.load(institute_data, "institutes")
+
         resume_logging_to_console()
 
     def process_data(
