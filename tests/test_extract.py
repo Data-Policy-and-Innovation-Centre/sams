@@ -3,8 +3,24 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 import os
 from sams.etl.extract import SamsDataDownloader
+from pydantic import BaseModel
 import sams.etl.extract as extr
 import importlib
+import sams.config as cfg
+
+@pytest.fixture(autouse=True)
+def _mock_student_year_bounds(monkeypatch):
+    monkeypatch.setattr(
+        cfg,
+        "STUDENT",
+        {
+            "ITI": {"yearmin": 2018, "yearmax": 2025},
+            "Diploma": {"yearmin": 2018, "yearmax": 2025},
+            "PDIS": {"yearmin": 2018, "yearmax": 2025},
+            "HSS": {"yearmin": 2018, "yearmax": 2025},
+            "DEG": {"yearmin": 2018, "yearmax": 2025},
+        }
+    )
 
 
 # Test suite for SamsDataDownloader# Test suite for SamsDataDownloader
@@ -46,6 +62,11 @@ def mock_api_client():
             2024,
             "HSS",
             [{"id": 4, "name": "Taylor", "module": "HSS", "year": 2024}],
+        ),
+        (
+            2018,
+            "DEG",
+            [{"id": 4, "name": "Sam", "module": "DEG", "year": 2018}]
         )
     ],
 )
@@ -58,6 +79,7 @@ def test_fetch_students(data_downloader, mock_sams_client, year, module, expecte
         assert row["name"] == expected_data[i]["name"]
         assert row["module"] == expected_data[i]["module"]
         assert row["academic_year"] == expected_data[i]["year"]
+
         if "source_of_fund" in expected_data[i]:
             assert row["source_of_fund"] == expected_data[i]["source_of_fund"]
 
@@ -146,6 +168,47 @@ def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
 
     # Check if the log file was created
     assert os.path.exists(os.path.join(tmp_path, "total_records.log"))
+    
+
+def test_fetch_students_pydantic_models(data_downloader, mock_sams_client):
+    # Define a minimal Pydantic v2 model to mimic your BaseStudentDB
+    class StudentModel(BaseModel):
+        id: int
+        name: str
+
+    year = 2024
+    module = "HSS"
+    # Pydantic objects (not dicts)
+    p_models = [StudentModel(id=10, name="Model User")]
+
+    mock_sams_client.get_student_data.side_effect = [1, p_models, []]
+
+    # Run
+    df = data_downloader.fetch_students(module, year)
+
+    # Assert: converted to a DataFrame with normalized dict rows
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 1
+    assert df.loc[0, "name"] == "Model User"
+    assert df.loc[0, "module"] == module
+    assert df.loc[0, "academic_year"] == year
+
+
+def test_fetch_students_already_dicts(data_downloader, mock_sams_client):
+    year = 2023
+    module = "Diploma"
+    expected = [{"id": 99, "name": "Dict User"}]
+
+    mock_sams_client.get_student_data.side_effect = [1, expected, []]
+
+    df = data_downloader.fetch_students(module, year)
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 1
+    assert df.loc[0, "name"] == "Dict User"
+    assert df.loc[0, "module"] == module
+    assert df.loc[0, "academic_year"] == year
+
 
 
 # @pytest.mark.parametrize("table_name", ["students", "institutes"])
