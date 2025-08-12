@@ -85,6 +85,8 @@ class SAMSClient:
             url = self.endpoints.get_plus2_student_data()
         elif module == "DEG":
             url = self.endpoints.get_deg_student_data()
+        elif module == "DEG":
+            url = self.endpoints.get_deg_student_data()
         else:
             url = self.endpoints.get_student_data()
 
@@ -127,6 +129,7 @@ class SAMSClient:
             return [model(**record) for record in data]
 
         return data
+
 
     def get_institute_data(
         self,
@@ -248,6 +251,7 @@ def main():
     deg_data = client.get_student_data(module = "HSS", academic_year = 2018, page_number = 1, count=False)
     logger.info(f"Fetched {len(deg_data)} HSS student records")
     print(json.dumps([s.model_dump() for s in deg_data[:2]], indent=2))    
+ 
     #print(hss_data)
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
     #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
