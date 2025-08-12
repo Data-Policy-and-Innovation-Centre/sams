@@ -5,10 +5,34 @@ from sams.api.client import SAMSClient
 from sams.api.exceptions import APIError
 import requests
 
-
 @pytest.fixture
 def mock_client():
     return SAMSClient()
+
+@pytest.fixture(autouse=True, scope="module")
+def _block_sams_http():
+    """
+    Auto-applied fixture to block all outbound HTTP calls in this test module.
+    Mocks requests.get/requests.post to return a canned SAMS-like response.
+    """
+
+    def _ok_response(data_len=10, total=100):
+        """Create a mock response with given record count and total"""
+        m = MagicMock()
+        m.status_code = 200
+        m.json.return_value = {
+            "StatusCode": 200,
+            "TotalRecordCount": total,
+            "RecordCount": data_len,
+            "Data": [{"Barcode": f"BC{i}", "StudentName": f"Name{i}"} for i in range(data_len)],
+        }
+        return m
+
+    ok = _ok_response()
+    
+    with patch("requests.get", return_value=ok), \
+         patch("requests.post", return_value=ok):
+        yield
 
 
 @pytest.fixture
@@ -155,6 +179,7 @@ def test_handle_response_mismatch_record_count(mock_get, mock_client):
         "RecordCount": 10,
         "RecordCount": 10,
         "Data": [{"Barcode": f"BC{i}", "StudentName": f"Name{i}"} for i in range(5)],
+
     }
     mock_get.return_value = mock_response
 
