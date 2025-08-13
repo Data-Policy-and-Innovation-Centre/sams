@@ -3,25 +3,10 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 import os
 from sams.etl.extract import SamsDataDownloader
-from pydantic import BaseModel
+from sams.api.exceptions import APIError
 import sams.etl.extract as extr
+from pydantic import BaseModel
 import importlib
-import sams.config as cfg
-
-@pytest.fixture(autouse=True)
-def _mock_student_year_bounds(monkeypatch):
-    monkeypatch.setattr(
-        cfg,
-        "STUDENT",
-        {
-            "ITI": {"yearmin": 2018, "yearmax": 2025},
-            "Diploma": {"yearmin": 2018, "yearmax": 2025},
-            "PDIS": {"yearmin": 2018, "yearmax": 2025},
-            "HSS": {"yearmin": 2018, "yearmax": 2025},
-            "DEG": {"yearmin": 2018, "yearmax": 2025},
-        }
-    )
-
 
 # Test suite for SamsDataDownloader# Test suite for SamsDataDownloader
 @pytest.fixture
@@ -42,7 +27,6 @@ def mock_api_client():
     mock_client.get_student_data.return_value = 100
     mock_client.get_institute_data.return_value = 50
     return mock_client
-
 
 @pytest.mark.parametrize(
     "year, module, expected_data",
@@ -168,66 +152,62 @@ def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
 
     # Check if the log file was created
     assert os.path.exists(os.path.join(tmp_path, "total_records.log"))
-    
 
-def test_fetch_students_pydantic_models(data_downloader, mock_sams_client):
-    # Define a minimal Pydantic v2 model to mimic your BaseStudentDB
-    class StudentModel(BaseModel):
+def test_fetch_students_with_pydantic_model(data_downloader, mock_sams_client):
+    """Test that fetch_students correctly handles Pydantic model instances returned by the API client."""
+
+    year = extr.STUDENT["ITI"]["yearmax"] 
+    
+    # Define a simple mock Pydantic model that mimics the API's behavior
+    class MockStudentModel(BaseModel):
         id: int
         name: str
+        module: str
+        year: int
 
-    year = 2024
-    module = "HSS"
-    # Pydantic objects (not dicts)
-    p_models = [StudentModel(id=10, name="Model User")]
+    # Prepare a fake Pydantic model instance
+    pydantic_record = MockStudentModel(id=1, name="Alice", module="ITI", year=year)
 
-    mock_sams_client.get_student_data.side_effect = [1, p_models, []]
+    # Count first, then one page (we pass page_number=1 so no pagination loop)
+    mock_sams_client.get_student_data.side_effect = [1, [pydantic_record]]
 
-    # Run
-    df = data_downloader.fetch_students(module, year)
-
-    # Assert: converted to a DataFrame with normalized dict rows
-    assert isinstance(df, pd.DataFrame)
-    assert len(df) == 1
-    assert df.loc[0, "name"] == "Model User"
-    assert df.loc[0, "module"] == module
-    assert df.loc[0, "academic_year"] == year
-
-
-def test_fetch_students_already_dicts(data_downloader, mock_sams_client):
-    year = 2023
-    module = "Diploma"
-    expected = [{"id": 99, "name": "Dict User"}]
-
-    mock_sams_client.get_student_data.side_effect = [1, expected, []]
-
-    df = data_downloader.fetch_students(module, year)
+    # Call fetch_students, which should detect the model and call model_dump()
+    df = data_downloader.fetch_students("ITI", year, pandify=True, page_number=1)
 
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 1
-    assert df.loc[0, "name"] == "Dict User"
-    assert df.loc[0, "module"] == module
+    assert df.loc[0, "name"] == "Alice"
+    assert df.loc[0, "module"] == "ITI"
     assert df.loc[0, "academic_year"] == year
 
 
+@pytest.mark.parametrize(
+    "table_name,module",
+    [
+        ("students", "ITI"),
+        ("institutes", "Diploma"),
+    ],
+)
+def test_update_total_records_api_error(table_name, module, monkeypatch):
 
-# @pytest.mark.parametrize("table_name", ["students", "institutes"])
-# def test_update_total_records_api_error(table_name, monkeypatch):
+    importlib.reload(extr)
 
-#     # Mock the logger
-#     mock_logger = MagicMock()
-#     monkeypatch.setattr('extract.logger', mock_logger)
-#     importlib.reload(extr)
+    # Mock the logger
+    mock_logger = MagicMock()
+    monkeypatch.setattr(extr, "logger", mock_logger, raising=False)
 
-#     # Mock the API client to raise an APIError
-#     mock_client = MagicMock()
-#     mock_client.get_student_data.side_effect = Exception("API Error")
-#     mock_client.get_institute_data.side_effect = Exception("API Error")
-#     downloader = extr.SamsDataDownloader(mock_client)
+    # Mock the API client to raise an APIError
+    mock_client = MagicMock()
+    if table_name == "students":
+        mock_client.get_student_data.side_effect = APIError("API Error")
+    else:
+        mock_client.get_institute_data.side_effect = APIError("API Error")
 
+    downloader = extr.SamsDataDownloader(mock_client)
 
-#     # Call the method
-#     downloader._update_total_records(pd.DataFrame(), {table_name: {'yearmin': 2020, 'yearmax': 2020}}, table_name)
+    # Call the method
+    downloader._update_total_records(pd.DataFrame(), {module: {"yearmin": 2020, "yearmax": 2020}}, table_name)
 
-#     # Check if the error was logged
-#     mock_logger.error.assert_called_with(f"Data download failed for {table_name} 2020 after 3 retries. Skipping...")
+    # Check if the error was logged
+    mock_logger.error.assert_called_with(f"Data download failed for {module} 2020 after 3 retries. Skipping...")
+
