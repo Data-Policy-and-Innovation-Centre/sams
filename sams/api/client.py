@@ -85,8 +85,6 @@ class SAMSClient:
             url = self.endpoints.get_plus2_student_data()
         elif module == "DEG":
             url = self.endpoints.get_deg_student_data()
-        elif module == "DEG":
-            url = self.endpoints.get_deg_student_data()
         else:
             url = self.endpoints.get_student_data()
 
