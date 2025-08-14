@@ -4,12 +4,10 @@ from sams.api.auth import Auth
 from sams.api.endpoints import Endpoints
 from sams.api.exceptions import APIError
 from sams.config import PROJ_ROOT, USERNAME, PASSWORD
-from sams.api.pydantic_model import DEGStudent, HSSStudent, ITIStudent, DiplomaStudent, PDISStudent
+from sams.api.pydantic_model import module_model_map
 from loguru import logger
 from pathlib import Path
 import os
-
-
 
 class SAMSClient:
     """
@@ -37,13 +35,7 @@ class SAMSClient:
         self.auth = Auth(USERNAME, PASSWORD)
         self.endpoints = Endpoints()
 
-        self.module_model_map = {
-           "ITI": ITIStudent,
-            "Diploma": DiplomaStudent,
-            "PDIS": PDISStudent,
-            "HSS": HSSStudent,
-            "DEG": DEGStudent
-        }
+        self.module_model_map = module_model_map
     
     def refresh(self):
         """
@@ -135,6 +127,7 @@ class SAMSClient:
             return [model(**record) for record in data]
 
         return data
+
 
     def get_institute_data(
         self,
@@ -256,6 +249,7 @@ def main():
     deg_data = client.get_student_data(module = "HSS", academic_year = 2018, page_number = 1, count=False)
     logger.info(f"Fetched {len(deg_data)} HSS student records")
     print(json.dumps([s.model_dump() for s in deg_data[:2]], indent=2))    
+ 
     #print(hss_data)
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
     #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
@@ -266,3 +260,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

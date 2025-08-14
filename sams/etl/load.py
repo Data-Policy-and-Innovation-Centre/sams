@@ -117,6 +117,9 @@ class Student(Base):
 
     hss_option_details = Column(JSON, nullable=True)
     hss_compartments = Column(JSON, nullable=True)
+    
+    deg_option_details = Column(JSON, nullable=True)
+    deg_compartments = Column(JSON, nullable=True)
 
 
     # Example of a unique constraint if needed
@@ -221,20 +224,20 @@ class SamsDataLoader:
         session = self.Session()
 
         data = [dict_camel_to_snake_case(unit) for unit in data]
-        # If module is HSS, rename fields
+        # If module is HSS and DEG, rename fields
         HSS_RENAME_FIELDS = {
             'yearof_passing': 'year_of_passing',
             'examination_boardofthe_highest_qualification': 'examination_board_of_the_highest_qualification',
             'board_exam_namefor_highest_qualification':'board_exam_name_for_highest_qualification'
         }
-        # Rename HSS-specific fields to match database schema
+        # Rename DEG and HSS-specific fields to match database schema
         for unit in data:
             module_name = unit.get('module')
-            if module_name == 'HSS':
+            if module_name in {'HSS','DEG'}:
                 for old_key, new_key in HSS_RENAME_FIELDS.items():
                     if old_key in unit:
                         unit[new_key] = unit.pop(old_key)
-                # Add HSS-specific defaults if needed
+                # Add DEG/HSS-specific defaults if needed
                 if unit.get('year') is None:
                     unit['year'] = 0
 
@@ -245,10 +248,9 @@ class SamsDataLoader:
         else:
             raise ValueError(f"Invalid table name: {table_name}")
         
-        # Optimization: skip bulk for HSS students (bulk_save_objects has problems with JSON + Enum)
-
-        if table_name == "students" and any(unit.get("module") == "HSS" for unit in data):
-            print("HSS data detected — using individual inserts.")
+        # Optimization: skip bulk for HSS and DEG students (bulk_save_objects has problems with JSON + Enum)
+        if table_name == "students" and any(unit.get("module") in {"HSS", "DEG"} for unit in data):
+            print("HSS, DEG data detected — using individual inserts.")
             self.load(data, table_name)
             return
     
@@ -569,23 +571,6 @@ class SamsDataLoaderPandas(SamsDataLoader):
                 time.sleep(1)
 
 
-# def main():
-#     loader = SamsDataLoaderPandas(f"sqlite:///{RAW_DATA_DIR}/sams.db")
-#     downloader = SamsDataDownloader() 
-
-#     # See what is in the DB already
-#     # print(loader.get_existing_modules("students"))
-
-#     loader.remove("students", "HSS", "2022")
-
-#     # Load HSS data into DB
-#     df_hss_students = downloader.fetch_students("HSS", 2022, page_number=1, pandify=True)
-#     loader.bulk_data(df_hss_students, "students")
-#     print("Loaded HSS 2022 into DB")
-
-# if __name__ == "__main__":
-#     main()
-
 CHECKPOINT_FILE = 'sams/etl/checkpoint.json'
 LOG_FILE = 'sams/etl/hss_load_log.txt'
 
@@ -604,8 +589,8 @@ def main():
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
 
-    target_module = "HSS"
-    target_years = [2018]
+    target_module = "DEG"
+    target_years = [2023]
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()

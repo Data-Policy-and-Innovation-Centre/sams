@@ -36,14 +36,18 @@ class SamsDataDownloader:
             "students", academic_year, module, count=True
         )
 
-        if module in ["ITI", "Diploma", "HSS"]:
+        if module in ["ITI", "Diploma", "HSS", "DEG"]:
             if page_number is None:
-                data = self._get_students_iti_diploma_hss(academic_year, module)
+                data = self._get_students_iti_diploma_hss_deg(academic_year, module)
             else:
                 # Fetch only one page for paginated mode (e.g., in checkpointed mode)
-                data = self._get_students_iti_diploma_hss(academic_year, module, page_number=page_number)
+                data = self._get_students_iti_diploma_hss_deg(academic_year, module, page_number=page_number)
         else:
             data = self._get_records("students", academic_year, module)
+            
+        # Normalize items to dicts (handles BaseStudentDB / Pydantic v2 models)       
+        if data and not isinstance(data[0], dict):
+            data = [item.model_dump() for item in data]
 
         if len(data) < expected_records:
             logger.warning(
@@ -124,9 +128,9 @@ class SamsDataDownloader:
                 item["admission_type"] = admission_type
             return data
 
-    def _get_students_iti_diploma_hss(self, academic_year: int, module: str, page_number=None) -> list:
+    def _get_students_iti_diploma_hss_deg(self, academic_year: int, module: str, page_number=None) -> list:
         """
-        Downloads student data for ITI, Diploma and HSS from SAMS API.
+        Downloads student data for ITI, Diploma, HSS and DEG from SAMS API.
 
         Args:
             academic_year (int): The academic year for which to fetch the data.
@@ -236,8 +240,8 @@ class SamsDataDownloader:
         Returns:
             int: The adjusted academic year.
         """
-        if module not in ["ITI", "Diploma", "PDIS","HSS"]:
-            raise ValueError("Module must be either 'ITI', 'PDIS', 'Diploma' or 'HSS'.")
+        if module not in ["ITI", "Diploma", "PDIS","HSS", "DEG"]:
+            raise ValueError("Module must be either 'ITI', 'PDIS', 'Diploma', 'HSS' or 'DEG'.")
 
         if (
             academic_year < STUDENT[module]["yearmin"]
@@ -439,9 +443,11 @@ def main():
     # print(df.columns)
     
     # # Extract HSS 2019 full data
-    df_hss_students = downloader.fetch_students('Diploma', 2020, pandify=True)
-    # print(df_hss_students.shape)
-    #print(f"Total HSS 2019 records fetched: {len(df_hss_students)}")
+    df_hss_students = downloader.fetch_students('DEG', 2018, page_number= 1, pandify=True)
+    #print(df_hss_students.shape)
+    print(f"Total HSS 2018 records fetched: {len(df_hss_students)}")
+    # Drop columns that are entirely NaN for module = "DEG"
+    df_hss_students = df_hss_students.dropna(axis=1, how="all")
     print(df_hss_students.columns)
 
 if __name__ == "__main__":
