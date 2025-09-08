@@ -8,14 +8,13 @@ from hamilton.function_modifiers import (
     value,
     cache,
 )
-
 from sams.config import LOGS, PROJ_ROOT, SAMS_DB, datasets
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.orchestrate import SamsDataOrchestrator
 from sams.utils import hours_since_creation, save_data
-from sams.preprocessing.deg_nodes import preprocess_deg_students_enrollment_data
+from sams.preprocessing.deg_nodes import preprocess_deg_students_enrollment_data, preprocess_deg_options_details, preprocess_deg_compartments
 
-# ====== STEP 1: Build or Load SAMS Database ======
+# Build or Load SAMS Database 
 @cache(behavior="DISABLE")
 def sams_db(build: bool = True) -> sqlite3.Connection:
     if Path(SAMS_DB).exists() and not build:
@@ -48,48 +47,81 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
 
     raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-# ====== STEP 2: Load Raw DEG Student Data ======
+# Load Raw DEG Student Data
 @parameterize(
     deg_raw=dict(sams_db=source("sams_db"), module=value("DEG")),
 )
 @cache(behavior="DISABLE")
 def deg_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
-    focus_year = 2018
-    row_limit = 10000
+    logger.info(f"Loading raw {module} student data from database")
 
-    logger.info(f"Loading raw {module} student data from database (year={focus_year}, limit={row_limit})...")
-
-    academic_year_query = "SELECT DISTINCT academic_year FROM students WHERE module = ?;"
-    years = pd.read_sql_query(academic_year_query, sams_db, params=(module,))
-    print(f"\nFound academic years for {module}: {list(years['academic_year'])}")
-
-    query = f"""
+    query = """
         SELECT * 
         FROM students 
-        WHERE module = ? AND academic_year = ? 
-        LIMIT {row_limit};
+        WHERE module = ?;
     """
-    df = pd.read_sql_query(query, sams_db, params=(module, focus_year))
+    df = pd.read_sql_query(query, sams_db, params=(module,))
 
-    print(f"Loaded {len(df)} records for {module} in {focus_year} (limited to {row_limit}).")
+    print(f"Loaded {len(df)} records for {module} across all years.")
     return df
 
-# ====== STEP 3: Preprocess DEG Enrollment Data ======
+
+# Preprocess DEG Enrollment Data 
 @parameterize(
     deg_enrollments=dict(df=source("deg_raw")),
 )
 def preprocess_deg_enrollment(df: pd.DataFrame) -> pd.DataFrame:
     return preprocess_deg_students_enrollment_data(df)
 
-# ====== STEP 4: Save DEG Outputs ======
+# Preprocess DEG application data
+@parameterize(
+    deg_applications = dict(df = source ("deg_raw")),
+)
+def preprocess_deg_applications (df: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_deg_options_details(df)
+
+# Preprocess DEG marks
+@parameterize(
+    deg_marks=dict(df=source("deg_raw")),
+)
+def preprocess_deg_marks(df: pd.DataFrame) -> pd.DataFrame:
+    return preprocess_deg_compartments(df)
+
+# save the nodes
+
 @parameterize(
     save_deg_enrollments=dict(
         df=source("deg_enrollments"),
         dataset_key=value("deg_enrollments"),
     )
 )
-def save_deg_data(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
-    """Generic saver for DEG outputs."""
+def save_deg_enrollments(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
+    """Saver for DEG enrollment data."""
+    logger.info(f"Saving DEG data → {dataset_key}")
+    save_data(df, datasets[dataset_key])
+    return df
+
+
+@parameterize(
+    save_deg_applications=dict(
+        df=source("deg_applications"),
+        dataset_key=value("deg_applications"),
+    )
+)
+def save_deg_applications(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
+    """Saver for DEG application data."""
+    logger.info(f"Saving DEG data → {dataset_key}")
+    save_data(df, datasets[dataset_key])
+    return df
+
+@parameterize(
+    save_deg_marks=dict(
+        df=source("deg_marks"),
+        dataset_key=value("deg_marks"),
+    )
+)
+def save_deg_marks(df: pd.DataFrame, dataset_key: str) -> pd.DataFrame:
+    """Saver for DEG compartments / marks data."""
     logger.info(f"Saving DEG data → {dataset_key}")
     save_data(df, datasets[dataset_key])
     return df

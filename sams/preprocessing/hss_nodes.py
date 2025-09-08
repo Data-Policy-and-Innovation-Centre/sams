@@ -4,6 +4,8 @@ import json
 from sams.utils import dict_camel_to_snake_case, flatten
 from loguru import logger
 from tqdm import tqdm
+from sams.utils import dict_camel_to_snake_case, camel_to_snake_case, flatten
+
 
 def _make_null(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -276,29 +278,49 @@ def preprocess_students_compartment_marks(df: pd.DataFrame) -> pd.DataFrame:
     """
     Flatten and preprocess HSS compartment subject marks.
 
-    Returns a long-format DataFrame with one row per failed subject (if any).
+    Returns a long-format DataFrame with one row per failed subject (if any),
+    retaining student context information.
     """
-    records = []
+    # Drop rows missing the field entirely (not just empty string)
+    df = df.dropna(subset=["hss_compartments"])
 
-    for _, row in df.iterrows():
-        barcode = row.get("barcode")
-        year = row.get("academic_year")
-        status = row.get("compartmental_status")
-        compartments_raw = row.get("hss_compartments")
+    # Contextual columns to retain
+    context_columns = [
+        "barcode", "aadhar_no", "academic_year", "module",
+        "board_exam_name_for_highest_qualification", "highest_qualification",
+        "examination_board_of_the_highest_qualification", "examination_type",
+        "year_of_passing", "total_marks", "secured_marks",
+        "percentage", "compartmental_status", "hss_compartments"
+    ]
+    df = df[[col for col in context_columns if col in df.columns]]
 
-        if not compartments_raw or str(compartments_raw).strip() in ["", "[]", "null", "None"]:
-            continue
+    # Parse JSON column
+    df["hss_compartments"] = df["hss_compartments"].map(json.loads)
 
-        try:
-            compartments = json.loads(compartments_raw) if isinstance(compartments_raw, str) else compartments_raw
-            if isinstance(compartments, list) and compartments:
-                for subject in compartments:
-                    records.append({ "barcode": barcode, "academic_year": year, "subject": subject.get("COMPSubject"), "failed_mark": subject.get("COMPFailMark"), "pass_mark": subject.get("COMPPassMark"), "compartmental_status": status })
-        except Exception as e:
-            print(f"Skipping malformed row: {e}")
-            continue
+    # Explode list of compartment subjects
+    df_exploded = df.explode("hss_compartments", ignore_index=True)
 
-    return pd.DataFrame(records)
+    # Replace empty values (from []) with empty dict
+    df_exploded["hss_compartments"] = df_exploded["hss_compartments"].apply(
+        lambda x: x if isinstance(x, dict) else {}
+    )
+
+    # Flatten subject dicts into columns
+    compartments = pd.json_normalize(df_exploded["hss_compartments"])
+    compartments = compartments.rename(columns=lambda c: camel_to_snake_case(c))
+
+    # Add back context columns
+    for col in context_columns:
+        if col != "hss_compartments" and col in df_exploded.columns:
+            compartments[col] = df_exploded[col].values
+
+    # Order: context columns first, then compartment info
+    ordered_context = [col for col in context_columns if col != "hss_compartments"]
+    rest = [col for col in compartments.columns if col not in ordered_context]
+    compartments = compartments[ordered_context + rest]
+
+    logger.info(f"Preprocessed HSS compartments → {len(compartments):,} rows from {len(df):,} students")
+    return compartments
 
 
 def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:

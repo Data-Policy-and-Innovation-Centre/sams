@@ -121,7 +121,7 @@ datasets:
 
   hss_marks:
     type: parquet
-    path: "datcleara/interim/hss_marks.pq"
+    path: "data/interim/hss_marks.pq"
     layer: interim
 
   hss_first_choice_admissions:
@@ -134,6 +134,15 @@ datasets:
     path: "data/interim/deg_enrollments.pq"
     layer: interim
 
+  deg_applications:
+    type: parquet
+    path: "data/interim/deg_applications.pq"
+    layer: interim
+
+  deg_marks:
+    type: parquet
+    path: "data/interim/deg_marks.pq"
+    layer: interim
 
 
 exhibits:

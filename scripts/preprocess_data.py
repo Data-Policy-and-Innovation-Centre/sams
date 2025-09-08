@@ -8,6 +8,8 @@ pipeline_configs = {
         "module": deg_pipeline,
         "default_nodes":[
             "save_deg_enrollments",
+            "save_deg_applications",  
+            "save_deg_marks",          
         ],
         "default_inputs": {},
     },
@@ -17,7 +19,7 @@ pipeline_configs = {
             "save_hss_enrollments",
             "save_hss_applications",
             "save_hss_marks",
-            "save_hss_first_choice_admissions",
+            "save_hss_first_choice_admissions"
         ],
         "default_inputs": {},
     },
