@@ -396,3 +396,4 @@ def preprocess_deg_compartments(df: pd.DataFrame) -> pd.DataFrame:
 
     logger.info(f"Preprocessed compartments → {len(compartments):,} rows from {len(df):,} students")
     return compartments
+   

@@ -8,12 +8,11 @@ from hamilton.function_modifiers import (
     value,
     cache,
 )
-
 from sams.config import LOGS, PROJ_ROOT, SAMS_DB, datasets
 from sams.etl.extract import SamsDataDownloader
 from sams.etl.orchestrate import SamsDataOrchestrator
 from sams.utils import hours_since_creation, save_data
-from sams.preprocessing.deg_nodes import preprocess_deg_students_enrollment_data, preprocess_deg_options_details
+from sams.preprocessing.deg_nodes import preprocess_deg_students_enrollment_data, preprocess_deg_options_details, preprocess_deg_compartments
 
 # Build or Load SAMS Database 
 @cache(behavior="DISABLE")
@@ -86,7 +85,6 @@ def preprocess_deg_applications (df: pd.DataFrame) -> pd.DataFrame:
     deg_marks=dict(df=source("deg_raw")),
 )
 def preprocess_deg_marks(df: pd.DataFrame) -> pd.DataFrame:
-    from sams.preprocessing.deg_nodes import preprocess_deg_compartments
     return preprocess_deg_compartments(df)
 
 # save the nodes
