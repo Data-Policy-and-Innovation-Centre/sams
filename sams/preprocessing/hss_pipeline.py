@@ -57,16 +57,13 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
 
     raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-# ===== Load Raw HSS Student Data (testing with 2018 only, 50k rows) =====
+# ===== Load Raw HSS Student Data (all years, all rows) =====
 @parameterize(
     hss_raw=dict(sams_db=source("sams_db"), module=value("HSS")),
 )
 @cache(behavior="DISABLE")
 def hss_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
-    focus_year = 2018
-    row_limit = 10000
-    
-    logger.info(f"Loading raw {module} student data from database (year={focus_year}, limit={row_limit})...")
+    logger.info(f"Loading raw {module} student data from database (all years)...")
 
     # Get available academic years (for info only)
     academic_year_query = "SELECT DISTINCT academic_year FROM students WHERE module = ?;"
@@ -75,17 +72,17 @@ def hss_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
     print(f"\n Starting to load raw {module} student data...")
     print(f" Found academic years for {module}: {list(years['academic_year'])}")
 
-    # Focus on 2018 only with row limit
-    query = f"""
+    # Load all years, no limit
+    query = """
         SELECT * 
         FROM students 
-        WHERE module = ? AND academic_year = ? 
-        LIMIT {row_limit};
+        WHERE module = ?;
     """
-    df = pd.read_sql_query(query, sams_db, params=(module, focus_year))
+    df = pd.read_sql_query(query, sams_db, params=(module,))
 
-    print(f"Loaded {len(df)} records for {module} in {focus_year} (limited to {row_limit}).")
+    print(f"Loaded {len(df)} records for {module} across all years.")
     return df
+
 
 # ===== Preprocess Enrollment Data from Raw =====
 @parameterize(
