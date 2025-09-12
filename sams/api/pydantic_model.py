@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, List, Dict, Union, Optional
 from pydantic import BaseModel, Field, AliasChoices, field_validator, ConfigDict
 
 class BaseStudentDB(BaseModel):
@@ -59,13 +59,15 @@ class BaseStudentDB(BaseModel):
     residence_barcode_number: Optional[str] = Field(None, validation_alias=AliasChoices("ResidenceBarcodeNumber"))
 
     # ExamSchoolAddress
-    tenth_exam_school_address: Optional[str] = Field(None, validation_alias=AliasChoices("TenthExamSchoolAddress"))
+    tenth_exam_school_address: Optional[str] = Field(None, validation_alias=AliasChoices("TengthExamSchoolAddress"))
     eighth_exam_school_address: Optional[str] = Field(None, validation_alias=AliasChoices("EighthExamSchoolAddress"))
 
     # qualification
     highest_qualification: Optional[str] = Field(None, validation_alias=AliasChoices("HighestQualification"))
     highest_qualification_exam_board: Optional[str] = Field(None,validation_alias=AliasChoices("HighestQualificationExamBoard"))
-    board_exam_name_for_highest_qualification: Optional[str] = Field(None,validation_alias=AliasChoices("HighestQualificationBoardExamName","BoardExamNameforHighestQualification"))
+    board_exam_name_for_highest_qualification: Optional[str] = Field(
+        None, validation_alias=AliasChoices("BoardExamNameforHighestQualification")
+        )    
     examination_board_of_the_highest_qualification: Optional[str] = Field(None, validation_alias=AliasChoices("ExaminationBoardoftheHighestQualification"))
 
     examination_type: Optional[str] = Field(None, validation_alias=AliasChoices("ExaminationType"))
@@ -79,7 +81,7 @@ class BaseStudentDB(BaseModel):
     # flags / categories 
     had_two_year_full_time_work_exp_after_tenth: Optional[str] = Field(
         None,
-        validation_alias=AliasChoices("hadTwoYearFullTimeWorkExpAfterTength", "hadTwoYearFullTimeWorkExpAfterTenth"),
+        validation_alias=AliasChoices("hadTwoYearFullTimeWorkExpAfterTength"),
     )
     gc: Optional[str] = Field(None, validation_alias=AliasChoices("GC"))
     ph: Optional[str] = Field(None, validation_alias=AliasChoices("PH"))
@@ -110,20 +112,20 @@ class BaseStudentDB(BaseModel):
     enrollment_status: Optional[str] = Field(None, validation_alias=AliasChoices("EnrollmentStatus"))
 
 
-    applied_status: Optional[str] = None
-    date_of_application: Optional[str] = None
-    application_status: Optional[str] = None
-    registration_number: Optional[str] = None
+    applied_status: Optional[str] = Field(None, validation_alias=AliasChoices("AppliedStatus"))
+    date_of_application: Optional[str] = Field(None, validation_alias=AliasChoices("DateOfApplication"))
+    application_status: Optional[str] = Field(None, validation_alias=AliasChoices("ApplicationStatus"))
+    registration_number: Optional[str] = Field(None, validation_alias=AliasChoices("RegistrationNumber"))
 
-    # ETL-added fields (not from API) 
+    # ETL-added fields 
     module: Optional[str] = Field(None, validation_alias=AliasChoices("Module"))
-    academic_year: Optional[int] = Field(None, validation_alias=AliasChoices("AcademicYear"))
-
+    academic_year: Optional[Union[int, str]] = Field(None, validation_alias=AliasChoices("AcademicYear"))    
+    
     # JSON columns
-    mark_data: Optional[dict] = None
-    option_data: Optional[dict] = None
+    mark_data: Optional[List[Dict[str, Any]]] = Field(None, validation_alias=AliasChoices("MarkData"))
+    option_data: Optional[List[Dict[str, Any]]] = Field(None, validation_alias=AliasChoices("OptionData"))
 
-    # HSS / DEG JSON columns (declared here so a single DB-shaped model works for every module)
+    # HSS / DEG JSON columns 
     hss_option_details: Optional[List[dict]] = Field(
         default=None,
         validation_alias=AliasChoices("HssOptionDetails", "HSSOptionDetails"),
