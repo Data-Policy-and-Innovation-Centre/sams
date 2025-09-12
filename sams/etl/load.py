@@ -1,23 +1,18 @@
 from sqlalchemy import (
     create_engine,
-    inspect,
     func,
     Column,
     Integer,
     String,
     JSON,
     Enum,
-    ForeignKey,
     UniqueConstraint,
-    DateTime,
-    Float,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, IntegrityError, DatabaseError
 import pandas as pd
 import json
-import sys
 from tqdm import tqdm
 import time
 from loguru import logger
@@ -99,7 +94,7 @@ class Student(Base):
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
     mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
-    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS"), nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS", "DEG"), nullable=False)
     academic_year = Column(Integer, nullable=False)
     contact_no = Column(String, nullable=True)
     option_data = Column(JSON, nullable=True)
@@ -589,56 +584,73 @@ def main():
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
 
-    target_module = "DEG"
-    target_years = [2023]
+    target_module = "PDIS"  # change as needed
+    target_years = [2024]   # list of years to process
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()
 
     for year in target_years:
-        last_page = checkpoint.get(str(year), 0)
-        current_page = last_page + 1
-        total_records_saved = 0
-
-        print(f"\nResuming {target_module} {year} from Page {current_page}...")
-
-        while True:
+        if target_module == "PDIS":
+            # For PDIS, no pagination
             try:
-                data = downloader.fetch_students(target_module, year, page_number=current_page, pandify=False)
+                print(f"\nProcessing {target_module} {year} (no pagination)...")
+                data = downloader.fetch_students(target_module, year, pandify=False)
+                if data:
+                    loader.bulk_load(data, "students")
+                    msg = f"{year}: {len(data)} records saved"
+                    print(msg)
+                    with open(LOG_FILE, "a") as logf:
+                        logf.write(msg + "\n")
+                else:
+                    print(f"No data found for {target_module} {year}.")
+            except Exception as e:
+                print(f"ERROR — {e}")
+        else:
+            # For other modules, use pagination
+            last_page = checkpoint.get(f"{target_module}_{year}", 0)
+            current_page = last_page + 1
+            total_records_saved = 0
 
-                if not data:
-                    print(f"Page {current_page}: No more data. Stopping.")
+            print(f"\nResuming {target_module} {year} from Page {current_page}...")
+
+            while True:
+                try:
+                    data = downloader.fetch_students(target_module, year, page_number=current_page, pandify=False)
+
+                    if not data:
+                        print(f"Page {current_page}: No more data. Stopping.")
+                        break
+
+                    loader.bulk_load(data, "students")
+                    total_records_saved += len(data)
+
+                    msg = f"{year} Page {current_page}: {len(data)} records saved (Total so far: {total_records_saved})"
+                    print(msg)
+
+                    with open(LOG_FILE, "a") as logf:
+                        logf.write(msg + "\n")
+
+                    # Save checkpoint every N pages
+                    if current_page % checkpoint_every == 0:
+                        checkpoint[f"{target_module}_{year}"] = current_page
+                        save_checkpoint(checkpoint)
+
+                    current_page += 1
+
+                except Exception as e:
+                    print(f"Page {current_page}: ERROR — {e}")
                     break
 
-                loader.bulk_load(data, "students")
-                total_records_saved += len(data)
+            checkpoint[f"{target_module}_{year}"] = current_page - 1
+            save_checkpoint(checkpoint)
 
-                msg = f"{year} Page {current_page}: {len(data)} records saved (Total so far: {total_records_saved})"
-                print(msg)
+            msg = f"\nBatch done for {target_module} {year}. Last page saved: {current_page - 1}, Total records saved: {total_records_saved}\n"
+            print(msg)
+            with open(LOG_FILE, "a") as logf:
+                logf.write(msg + "\n")
 
-                with open(LOG_FILE, "a") as logf:
-                    logf.write(msg + "\n")
-
-                # Save checkpoint every N pages
-                if current_page % checkpoint_every == 0:
-                    checkpoint[str(year)] = current_page
-                    save_checkpoint(checkpoint)
-
-                current_page += 1
-
-            except Exception as e:
-                print(f"Page {current_page}: ERROR — {e}")
-                break
-
-        checkpoint[str(year)] = current_page - 1
-        save_checkpoint(checkpoint)
-
-        msg = f"\n Batch done for {year}. Last page saved: {current_page - 1}, Total records saved: {total_records_saved}\n"
-        print(msg)
-        with open(LOG_FILE, "a") as logf:
-            logf.write(msg + "\n")
-
-    print(" All done.")
+    print("All done.")
 
 if __name__ == "__main__":
     main()
