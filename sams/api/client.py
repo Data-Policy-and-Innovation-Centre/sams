@@ -98,6 +98,7 @@ class SAMSClient:
             params["PageNumber"] = page_number
 
         # Make HTTP request
+        response: requests.Response
         try:
             if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
@@ -124,6 +125,10 @@ class SAMSClient:
 
         if module in self.module_model_map and not count:
             model = self.module_model_map[module]
+            for rec in data:
+                rec.setdefault("Module", module)            
+                rec.setdefault("AcademicYear", academic_year)  
+
             return [model(**record) for record in data]
 
         return data
@@ -240,16 +245,17 @@ class SAMSClient:
             raise APIError("Server Error: Something went wrong.")
         else:
             response.raise_for_status()
-
+            
 
 def main():
     client = SAMSClient()
 
     # Fetch student data
-    deg_data = client.get_student_data(module = "HSS", academic_year = 2018, page_number = 1, count=False)
-    logger.info(f"Fetched {len(deg_data)} HSS student records")
-    print(json.dumps([s.model_dump() for s in deg_data[:2]], indent=2))    
- 
+    iti_data = client.get_student_data(module = "ITI", academic_year = 2017, page_number = 1, count=False)
+    logger.info(f"Fetched {len(iti_data)} ITI student records")
+    print(json.dumps([s.model_dump() for s in iti_data[:1]], indent=2))    
+    
+    # print(json.dumps([iti_data[0].model_dump()], indent=2))
     #print(hss_data)
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
     #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
