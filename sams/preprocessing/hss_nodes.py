@@ -360,6 +360,7 @@ def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
     "block",
     "pin_code",
     "annual_income",
+    "roll_no",
     "highest_qualification",
     "board_exam_name_for_highest_qualification",
     "examination_board_of_the_highest_qualification",
