@@ -57,13 +57,13 @@ def sams_db(build: bool = True) -> sqlite3.Connection:
 
     raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-# ===== Load Raw HSS Student Data (all years, all rows) =====
+# ===== Load Raw HSS Student Data =====
 @parameterize(
     hss_raw=dict(sams_db=source("sams_db"), module=value("HSS")),
 )
 @cache(behavior="DISABLE")
 def hss_raw(sams_db: sqlite3.Connection, module: str) -> pd.DataFrame:
-    logger.info(f"Loading raw {module} student data from database (all years)...")
+    logger.info(f"Loading raw {module} student data from database")
 
     # Get available academic years (for info only)
     academic_year_query = "SELECT DISTINCT academic_year FROM students WHERE module = ?;"
