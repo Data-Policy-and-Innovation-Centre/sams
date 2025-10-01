@@ -124,11 +124,6 @@ datasets:
     path: "data/interim/hss_marks.pq"
     layer: interim
 
-  hss_first_choice_admissions:
-    type: parquet
-    path: "data/interim/hss_first_choice_admissions.pq"
-    layer: interim
-
   deg_enrollments:
     type: parquet
     path: "data/interim/deg_enrollments.pq"
