@@ -1,6 +1,7 @@
 from datetime import datetime
 from loguru import logger
 from sams.config import GEOCODES, GEOCODES_CACHE, gmaps_geocode, novatim_geocode
+import numpy as np
 import pandas as pd
 import os
 import time
@@ -11,6 +12,10 @@ from geopy import Location
 import geopandas as gpd
 import pickle
 from rapidfuzz import process, fuzz
+from typing import Union, Iterable, Optional, Any
+from datetime import date
+from base64 import b64decode
+from Crypto.Cipher import AES
 
 
 def save_data(df: pd.DataFrame, metadata: dict):
@@ -471,6 +476,28 @@ def fuzzy_merge(df1: pd.DataFrame, df2: pd.DataFrame, how: str, fuzzy_on: str, e
     left_on = exact_on + [f"{fuzzy_on}_match"]
     right_on = exact_on + [fuzzy_on]
     return pd.merge(df1, df2, how=how, left_on=left_on, right_on=right_on)
+   
+def decrypt_roll(enc_text: str,
+                 key: bytes = b"y6idXfCVRG5t2dkeBnmHy9jLu6TEn5Du",
+                 enforce_min_length: bool = False,
+                 min_length: int = None) -> str:
+    try:
+        if not enc_text or not isinstance(enc_text, str):
+            return "NA"
+
+        raw = b64decode(enc_text)
+        cipher = AES.new(key, AES.MODE_ECB)
+        decrypted = cipher.decrypt(raw)
+
+        pad_len = decrypted[-1]
+        if pad_len < 1 or pad_len > 16:
+            return "NA"
+        decrypted = decrypted[:-pad_len]
+
+        roll_no = decrypted.decode("utf-8").strip()
+        return roll_no
+    except Exception:
+        return "NA"    
 
     
 if __name__ == "__main__":
