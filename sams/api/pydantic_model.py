@@ -142,11 +142,79 @@ class BaseStudentDB(BaseModel):
         default=None,
         validation_alias=AliasChoices("DEGCompartments"),
     )
+    
+class CHSEStudent(BaseModel):
+    academic_year: Optional[int] = Field(None, validation_alias=AliasChoices("AcademicYear"))
+    module: Optional[str] = Field(None, validation_alias=AliasChoices("Module"))
 
+    student_name: Optional[str] = Field(None, validation_alias=AliasChoices("StudentName"))
+    father_name: Optional[str] = Field(None, validation_alias=AliasChoices("FatherName"))
+    mother_name: Optional[str] = Field(None, validation_alias=AliasChoices("MotherName"))
+    roll_no: Optional[str] = Field(None, validation_alias=AliasChoices("Rollno"))
+    registration_number: Optional[str] = Field(None, validation_alias=AliasChoices("RegistrationNo"))
+    division: Optional[str] = Field(None, validation_alias=AliasChoices("Division"))
+    stream: Optional[str] = Field(None, validation_alias=AliasChoices("Stream"))
+    mil: Optional[str] = Field(None, validation_alias=AliasChoices("MIL"))
+    mil_marks: Optional[str] = Field(None, validation_alias=AliasChoices("MILMarks"))
+    english: Optional[str] = Field(None, validation_alias=AliasChoices("English"))
+    english_marks: Optional[str] = Field(None, validation_alias=AliasChoices("EnglishMarks"))
+    ele1: Optional[str] = Field(None, validation_alias=AliasChoices("ELE1"))
+    ele1_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE1Marks"))
+    ele1_pr_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE1PrMarks"))
+    ele2: Optional[str] = Field(None, validation_alias=AliasChoices("ELE2"))
+    ele2_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE2Marks"))
+    ele2_pr_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE2PrMarks"))
+    ele3: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3"))
+    ele3t1_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3T1Marks"))
+    ele3t2_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3T2Marks"))
+    ele3_pr1_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3Pr1Marks"))
+    ele3_pr2_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3Pr2Marks"))
+    ele3_pr2_sub_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE3Pr2SubMarks"))
+    vchele4_sub: Optional[str] = Field(None, validation_alias=AliasChoices("vchELE4Sub"))
+    ele4t1_sub_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE4T1SubMarks"))
+    ele4t2_sub_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE4T2SubMarks"))
+    ele4_pr1_sub_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE4Pr1SubMarks"))
+    ele4_pr2_sub_marks: Optional[str] = Field(None, validation_alias=AliasChoices("ELE4Pr2SubMarks"))
+    secured_marks: Optional[str] = Field(None, validation_alias=AliasChoices("Marksecured"))
+    total_marks: Optional[str] = Field(None, validation_alias=AliasChoices("TotalMark"))
+    institute: Optional[str] = Field(None, validation_alias=AliasChoices("Institute"))
+    exam_type: Optional[str] = Field(None, validation_alias=AliasChoices("ExamType"))
+    barcode: Optional[str] = Field(None, validation_alias=AliasChoices("Barcode"))
+
+
+class BSEStudent(BaseModel):
+    academic_year: Optional[int] = Field(None, validation_alias=AliasChoices("AcademicYear"))
+    module: Optional[str] = Field(None, validation_alias=AliasChoices("Module"))
+    rollno: str = Field(..., validation_alias=AliasChoices("ROLLNO"))
+    uin_no: Optional[str] = Field(None, validation_alias=AliasChoices("UIN_NO"))
+    result_grade: Optional[str] = Field(None, validation_alias=AliasChoices("RESULT_GRADE"))
+    result_sts: Optional[int] = Field(None, validation_alias=AliasChoices("RESULT_STS"))
+    candi_name: Optional[str] = Field(None, validation_alias=AliasChoices("CANDI_NAME"))
+    dob: Optional[str] = Field(None, validation_alias=AliasChoices("DOB"))
+    gender: Optional[str] = Field(None, validation_alias=AliasChoices("GENDER"))
+    category: Optional[str] = Field(None, validation_alias=AliasChoices("CATEGORY"))
+    father_name: Optional[str] = Field(None, validation_alias=AliasChoices("FATHER_NAME"))
+    mother_name: Optional[str] = Field(None, validation_alias=AliasChoices("MOTHER_NAME"))
+    sch_code: Optional[str] = Field(None, validation_alias=AliasChoices("SCH_CODE"))
+    sch_name: Optional[str] = Field(None, validation_alias=AliasChoices("SCH_NAME"))
+    dist_code: Optional[str] = Field(None, validation_alias=AliasChoices("DIST_CODE"))
+    dist_name: Optional[str] = Field(None, validation_alias=AliasChoices("DIST_NAME"))
+    fl_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("FL_TMARK"))
+    sl_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("SL_TMARK"))
+    tl_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("TL_TMARK"))
+    mth_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("MTH_TMARK"))
+    gsc_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("GSC_TMARK"))
+    ssc_tmark: Optional[str] = Field(None, validation_alias=AliasChoices("SSC_TMARK"))
+    agr_total: Optional[str] = Field(None, validation_alias=AliasChoices("AGR_Total"))
+    full_mark: Optional[str] = Field(None, validation_alias=AliasChoices("FULL_MARK"))
+    
 module_model_map = {
     'ITI': BaseStudentDB,
     'Diploma': BaseStudentDB,
     'PDIS': BaseStudentDB,
     'HSS': BaseStudentDB,
     'DEG': BaseStudentDB,
+    'CHSE': CHSEStudent,
+    'BSE': BSEStudent,
 }
+
