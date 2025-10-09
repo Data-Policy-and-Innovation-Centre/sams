@@ -45,8 +45,19 @@ def run_pipeline(pipeline_name, build=False, override_nodes=None):
 
 def main(args):
     build_mode = "build" in args
-    for pipeline_name in pipeline_configs:
+
+    # Example usage: python scripts/preprocess_data.py deg save_deg_applications
+    if len(args) >= 3:
+        pipeline_name = args[1]
+        node_name = args[2]
+        run_pipeline(pipeline_name, build=build_mode, override_nodes=[node_name])
+    elif len(args) >= 2:
+        pipeline_name = args[1]
         run_pipeline(pipeline_name, build=build_mode)
+    else:
+        # Default: run all pipelines
+        for pipeline_name in pipeline_configs:
+            run_pipeline(pipeline_name, build=build_mode)
 
 
 if __name__ == "__main__":
