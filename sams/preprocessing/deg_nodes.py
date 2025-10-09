@@ -6,6 +6,7 @@ from loguru import logger
 from datetime import date
 from typing import Iterable, Optional, Any, Union
 import time
+from ibis import _ as L  
 from sams.utils import dict_camel_to_snake_case, camel_to_snake_case, flatten
 from sams.preprocessing import normalize_nulls, make_bool, normalize_date
 
@@ -77,102 +78,140 @@ def preprocess_deg_students_enrollment_data(df: ibis.Table) -> ibis.Table:
     return df2
 
 
-def preprocess_deg_options_details(con, df):
+def preprocess_deg_options_details(students_table: ibis.Table):
+    """Clean and flatten DEG application data from student records.
+
+    This function takes the `deg_option_details` JSON column and:
+    - Breaks it into separate rows so each application option has its own record.
+    - Counts how many application options each student has.
+    - Extracts key details like stream, subject, admission status, and institute info.
+
+    Args:
+        students_table (ibis.Table): Ibis Table with student data that includes 
+            the `deg_option_details` column.
+
+    Returns:
+        ibis.Table: A flattened table with one row per application option, 
+            including student IDs, option details, and total application count.
     """
-    Flatten DEG application options using Ibis + DuckDB.
-    Ensures option numbers come directly from JSON (OptionNo field),
-    preserving student-wise sequence (1,2,3,...).
-    """
-    start_all = time.time()
+
     logger.info("Starting DEG applications preprocessing")
 
-    sql = """
-    WITH expanded AS (
-        SELECT
-            s.aadhar_no,
-            s.academic_year,
-            s.barcode,
-            CAST(opt.value::JSON ->> 'OptionNo' AS INT) AS option_no,
-            opt.value::JSON ->> 'Stream'            AS stream,
-            opt.value::JSON ->> 'Subject'           AS subject,
-            opt.value::JSON ->> 'AdmissionStatus'   AS admission_status,
-            opt.value::JSON ->> 'ReportedInstitute' AS reported_institute,
-            opt.value::JSON ->> 'SAMSCode'          AS sams_code,
-            opt.value::JSON ->> 'InstituteDistrict' AS institute_district,
-            opt.value::JSON ->> 'InstituteBlock'    AS institute_block,
-            opt.value::JSON ->> 'TypeofInstitute'   AS type_of_institute,
-            opt.value::JSON ->> 'Year'              AS year,
-            opt.value::JSON ->> 'Phase'             AS phase
-        FROM students s
-        LEFT JOIN LATERAL json_each(s.deg_option_details) AS opt ON TRUE
-        WHERE s.module = 'DEG'
-    )
-    SELECT *
-    FROM expanded
-    ORDER BY
-        academic_year,
-        aadhar_no,
-        barcode,
-        option_no
-    """
+    # Filter for DEG module records
+    students_deg = students_table.filter(students_table.module == "DEG")
 
-    df_options = con.sql(sql)
-    logger.info("Flattened JSON fields")
-
-    # Count applications per student-year-barcode
-    win = ibis.window(group_by=["aadhar_no", "academic_year", "barcode"])
-    df_options = df_options.mutate(
-        num_applications=df_options.option_no.count().over(win)
+    # Count number of DEG options for each student in the filtered table
+    students_with_counts = students_deg.mutate(
+        num_applications=students_deg.deg_option_details.cast('json').array.length().fillna(0).cast('int64')
     )
 
-    logger.info(
-        f"Done processing DEG applications in {time.time() - start_all:.1f} seconds"
+    # data explosion operation
+    options = students_with_counts.unnest(
+        students_with_counts.deg_option_details.cast('json').array.name("option_object")
     )
-    return df_options
 
 
-def preprocess_deg_compartments(con, df):
-    """
-    Preprocess DEG compartment subjects from 'deg_compartments' JSON column.
+    # define a mapping from the JSON key to the final, clean column name.
+    json_to_column_map = {
+        "Stream": "stream",
+        "Subject": "subject",
+        "AdmissionStatus": "admission_status",
+        "ReportedInstitute": "reported_institute",
+        "SAMSCode": "sams_code",
+        "InstituteDistrict": "institute_district",
+        "InstituteBlock": "institute_block",
+        "TypeofInstitute": "type_of_institute",
+        "Phase": "phase"
+    }
 
-    Each row in the output corresponds to a single compartment subject.
-    If deg_compartments is NULL or empty, the student still appears (no drop).
-    """
-    start_all = time.time()
-    logger.info("Starting DEG compartments preprocessing")
+    # Use a dictionary comprehension to build the cleaning rules for all string columns. 
+    string_mutations = {
+        final_name: L.option_object[json_key].cast('string').replace('"', '')
+        for json_key, final_name in json_to_column_map.items()
+    }
 
-    sql = """
-    SELECT
-        s.aadhar_no,
-        s.academic_year,
-        s.barcode,
-        s.board_exam_name_for_highest_qualification,
-        s.highest_qualification,
-        s.module,
-        s.examination_board_of_the_highest_qualification,
-        s.examination_type,
-        s.year_of_passing,
-        s.total_marks,
-        s.secured_marks,
-        s.percentage,
-        s.compartmental_status,
-        comp.value::JSON ->> 'COMPSubject'   AS comp_subject,
-        comp.value::JSON ->> 'COMPFailMark'  AS comp_fail_mark,
-        comp.value::JSON ->> 'COMPPassMark'  AS comp_pass_mark
-    FROM (
-        SELECT *
-        FROM students
-        WHERE module = 'DEG'
-    ) AS s
-    LEFT JOIN LATERAL json_each(s.deg_compartments) AS comp ON TRUE
-    ORDER BY
-        s.academic_year ASC,
-        s.barcode ASC,
-        s.aadhar_no ASC
-    """
-
-    df_comp = con.sql(sql)
-    logger.info("Flattened all compartment JSON fields")
+    # Define the rules for the non-string columns separately.
+    other_mutations = {
+        "option_no": L.option_object["OptionNo"].cast("int32"),
+        "year": L.option_object["Year"],
+    }
     
-    logger.info(f"Done processing DEG marks in {time.time() - start_all:.1f} seconds")
-    return df_comp
+    # Combine all the mutation rules into a single dictionary.
+    all_mutations = {**other_mutations, **string_mutations}
+
+    # Apply all mutations in a single, clean step using dictionary unpacking (**).
+    final_options = options.mutate(**all_mutations)
+    
+
+    # Select only the final columns we need
+    final_options = final_options.select(
+        "academic_year", "aadhar_no", "barcode", "option_no", "phase", 
+        "stream", "subject", "admission_status", "reported_institute", "sams_code",
+        "type_of_institute", "institute_district", "institute_block", "year",  "num_applications"
+    )
+
+    # Order the results
+    final_options = final_options.order_by(
+        [final_options.academic_year.asc(), final_options.aadhar_no.asc(), final_options.barcode.asc(), final_options.option_no.asc()]
+    )
+    
+    logger.info("Done processing DEG applications")
+    
+    return final_options
+
+def preprocess_deg_compartments(students_table: ibis.Table):
+    """Flatten and clean DEG compartment data from student records.
+
+    This function processes the `deg_compartments` JSON array column by:
+    - Expanding each array element into separate rows (one per compartment subject).
+    - Retaining all students, even those without compartment data, using a left join.
+    - Extracting key compartment details (subject, fail mark, pass mark) into new columns.
+
+    Args:
+        students_table (ibis.Table): An Ibis Table containing the raw student data, 
+            which includes the `deg_compartments` column.
+
+    Returns:
+        ibis.Table: Flattened Ibis Table with one row per compartment subject,
+            including student identifiers, academic details, and compartment fields.
+    """
+    logger.info("Starting DEG compartments preprocessing (ORM-based, keeping all students)")
+
+    # Filter table for students in the DEG module
+    students_deg = students_table.filter(students_table.module == 'DEG')
+
+    # Select key columns and unnest the deg_compartments JSON array
+    expanded_compartments = students_deg.select(
+        "aadhar_no", "academic_year", "barcode", "deg_compartments"
+    ).unnest(
+        L.deg_compartments.cast('json').array.name("compartment_object")
+    ).drop("deg_compartments")
+
+    # Left join to keep all students, including those with no compartment data
+    compartments = students_deg.left_join(
+        expanded_compartments,
+        ["aadhar_no", "academic_year", "barcode"]
+    ) 
+      
+    # Extract compartment details: subject, fail mark, and pass mark
+    compartments_with_fields = compartments.mutate(
+        comp_subject=L.compartment_object["COMPSubject"],
+        comp_fail_mark=L.compartment_object["COMPFailMark"],
+        comp_pass_mark=L.compartment_object["COMPPassMark"]
+    )
+
+    # Select and organize final columns for the output table
+    final_compartments = compartments_with_fields.select(
+        "aadhar_no", "academic_year", "barcode", "board_exam_name_for_highest_qualification",
+        "highest_qualification", "module", "examination_board_of_the_highest_qualification",
+        "examination_type", "year_of_passing", "total_marks", "secured_marks",
+        "percentage", "compartmental_status", "comp_subject", "comp_fail_mark", "comp_pass_mark"
+    )
+    
+    # Sort the final table by academic year, barcode, and aadhar number
+    final_compartments = final_compartments.order_by(
+        [ibis.asc("academic_year"), ibis.asc("barcode"), ibis.asc("aadhar_no")]
+    )
+
+    logger.info("Done processing DEG compartments")
+    return final_compartments
