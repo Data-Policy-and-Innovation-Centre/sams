@@ -72,7 +72,7 @@ def deg_raw(sams_db: Any, module: str) -> Any:
     filtered = table.filter(table.module == module)
     # log row count for overall dataset
     count = filtered.count().execute()
-    logger.info(f"Loaded {count} records for {module} across all years.")
+    logger.info(f"Loaded {count} records for {module} across all years")
 
     return filtered
 
@@ -81,43 +81,29 @@ def deg_raw(sams_db: Any, module: str) -> Any:
 @parameterize(deg_enrollments=dict(df=source("deg_raw")))
 def preprocess_deg_enrollment(df: Any) -> Any:
     """
-    Preprocess DEG enrollment data using Ibis/DuckDB (no pandas conversion here).
-
-    Parameters
-    ----------
-    df : Ibis table
-        Raw student enrollment data.
-
-    Returns
-    -------
-    Ibis table
-        Transformed enrollment data
-    """
+    Clean and prepare raw DEG enrollment data.
+    Returns structured enrollment records.
+    """ 
     return preprocess_deg_students_enrollment_data(df)
 
 # Preprocess DEG application data
-@parameterize(deg_applications=dict(df=source("deg_raw"), con=source("sams_db")))
-def preprocess_deg_applications(df: Any, con: Any) -> Any:
-    """Preprocess DEG applications using Ibis+DuckDB."""
-
-    return preprocess_deg_options_details(con, df)
-
+@parameterize(deg_applications=dict(students_table=source("deg_raw")))
+def preprocess_deg_applications(students_table: ibis.Table) -> ibis.Table:   
+    """
+    Flatten and clean DEG application data.
+    Returns one row per application option per student.
+    """ 
+    return preprocess_deg_options_details(students_table)
 
 # Preprocess DEG marks
-@parameterize(deg_marks=dict(df=source("deg_raw"), con=source("sams_db")))
-def preprocess_deg_marks(df: Any, con: Any) -> Any:
+@parameterize(deg_marks=dict(students_table=source("deg_raw")))
+def preprocess_deg_marks(students_table: ibis.Table) -> ibis.Table:
     """
-    Preprocess DEG marks (compartment data) using Ibis/DuckDB.
+    Clean and structure DEG marks and compartment information.
+    Returns one row per compartment per student.
     """
-    return preprocess_deg_compartments(con, df)
+    return preprocess_deg_compartments(students_table)
 
-
-
-# save the nodes
-from hamilton.function_modifiers import parameterize, source, value
-from tqdm import tqdm
-import os, time, psutil
-import ibis
 
 # ===== Saving DEG Outputs =====
 @parameterize(
@@ -177,6 +163,6 @@ def save_deg_data(df: ibis.Table, dataset_key: str) -> None:
     logger.info(
         f"DEG data saved → {dataset_key}.pq "
         f"[rows={row_count:,}, cols={col_count}, "
-        f"mem={current_mem:.1f} MB, time={elapsed:.1f}s]"
+        f"time={elapsed:.1f}s]"
     )
     return None
