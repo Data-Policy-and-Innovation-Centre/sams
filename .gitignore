@@ -178,7 +178,7 @@ cython_debug/
 #.idea/
 
 
-*.ipynb
+# *.ipynb
 scripts/.Rhistory
 profile.html
 /.hamilton_cache
