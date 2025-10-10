@@ -6,6 +6,8 @@ from sams.utils import dict_camel_to_snake_case, flatten
 from loguru import logger
 from tqdm import tqdm
 import time
+from ibis import _ as L
+import ibis.expr.datatypes as dt  
 from sams.utils import (
     dict_camel_to_snake_case, 
     camel_to_snake_case, 
@@ -153,108 +155,145 @@ def preprocess_hss_students_enrollment_data(df: ibis.Table) -> ibis.Table:
 
     return df
 
-def extract_hss_options(
-    df: ibis.Table,
-    option_col: str = "hss_option_details",
-    aadhar_col: str = "aadhar_no",
-    id_col: str = "barcode",
-    year_col: str = "academic_year",
-) -> ibis.Table:
-    """
-    Flatten 'hss_option_details' JSON into long format (via DuckDB SQL).
-    Preserves the OptionNo from JSON exactly as stored.
-    """
 
-    start_all = time.time()
+
+def extract_hss_options(students_table: ibis.Table, option_col: str = "hss_option_details", 
+                        aadhar_col: str = "aadhar_no", id_col: str = "barcode", 
+                        year_col: str = "academic_year",
+                    ) -> ibis.Table:
+    """
+    Cleans and flattens HSS student application data.
+
+    Expands the `hss_option_details` JSON array so each application option
+    becomes a separate row. If a student has no options, it adds a default
+    empty entry to keep them in the data. Also calculates how many total
+    applications each student made.
+
+    Args:
+        students_table (ibis.Table): Table containing raw HSS student data.
+
+    Returns:
+        ibis.Table: Flattened table with one row per application option.
+    """
     logger.info("HSS applications preprocessing started")
 
-    con = ibis.get_backend(df)
-
-    query = f"""
-    SELECT
-        s.{aadhar_col},
-        s.{id_col},
-        s.{year_col},
-        opt.value::JSON ->> 'ReportedInstitute' AS reported_institute,
-        opt.value::JSON ->> 'SAMSCode'          AS sams_code,
-        opt.value::JSON ->> 'Stream'            AS stream,
-        opt.value::JSON ->> 'InstituteDistrict' AS institute_district,
-        opt.value::JSON ->> 'InstituteBlock'    AS institute_block,
-        opt.value::JSON ->> 'TypeofInstitute'   AS type_of_institute,
-        opt.value::JSON ->> 'Phase'             AS phase,
-        opt.value::JSON ->> 'Year'              AS year,
-        opt.value::JSON ->> 'AdmissionStatus'   AS admission_status,
-        opt.value::JSON ->> 'OptionNo'        AS option_no
-
-    FROM (
-        SELECT {aadhar_col}, {id_col}, {year_col}, {option_col}
-        FROM students
-        WHERE module = 'HSS'
-    ) AS s
-    LEFT JOIN LATERAL json_each(s.{option_col}) AS opt ON TRUE
-    ORDER BY
-        s.{year_col} ASC,
-        s.{id_col} ASC,
-        CAST(opt.key AS INTEGER) ASC  -- use JSON array index for row order
-    """
-
-    df_options = con.sql(query)
-
-    # Count applications per student-year
-    win = ibis.window(group_by=[aadhar_col, year_col, id_col])
-    df_options = df_options.mutate(
-        num_applications=df_options.option_no.count().over(win)
+    # Filter for HSS students and count total applications
+    base_hss_students = students_table.filter(students_table.module == 'HSS').mutate(
+        num_applications=L[option_col].cast('json').array.length().fillna(0).cast('int64')
     )
 
-    logger.info(
-        f"HSS applications preprocessing finished in {time.time() - start_all:.1f}s"
+    # Default JSON array for students without options
+    default_option_array = ibis.literal('[{}]').cast(dt.string)
+
+    # Replace NULL or empty arrays with the default
+    base_hss_with_default = base_hss_students.mutate(
+        options_to_unnest=ibis.case()
+            .when(base_hss_students[option_col].isnull(), default_option_array)
+            .when(base_hss_students[option_col] == '[]', default_option_array)
+            .else_(base_hss_students[option_col])
+            .end()
     )
+
+    # Expand the JSON array into separate rows
+    students_with_options = base_hss_with_default.unnest(
+        L.options_to_unnest.cast('json').array.name("option_object")
+    )
+
+    # Extract fields from JSON
+    json_to_column_map = {
+        "ReportedInstitute": "reported_institute",
+        "SAMSCode": "sams_code",
+        "Stream": "stream",
+        "Subject": "subject",
+        "InstituteDistrict": "institute_district",
+        "InstituteBlock": "institute_block",
+        "TypeofInstitute": "type_of_institute",
+        "Phase": "phase",
+        "Year": "year",
+        "AdmissionStatus": "admission_status",
+    }
+
+    string_mutations = {
+        final_name: L.option_object[json_key].cast('string').replace('"', '')
+        for json_key, final_name in json_to_column_map.items()
+    }
+    
+    other_mutations = {
+        "option_no": L.option_object["OptionNo"].cast('string').re_extract(r'(\d+)$', 1).nullif('').cast('int32')
+    }
+
+    all_mutations = {**other_mutations, **string_mutations}
+    df_options = students_with_options.mutate(**all_mutations)
+
+    # Select final cleaned columns
+    final_columns = [
+        aadhar_col, id_col, year_col, "reported_institute", "sams_code",
+        "stream", "subject", "institute_district", "institute_block", "type_of_institute",
+        "phase", "year", "admission_status", "option_no", "num_applications"
+    ]
+    df_options = df_options.select(final_columns)
+
+    # Sort for consistency
+    df_options = df_options.order_by([year_col, id_col, ibis.coalesce(df_options.option_no, 0)])
+
+    logger.info("HSS applications preprocessing finished")
     return df_options
 
 
- 
-def preprocess_students_compartment_marks(df: ibis.Table) -> ibis.Table:
+def preprocess_students_compartment_marks(students_table: ibis.Table) -> ibis.Table:
     """
-    Flatten and preprocess HSS compartment subject marks using DuckDB SQL via Ibis.
-    Preserves the row order as in the raw database (by academic_year, barcode, then JSON array index).
+    Cleans and flattens student HSS compartment data.
+
+    This function expands the `hss_compartments` JSON array so each subject
+    appears as a separate row. If a student has no compartment data, it adds
+    a default empty entry to ensure they are not dropped.
+
+    Args:
+        students_table (ibis.Table): Input table with `hss_compartments` data.
+
+    Returns:
+        ibis.Table: Flattened table with one row per compartment subject.
     """
+    logger.info("Starting HSS marks preprocessing")
 
-    logger.info("Starting HSS markss preprocessing")
-    
-    con = ibis.get_backend(df)
+    # Keep only HSS module records
+    hss_students = students_table.filter(students_table.module == 'HSS')
 
-    query = """
-    SELECT
-        s.aadhar_no,
-        s.barcode,
-        s.academic_year,
-        s.module,
-        s.board_exam_name_for_highest_qualification,
-        s.highest_qualification,
-        s.examination_board_of_the_highest_qualification,
-        s.examination_type,
-        s.year_of_passing,
-        s.total_marks,
-        s.secured_marks,
-        s.percentage,
-        s.compartmental_status,
-        comp.value::JSON ->> 'COMPSubject'   AS comp_subject,
-        comp.value::JSON ->> 'COMPFailMark'  AS comp_fail_mark,
-        comp.value::JSON ->> 'COMPPassMark'  AS comp_pass_mark
-    FROM (
-        SELECT *
-        FROM students
-        WHERE module = 'HSS'
-    ) AS s
-    LEFT JOIN LATERAL json_each(s.hss_compartments) AS comp ON TRUE
-    ORDER BY
-        s.academic_year ASC,
-        s.barcode ASC,
-        CAST(comp.key AS INTEGER) ASC
-    """
+    # Default JSON array for students without compartments
+    default_compartment_array = ibis.literal('[{}]').cast(dt.string)
 
-    exploded = con.sql(query)
+    # Replace NULL or empty arrays with the default
+    hss_students_with_default = hss_students.mutate(
+        compartments_to_unnest=ibis.case()
+        .when(hss_students.hss_compartments.isnull(), default_compartment_array)
+        .when(hss_students.hss_compartments == '[]', default_compartment_array)
+        .else_(hss_students.hss_compartments)
+        .end()
+    )
 
-    logger.info("Flattened HSS compartment JSON fields")
-    return exploded
+    # Expand the JSON array into separate rows
+    flattened_table = hss_students_with_default.unnest(
+        L.compartments_to_unnest.cast('json').array.name("compartment_object")
+    )
 
+    # Extract compartment details
+    fields = {
+        v: L.compartment_object[k].cast("string").replace('"', "")
+        for k, v in {
+            "COMPSubject": "comp_subject",
+            "COMPFailMark": "comp_fail_mark",
+            "COMPPassMark": "comp_pass_mark",
+        }.items()
+    }
+
+    # Add extracted fields and select final columns
+    df = flattened_table.mutate(**fields).select(
+        "aadhar_no", "barcode", "academic_year", "module",
+        "board_exam_name_for_highest_qualification", "highest_qualification",
+        "examination_board_of_the_highest_qualification", "examination_type",
+        "year_of_passing", "total_marks", "secured_marks", "percentage",
+        "compartmental_status", "comp_subject", "comp_fail_mark", "comp_pass_mark"
+    ).order_by(["academic_year", "barcode", "aadhar_no"])
+
+    logger.info("HSS compartment preprocessing done")
+    return df
