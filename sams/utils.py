@@ -476,28 +476,50 @@ def fuzzy_merge(df1: pd.DataFrame, df2: pd.DataFrame, how: str, fuzzy_on: str, e
     left_on = exact_on + [f"{fuzzy_on}_match"]
     right_on = exact_on + [fuzzy_on]
     return pd.merge(df1, df2, how=how, left_on=left_on, right_on=right_on)
+
    
-def decrypt_roll(enc_text: str,
-                 key: bytes = b"y6idXfCVRG5t2dkeBnmHy9jLu6TEn5Du",
-                 enforce_min_length: bool = False,
-                 min_length: int = None) -> str:
+def decrypt_roll(enc_text: str, key: bytes = b"y6idXfCVRG5t2dkeBnmHy9jLu6TEn5Du") -> str:
+    """
+    Decrypts an encrypted roll number.
+
+    This function takes a Base64-encoded string that was encrypted using AES
+    (ECB mode) and returns the original roll number as a readable string. 
+    If decryption fails or the input is invalid, it returns "NA".
+
+    Args:
+        enc_text (str): Encrypted roll number (Base64-encoded).
+        key (bytes, optional): AES encryption key. Defaults to a fixed key.
+
+    Returns:
+        str: Decrypted roll number, or "NA" if invalid or decryption fails.
+    """
     try:
+        # Return "NA" if input is empty or not a string
         if not enc_text or not isinstance(enc_text, str):
             return "NA"
 
+        # Decode from Base64 to get encrypted bytes
         raw = b64decode(enc_text)
+
+        # Initialize AES cipher in ECB mode
         cipher = AES.new(key, AES.MODE_ECB)
+
+        # Decrypt the bytes
         decrypted = cipher.decrypt(raw)
 
-        pad_len = decrypted[-1]
+        # Remove padding added during encryption
+        pad_len = decrypted[-1]  # last byte indicates padding length
         if pad_len < 1 or pad_len > 16:
             return "NA"
         decrypted = decrypted[:-pad_len]
 
+        # Convert bytes to readable string
         roll_no = decrypted.decode("utf-8").strip()
         return roll_no
+
     except Exception:
-        return "NA"    
+        # Return "NA" for any decryption or decoding error
+        return "NA"
 
     
 if __name__ == "__main__":
