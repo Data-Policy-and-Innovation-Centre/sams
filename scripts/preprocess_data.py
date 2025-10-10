@@ -1,16 +1,24 @@
 import sys
 from hamilton import driver
-from sams.preprocessing import iti_diploma_pipeline, hss_pipeline
+from sams.preprocessing import iti_diploma_pipeline, hss_pipeline, deg_pipeline
 
 # Pipeline configurations
 pipeline_configs = {
+    "deg": {
+        "module": deg_pipeline,
+        "default_nodes":[
+            "save_deg_enrollments",
+            "save_deg_applications",
+            "save_deg_marks",
+        ],
+        "default_inputs": {},
+    },  
     "hss": {
         "module": hss_pipeline,
         "default_nodes": [
             "save_hss_enrollments",
             "save_hss_applications",
             "save_hss_marks",
-            "save_hss_first_choice_admissions",
         ],
         "default_inputs": {},
     },
