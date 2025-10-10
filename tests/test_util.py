@@ -208,57 +208,38 @@ def test_fuzzy_merge_with_duplicates():
     assert result["value"].isin([10, 20]).all()  # Both matches valid
 
 
-def test_decrypt_roll_success():
-    """
-    Tests the successful decryption of a known encrypted string.
-
-    This encrypted string was generated beforehand using the EXACT same AES key,
-    ECB mode, and padding used in the decrypt_roll function.
-    The original text was "S-123-ABC".
-    """
-    # CORRECTED LINE: This is the valid encrypted string for "S-123-ABC".
+def test_decrypt_success():
+    """Check that a valid encrypted roll number is decrypted correctly."""
     encrypted_roll = "BjmySEYFgo9nafRPCvdRxQ=="
     expected_roll = "001AA0001"
     
-    decrypted_result = decrypt_roll(encrypted_roll)
-    
-    assert decrypted_result == expected_roll, f"Expected '{expected_roll}' but got '{decrypted_result}'"
-    
+    assert decrypt_roll(encrypted_roll) == expected_roll
+
 
 @pytest.mark.parametrize(
-    "invalid_input, description",
+    "invalid_input, desc",
     [
-        (None, "Input is None"),
-        ("", "Input is an empty string"),
-        (12345, "Input is an integer, not a string"),
-        (["list"], "Input is a list"),
-        ("invalid-base64-string", "String with invalid Base64 characters"),
-        ("a short", "String with incorrect Base64 padding/length"),
-        ("YWJjZA==", "Valid Base64, but decoded data is not a multiple of AES block size"),
-        ("gASVBGAAAAAAAACMCGVycm9ycy5Db3JydXB0RGF0YUVycm9yqXEu", "Corrupted data that fails decryption padding check"),
+        (None, "None input"),
+        ("", "Empty string"),
+        (12345, "Integer input"),
+        (["list"], "List input"),
+        ("invalid-base64-string", "Invalid Base64"),
+        ("a short", "Incorrect Base64 length"),
+        ("YWJjZA==", "Valid Base64 but invalid AES block size"),
+        ("gASVBGAAAAAAAACMCGVycm9ycy5Db3JydXB0RGF0YUVycm9yqXEu", "Corrupted data"),
     ],
 )
-def test_decrypt_roll_returns_na_for_invalid_input(invalid_input, description):
-    """
-    Tests that the function returns 'NA' for various types of invalid or
-    malformed input, as described in the test cases.
-    """
-    assert decrypt_roll(invalid_input) == "NA", f"Failed on case: {description}"
+def test_decrypt_invalid(invalid_input, desc):
+    """Check that invalid inputs return None."""
+    assert decrypt_roll(invalid_input) is None
 
-def test_decrypt_roll_with_wrong_key():
-    """
-    Tests that decryption fails and returns 'NA' if a different key is used.
-    
-    When an incorrect key is used, the decrypted output is garbage, which should
-    fail either the padding check or the final UTF-8 decoding, resulting in "NA".
-    """
-    # This is "S-123-ABC" encrypted with the default key
+
+def test_decrypt_wrong_key():
+    """Check that decryption fails with a wrong AES key."""
     encrypted_roll = "1E5n/3s3f2a8qN4/n3gVlA=="
+    wrong_key = b'this is the wrong 32 byte key!!'
     
-    # A 32-byte key, but it's the wrong one
-    wrong_key = b'this is the wrong 32 byte key!!' 
-    
-    assert decrypt_roll(encrypted_roll, key=wrong_key) == "NA"
+    assert decrypt_roll(encrypted_roll, key=wrong_key) is None
 
 if __name__ == "__main__":
     pytest.main()
