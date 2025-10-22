@@ -4,10 +4,10 @@ from sams.api.auth import Auth
 from sams.api.endpoints import Endpoints
 from sams.api.exceptions import APIError
 from sams.config import PROJ_ROOT, USERNAME, PASSWORD
+from sams.api.pydantic_model import module_model_map
 from loguru import logger
 from pathlib import Path
 import os
-
 
 class SAMSClient:
     """
@@ -35,6 +35,8 @@ class SAMSClient:
         self.auth = Auth(USERNAME, PASSWORD)
         self.endpoints = Endpoints()
 
+        self.module_model_map = module_model_map
+    
     def refresh(self):
         """
         Refreshes the authentication token by calling the `get_token` method of the `Auth` class.
@@ -66,7 +68,7 @@ class SAMSClient:
             list: List of dictionaries contained in the 'Data' field of the JSON response from the SAMS API.
             int: Total number of records if count is True.
         """
-        if module not in ["ITI", "Diploma", "PDIS", "HSS"]:
+        if module not in ["ITI", "Diploma", "PDIS", "HSS", "DEG"]:
             raise ValueError(f"Module {module} not supported.")
 
         if count:
@@ -81,6 +83,8 @@ class SAMSClient:
         # Set up packet
         if module == "HSS":
             url = self.endpoints.get_plus2_student_data()
+        elif module == "DEG":
+            url = self.endpoints.get_deg_student_data()
         else:
             url = self.endpoints.get_student_data()
 
@@ -90,12 +94,13 @@ class SAMSClient:
             "AcademicYear": academic_year,
         }
 
-        if module in ['ITI','Diploma','HSS']:
+        if module in ['ITI','Diploma','HSS','DEG']:
             params["PageNumber"] = page_number
 
         # Make HTTP request
+        response: requests.Response
         try:
-            if module == "HSS":
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
@@ -103,7 +108,7 @@ class SAMSClient:
             logger.error(f"Connection timeout: {e}")
             logger.info("Resetting connection...")
             self.refresh()
-            if module == "HSS":
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
@@ -111,12 +116,23 @@ class SAMSClient:
             logger.error(f"Chunked encoding error: {chk}")
             logger.info("Resetting connection...")
             self.refresh()
-            if module == "HSS":
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
 
-        return self._handle_response(response, count)
+        data = self._handle_response(response, count)
+
+        if module in self.module_model_map and not count:
+            model = self.module_model_map[module]
+            for rec in data:
+                rec.setdefault("Module", module)            
+                rec.setdefault("AcademicYear", academic_year)  
+
+            return [model(**record) for record in data]
+
+        return data
+
 
     def get_institute_data(
         self,
@@ -142,7 +158,7 @@ class SAMSClient:
         """
 
         # Check if module and admission type is valid
-        if module not in ["PDIS", "ITI", "Diploma", "HSS"]:
+        if module not in ["PDIS", "ITI", "Diploma"]:
             raise ValueError(f"Module {module} not supported.")
 
         if module == "Diploma" and admission_type not in [1, 2]:
@@ -229,15 +245,17 @@ class SAMSClient:
             raise APIError("Server Error: Something went wrong.")
         else:
             response.raise_for_status()
-
+            
 
 def main():
     client = SAMSClient()
 
     # Fetch student data
-    hss_data = client.get_student_data(module = "HSS", academic_year = 2022, page_number = 1, count=False)
-    logger.info(f"Fetched {len(hss_data)} HSS student records")
-    print(json.dumps(hss_data[:2], indent=2))
+    iti_data = client.get_student_data(module = "ITI", academic_year = 2017, page_number = 1, count=False)
+    logger.info(f"Fetched {len(iti_data)} ITI student records")
+    print(json.dumps([s.model_dump() for s in iti_data[:1]], indent=2))    
+    
+    # print(json.dumps([iti_data[0].model_dump()], indent=2))
     #print(hss_data)
     #pdis_data = client.get_student_data(module="PDIS", academic_year=2022, count=True)
     #institute_diploma_data = client.get_institute_data(module="ITI", academic_year=2024, admission_type=2, count=True)
@@ -248,3 +266,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

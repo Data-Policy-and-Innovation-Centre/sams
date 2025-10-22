@@ -3,9 +3,10 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 import os
 from sams.etl.extract import SamsDataDownloader
+from sams.api.exceptions import APIError
 import sams.etl.extract as extr
+from pydantic import BaseModel
 import importlib
-
 
 # Test suite for SamsDataDownloader# Test suite for SamsDataDownloader
 @pytest.fixture
@@ -27,7 +28,6 @@ def mock_api_client():
     mock_client.get_institute_data.return_value = 50
     return mock_client
 
-
 @pytest.mark.parametrize(
     "year, module, expected_data",
     [
@@ -46,6 +46,11 @@ def mock_api_client():
             2024,
             "HSS",
             [{"id": 4, "name": "Taylor", "module": "HSS", "year": 2024}],
+        ),
+        (
+            2018,
+            "DEG",
+            [{"id": 4, "name": "Sam", "module": "DEG", "year": 2018}]
         )
     ],
 )
@@ -58,6 +63,7 @@ def test_fetch_students(data_downloader, mock_sams_client, year, module, expecte
         assert row["name"] == expected_data[i]["name"]
         assert row["module"] == expected_data[i]["module"]
         assert row["academic_year"] == expected_data[i]["year"]
+
         if "source_of_fund" in expected_data[i]:
             assert row["source_of_fund"] == expected_data[i]["source_of_fund"]
 
@@ -147,24 +153,61 @@ def test_update_total_records(mock_api_client, tmp_path, monkeypatch):
     # Check if the log file was created
     assert os.path.exists(os.path.join(tmp_path, "total_records.log"))
 
+def test_fetch_students_with_pydantic_model(data_downloader, mock_sams_client):
+    """Test that fetch_students correctly handles Pydantic model instances returned by the API client."""
 
-# @pytest.mark.parametrize("table_name", ["students", "institutes"])
-# def test_update_total_records_api_error(table_name, monkeypatch):
+    year = extr.STUDENT["ITI"]["yearmax"] 
+    
+    # Define a simple mock Pydantic model that mimics the API's behavior
+    class MockStudentModel(BaseModel):
+        id: int
+        name: str
+        module: str
+        year: int
 
-#     # Mock the logger
-#     mock_logger = MagicMock()
-#     monkeypatch.setattr('extract.logger', mock_logger)
-#     importlib.reload(extr)
+    # Prepare a fake Pydantic model instance
+    pydantic_record = MockStudentModel(id=1, name="Alice", module="ITI", year=year)
 
-#     # Mock the API client to raise an APIError
-#     mock_client = MagicMock()
-#     mock_client.get_student_data.side_effect = Exception("API Error")
-#     mock_client.get_institute_data.side_effect = Exception("API Error")
-#     downloader = extr.SamsDataDownloader(mock_client)
+    # Count first, then one page (we pass page_number=1 so no pagination loop)
+    mock_sams_client.get_student_data.side_effect = [1, [pydantic_record]]
+
+    # Call fetch_students, which should detect the model and call model_dump()
+    df = data_downloader.fetch_students("ITI", year, pandify=True, page_number=1)
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 1
+    assert df.loc[0, "name"] == "Alice"
+    assert df.loc[0, "module"] == "ITI"
+    assert df.loc[0, "academic_year"] == year
 
 
-#     # Call the method
-#     downloader._update_total_records(pd.DataFrame(), {table_name: {'yearmin': 2020, 'yearmax': 2020}}, table_name)
+@pytest.mark.parametrize(
+    "table_name,module",
+    [
+        ("students", "ITI"),
+        ("institutes", "Diploma"),
+    ],
+)
+def test_update_total_records_api_error(table_name, module, monkeypatch):
 
-#     # Check if the error was logged
-#     mock_logger.error.assert_called_with(f"Data download failed for {table_name} 2020 after 3 retries. Skipping...")
+    importlib.reload(extr)
+
+    # Mock the logger
+    mock_logger = MagicMock()
+    monkeypatch.setattr(extr, "logger", mock_logger, raising=False)
+
+    # Mock the API client to raise an APIError
+    mock_client = MagicMock()
+    if table_name == "students":
+        mock_client.get_student_data.side_effect = APIError("API Error")
+    else:
+        mock_client.get_institute_data.side_effect = APIError("API Error")
+
+    downloader = extr.SamsDataDownloader(mock_client)
+
+    # Call the method
+    downloader._update_total_records(pd.DataFrame(), {module: {"yearmin": 2020, "yearmax": 2020}}, table_name)
+
+    # Check if the error was logged
+    mock_logger.error.assert_called_with(f"Data download failed for {module} 2020 after 3 retries. Skipping...")
+

@@ -98,6 +98,21 @@ class TestSamsDataLoaderPandas:
         df = pd.DataFrame({"id": [1, 2], "name": ["John", "Jane"]})
         data_loader_pandas.load_data(df, "test_table")
 
+def test_save_checkpoint_writes_file(tmp_path, monkeypatch):
+    # Redirect checkpoint path to a temp file
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(load, "CHECKPOINT_FILE", str(checkpoint_path))
+
+    payload = {"2018": 7, "2019": 3}
+
+    # Act: write the checkpoint
+    load.save_checkpoint(payload)
+
+    # Assert: file created with correct JSON
+    assert checkpoint_path.exists()
+    with open(checkpoint_path, "r") as f:
+        assert json.load(f) == payload
+
 if __name__ == "__main__":
     pytest.main()
 

@@ -4,22 +4,27 @@ import json
 from sams.utils import dict_camel_to_snake_case, flatten
 from loguru import logger
 from tqdm import tqdm
+from sams.utils import dict_camel_to_snake_case, camel_to_snake_case, flatten
+
 
 def _make_null(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Replace empty strings, spaces and "NA" with NaN in a DataFrame
+    Replace empty strings, whitespace-only values, and common null-like markers with NaN in a DataFrame.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame to be cleaned
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with NaN instead of empty strings, spaces and "NA"
+        DataFrame with NaN instead of blanks and null-like markers
     """
-    return df.replace({"": np.nan, " ": np.nan, "NA": np.nan})
+    null_like_values = ["", " ", "NA", "na", "N/A", "n/a", "NULL", "null"]
+    return (
+        df.replace(r"^\s*$", np.nan, regex=True)  
+          .replace(null_like_values, np.nan)
+    )
 
 def _make_bool(x: pd.Series, true_val: str = "Yes", false_val: str = "No") -> pd.Series:
     """
@@ -221,7 +226,6 @@ def extract_hss_options(df: pd.DataFrame, option_col: str = "hss_option_details"
     return pd.DataFrame(records)
 
 
-
 def extract_hss_compartments(df: pd.DataFrame, compartment_col: str = "hss_compartments", id_col: str = "barcode", year_col: str = "academic_year") -> pd.DataFrame:
     """
     Flatten the 'hss_compartments' JSON field into long format.
@@ -274,29 +278,49 @@ def preprocess_students_compartment_marks(df: pd.DataFrame) -> pd.DataFrame:
     """
     Flatten and preprocess HSS compartment subject marks.
 
-    Returns a long-format DataFrame with one row per failed subject (if any).
+    Returns a long-format DataFrame with one row per failed subject (if any),
+    retaining student context information.
     """
-    records = []
+    # Drop rows missing the field entirely (not just empty string)
+    df = df.dropna(subset=["hss_compartments"])
 
-    for _, row in df.iterrows():
-        barcode = row.get("barcode")
-        year = row.get("academic_year")
-        status = row.get("compartmental_status")
-        compartments_raw = row.get("hss_compartments")
+    # Contextual columns to retain
+    context_columns = [
+        "barcode", "aadhar_no", "academic_year", "module",
+        "board_exam_name_for_highest_qualification", "highest_qualification",
+        "examination_board_of_the_highest_qualification", "examination_type",
+        "year_of_passing", "total_marks", "secured_marks",
+        "percentage", "compartmental_status", "hss_compartments"
+    ]
+    df = df[[col for col in context_columns if col in df.columns]]
 
-        if not compartments_raw or str(compartments_raw).strip() in ["", "[]", "null", "None"]:
-            continue
+    # Parse JSON column
+    df["hss_compartments"] = df["hss_compartments"].map(json.loads)
 
-        try:
-            compartments = json.loads(compartments_raw) if isinstance(compartments_raw, str) else compartments_raw
-            if isinstance(compartments, list) and compartments:
-                for subject in compartments:
-                    records.append({ "barcode": barcode, "academic_year": year, "subject": subject.get("COMPSubject"), "failed_mark": subject.get("COMPFailMark"), "pass_mark": subject.get("COMPPassMark"), "compartmental_status": status })
-        except Exception as e:
-            print(f"Skipping malformed row: {e}")
-            continue
+    # Explode list of compartment subjects
+    df_exploded = df.explode("hss_compartments", ignore_index=True)
 
-    return pd.DataFrame(records)
+    # Replace empty values (from []) with empty dict
+    df_exploded["hss_compartments"] = df_exploded["hss_compartments"].apply(
+        lambda x: x if isinstance(x, dict) else {}
+    )
+
+    # Flatten subject dicts into columns
+    compartments = pd.json_normalize(df_exploded["hss_compartments"])
+    compartments = compartments.rename(columns=lambda c: camel_to_snake_case(c))
+
+    # Add back context columns
+    for col in context_columns:
+        if col != "hss_compartments" and col in df_exploded.columns:
+            compartments[col] = df_exploded[col].values
+
+    # Order: context columns first, then compartment info
+    ordered_context = [col for col in context_columns if col != "hss_compartments"]
+    rest = [col for col in compartments.columns if col not in ordered_context]
+    compartments = compartments[ordered_context + rest]
+
+    logger.info(f"Preprocessed HSS compartments → {len(compartments):,} rows from {len(df):,} students")
+    return compartments
 
 
 def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -314,29 +338,52 @@ def preprocess_hss_students_enrollment_data(df: pd.DataFrame) -> pd.DataFrame:
         Cleaned and preprocessed HSS enrollment data.
     """
 
-    # Core cleaning from internal helper
-    df = _preprocess_hss_students(df, geocode=False)
 
-    # Drop other unnecessary columns
-    drop_cols = [
-        "student_name", "nationality", "address", "pin_code",
-        "board_exam_namefor_highest_qualification", "examination_type",
-        "examination_boardofthe_highest_qualification", "national_cadet_corps",
-        "orphan", "sports", "year_of_passing"
+    # Filter only HSS module
+    df = df[df["module"] == "HSS"].copy()
+
+    # Select key enrollment-related columns
+    keep_cols = [
+    "barcode",
+    "aadhar_no",
+    "academic_year",
+    "module",
+    "gender",
+    "dob",
+    "social_category",
+    "orphan",
+    "es",
+    "ph",
+    "state",
+    "district",
+    "address",
+    "block",
+    "pin_code",
+    "annual_income",
+    "roll_no",
+    "highest_qualification",
+    "board_exam_name_for_highest_qualification",
+    "examination_board_of_the_highest_qualification",
+    "examination_type",
+    "year_of_passing",
+    "total_marks",
+    "secured_marks",
+    "percentage",
+    "compartmental_status",
+    "hss_option_details",
+    "hss_compartments"
     ]
-    cols_to_drop = [col for col in drop_cols if col in df.columns]
-    df = df.drop(columns=cols_to_drop)
 
-    # Clean income if present
-    if "annual_income" in df.columns:
-        df = _preprocess_income_data(df)
+    # Keep only valid cols present in the dataframe
+    available_cols = [c for c in keep_cols if c in df.columns]
+    df = df[available_cols].copy()
 
-    # Sort by barcode and academic_year if they exist
-    sort_cols = [col for col in ["barcode", "academic_year"] if col in df.columns]
-    if sort_cols:
-        df = df.sort_values(by=sort_cols)
+    # Sort for reproducibility
+    if "aadhar_no" in df.columns and "academic_year" in df.columns:
+        df = df.sort_values(by=["aadhar_no", "academic_year"])
 
     return df
+
  
 def get_priority_admission_status(df: pd.DataFrame, option_col: str = "hss_option_details", id_col: str = "barcode") -> pd.DataFrame:
     """
@@ -390,27 +437,38 @@ def get_priority_admission_status(df: pd.DataFrame, option_col: str = "hss_optio
 
     return pd.DataFrame(extracted)
 
-
-
 def filter_admitted_on_first_choice(hss_admitted_option: pd.DataFrame) -> pd.DataFrame:
     """
-    Filter students who were ADMITTED in their Option 1 choice.
+    Filters students who were admitted under their first-choice option (OptionNo == 1 and AdmissionStatus == 'ADMITTED'),
+    removes unnecessary columns, and reorders the remaining columns for clarity.
 
     Parameters
     ----------
     hss_admitted_option : pd.DataFrame
-        Flattened admitted options per student from hss_option_details.
+        Flattened DataFrame derived from 'hss_option_details', containing student application options.
 
     Returns
     -------
     pd.DataFrame
-        Subset with only students admitted on Option 1.
+        A cleaned and ordered DataFrame containing only first-choice admitted students.
     """
+    # Filter for first-choice admissions
     filtered = hss_admitted_option[
         (hss_admitted_option["OptionNo"].astype(str).str.strip() == "1") &
         (hss_admitted_option["AdmissionStatus"].fillna("").str.strip().str.upper() == "ADMITTED")
     ]
-    return filtered
+
+    # Columns to drop
+    drop_columns = ["ReportedInstitute", "InstituteBlock", "TypeofInstitute", "Year"]
+    filtered = filtered.drop(columns=[col for col in drop_columns if col in filtered.columns])
+
+    # Reorder columns
+    primary_columns = ["barcode", "academic_year"]
+    other_columns = [col for col in filtered.columns if col not in primary_columns]
+    ordered_columns = primary_columns + other_columns
+
+    return filtered[ordered_columns].copy()
+
 
 def analyze_stream_trends(df: pd.DataFrame, option_col: str = "hss_option_details") -> pd.DataFrame:
     """
