@@ -30,6 +30,7 @@ pipeline_configs = {
             "save_nongeocoded_diploma_students",
             "save_interim_iti_institutes",
             "save_interim_diploma_institutes",
+
         ],
         "default_inputs": {"google_maps": True},
     },
