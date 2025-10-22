@@ -1,104 +1,135 @@
+import os
+import json
+from datetime import date
+from unittest.mock import patch, MagicMock, call
 import pytest
 import pandas as pd
-import sqlite3
+import ibis
+import ibis.expr.types as ir
+
 from sams.preprocessing import deg_pipeline
-from hamilton import driver
-from unittest.mock import MagicMock, patch
 
+# Tests for core logic 
+def test_sams_db_uses_existing_db(monkeypatch):
+    """Verify sams_db connects correctly when an existing DB is found."""
+    # Mock DB existence and ibis connection
+    monkeypatch.setattr("pathlib.Path.exists", lambda self: True)
+    mock_connect = MagicMock(return_value="fake_db_connection")
+    monkeypatch.setattr(ibis.duckdb, "connect", mock_connect)
+
+    # Should return mocked DB connection
+    assert deg_pipeline.sams_db(build=False) == "fake_db_connection"
 
 @pytest.fixture
-def sample_deg_df():
-    return pd.DataFrame({
-        "barcode": ["B1", "B2"],
-        "aadhar_no": ["1111", "2222"],
-        "academic_year": [2018, 2018],
+def enroll_data_fixture():
+    """Minimal data ONLY for testing enrollment cleaning.
+    This data is pre-filtered, just as it would be in the real pipeline.
+    """
+    df = pd.DataFrame({
         "module": ["DEG", "DEG"],
-        "gender": ["M", "F"],
-        "dob": ["2000-01-01", "1999-12-31"],
-        "orphan": ["Yes", "No"],
-        "es": ["No", "Yes"],
-        "ph": ["No", "No"],
-        "sports": ["Yes", "No"],
-        "national_cadet_corps": ["No", "Yes"],
-        "district": ["A", "B"],
-        "state": ["X", "Y"],
-        "address": ["Addr 1", "Addr 2"],
-        "block": ["Block A", "Block B"],
-        "pin_code": ["123456", "789012"],
+        "academic_year": [2022, 2021],
+        "dob": ["2000-01-01", "na"],
+        "orphan": ["Yes", " "],
+        "percentage": ["95.5", "80"],
+        "nationality": ["Indian", "Other"],
+        "empty_col": [None, None], 
     })
+    df['empty_col'] = df['empty_col'].astype('float64')
+    return ibis.memtable(df)
 
+
+def test_preprocess_deg_enrollment(enroll_data_fixture):
+    """Test cleaning, sorting, and column dropping for enrollments."""
+    # The function first filters for 'DEG', leaving 2 rows, then processes.
+    result_df = deg_pipeline.preprocess_deg_enrollment(enroll_data_fixture).execute()
+    
+    # Check cleaned and sorted output
+    assert len(result_df) == 2
+    assert result_df["academic_year"].tolist() == [2021, 2022] # Check sorting
+    assert result_df["orphan"].tolist() == [None, True] # Check cleaning
+    assert "nationality" not in result_df.columns # Check column dropping
+    assert "empty_col" not in result_df.columns
 
 @pytest.fixture
-def mock_conn():
-    return MagicMock(spec=sqlite3.Connection)
+def apps_data_fixture():
+    """Minimal data ONLY for testing application unnesting."""
+    apps_json = json.dumps([{"OptionNo": "1", "Stream": "ARTS"}, {"OptionNo": "2", "Stream": "SCIENCE"}])
+    df = pd.DataFrame({
+        "module": ["DEG", "DEG"],
+        "academic_year": [2022, 2022], "aadhar_no": ["1111", "2222"], "barcode": ["B1", "B2"],
+        "deg_option_details": [apps_json, '[]']
+    })
+    return ibis.memtable(df)
 
+def test_preprocess_deg_applications(apps_data_fixture):
+    """Test JSON unnesting for applications."""
+    result_df = deg_pipeline.preprocess_deg_applications(apps_data_fixture).execute()
+    # Only one student has valid options (2 expected rows)
+    assert len(result_df) == 2
+    assert result_df["aadhar_no"].unique().tolist() == ["1111"]
+    assert result_df["num_applications"].tolist() == [2, 2]
 
-@patch("sams.preprocessing.deg_pipeline.sqlite3.connect")
-def test_sams_db_load(mock_sqlite, mock_conn):
-    # Simulate existing database (no build)
-    mock_sqlite.return_value = mock_conn
-    db = deg_pipeline.sams_db(build=False)
-    assert isinstance(db, sqlite3.Connection)
+@pytest.fixture
+def marks_data_fixture():
+    """Minimal DEG marks data with compartment info."""
+    comps_json = json.dumps([
+        {"COMPSubject": "Physics"},
+        {"COMPSubject": "Chemistry"}
+    ])
+    df = pd.DataFrame({
+        "module": ["DEG", "DEG"],
+        "academic_year": [2022, 2022],
+        "aadhar_no": ["1111", "2222"],
+        "barcode": ["B1", "B2"],
+        "deg_compartments": [comps_json, '[]'],
+        "highest_qualification": ["+2 Sci", "+2 Arts"],
+        "total_marks": [500, 500],
+        "secured_marks": [450, 400],
+        "board_exam_name_for_highest_qualification": ["CHSE", "CHSE"],
+        "examination_board_of_the_highest_qualification": ["CHSE", "CHSE"],
+        "examination_type": ["Annual", "Annual"],
+        "year_of_passing": [2022, 2022],
+        "percentage": [90.0, 80.0],
+        "compartmental_status": [True, False],
+    })
+    return ibis.memtable(df)
 
+def test_preprocess_deg_marks(marks_data_fixture):
+    """Check compartment unnesting and left join correctness."""
+    result_df = deg_pipeline.preprocess_deg_marks(marks_data_fixture).execute()
 
-@patch("sams.preprocessing.deg_pipeline.pd.read_sql_query")
-@patch("sams.preprocessing.deg_pipeline.sqlite3.connect")
-def test_deg_raw(mock_sqlite, mock_read_sql, sample_deg_df):
-    # Mock connection + SQL result
-    mock_sqlite.return_value = MagicMock()
-    mock_read_sql.return_value = sample_deg_df  
+    # Expect 3 rows: 2 for student 1111 + 1 for 2222
+    assert len(result_df) == 3
+    assert sorted(result_df["aadhar_no"].unique()) == ["1111", "2222"]
 
-    result = deg_pipeline.deg_raw(mock_sqlite.return_value, "DEG")
-    assert isinstance(result, pd.DataFrame)
-    assert result.shape[0] == 2
-    assert result["module"].unique().tolist() == ["DEG"]
+    # Ensure student without compartments retains data
+    student_2_row = result_df[result_df["aadhar_no"] == "2222"].iloc[0]
+    assert pd.isna(student_2_row["comp_subject"])
+    assert student_2_row["highest_qualification"] == "+2 Arts"
 
+# Tests for side effects 
+def test_save_deg_data(monkeypatch, tmp_path):
+    """Test save_deg_data handles file creation and SQL execution."""
+    dummy_table = ibis.memtable(pd.DataFrame({"a": [1]}))
+    fake_output_path = tmp_path / "data.pq"
 
-def test_preprocess_deg_enrollment(sample_deg_df):
-    result = deg_pipeline.preprocess_deg_students_enrollment_data(sample_deg_df)
-    assert isinstance(result, pd.DataFrame)
-    assert "address" in result.columns
-    assert pd.api.types.is_bool_dtype(result["ph"])  
+    # Mock external dependencies and connection
+    monkeypatch.setattr(deg_pipeline, "datasets", {"deg_data": {"path": str(fake_output_path)}})
+    monkeypatch.setattr(os, "makedirs", MagicMock())
+    mock_con_execute = MagicMock()
+    mock_backend = MagicMock(con=MagicMock(execute=mock_con_execute))
+    monkeypatch.setattr(ir.Table, "_find_backend", lambda self: mock_backend)
+    
+    # Execute function
+    deg_pipeline.save_deg_data(df=dummy_table, dataset_key="deg_data")    
+    
+    # Validate two SQL commands executed (PRAGMA, COPY)
+    assert mock_con_execute.call_count == 2
 
-
-@patch("sams.preprocessing.deg_pipeline.save_data")
-def test_save_deg_data(mock_save, sample_deg_df):
-    # Mock the save function and test wrapper
-    mock_save.return_value = sample_deg_df  
-
-    result = deg_pipeline.save_data(sample_deg_df, dataset_key="deg_enrollments")
-    mock_save.assert_called_once()
-    assert isinstance(result, pd.DataFrame)
-    assert result.equals(sample_deg_df)
-
-
-def test_deg_pipeline_dag(sample_deg_df, monkeypatch):
-    """Full DAG test using mocked deg_raw and save_data."""
-
-    # Prevent saving to disk
-    monkeypatch.setattr(deg_pipeline, "save_data", lambda df, path: None)
-
-    # Monkeypatch deg_raw with matching signature
-    def mocked_deg_raw(build: bool, sams_db, module: str):
-        return sample_deg_df
-
-    deg_pipeline.deg_raw = mocked_deg_raw  
-
-    # Build DAG
-    dag_driver = (
-        driver.Builder()
-        .with_modules(deg_pipeline)
-        .with_config({"module": "DEG"})
-        .build()
-    )
-
-    # Execute DAG
-    results = dag_driver.execute(
-        final_vars=["save_deg_enrollments"],
-        inputs={"build": False, "sams_db": "mock_conn", "deg_raw": sample_deg_df,}
-        )
-
-    assert "save_deg_enrollments" in results
-    result_df = results["save_deg_enrollments"]
-    assert isinstance(result_df, pd.DataFrame)
-    assert not result_df.empty
+    # Verify COPY SQL call
+    copy_sql_call = call(f"""
+        COPY ({dummy_table.compile()})
+        TO '{fake_output_path}'
+        (FORMAT PARQUET, ROW_GROUP_SIZE 500000, COMPRESSION 'zstd');
+        """)
+    mock_con_execute.assert_has_calls([copy_sql_call])
