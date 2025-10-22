@@ -1,16 +1,24 @@
 import sys
 from hamilton import driver
-from sams.preprocessing import iti_diploma_pipeline, hss_pipeline
+from sams.preprocessing import iti_diploma_pipeline, hss_pipeline, deg_pipeline
 
 # Pipeline configurations
 pipeline_configs = {
+    "deg": {
+        "module": deg_pipeline,
+        "default_nodes":[
+            "save_deg_enrollments",
+            "save_deg_applications",
+            "save_deg_marks",
+        ],
+        "default_inputs": {},
+    },  
     "hss": {
         "module": hss_pipeline,
         "default_nodes": [
             "save_hss_enrollments",
             "save_hss_applications",
             "save_hss_marks",
-            "save_hss_first_choice_admissions",
         ],
         "default_inputs": {},
     },
@@ -45,10 +53,20 @@ def run_pipeline(pipeline_name, build=False, override_nodes=None):
 
 def main(args):
     build_mode = "build" in args
-    for pipeline_name in pipeline_configs:
+
+    # Example usage: python scripts/preprocess_data.py deg save_deg_applications
+    if len(args) >= 3:
+        pipeline_name = args[1]
+        node_name = args[2]
+        run_pipeline(pipeline_name, build=build_mode, override_nodes=[node_name])
+    elif len(args) >= 2:
+        pipeline_name = args[1]
         run_pipeline(pipeline_name, build=build_mode)
+    else:
+        # Default: run all pipelines
+        for pipeline_name in pipeline_configs:
+            run_pipeline(pipeline_name, build=build_mode)
 
 
 if __name__ == "__main__":
     main(sys.argv)
-
