@@ -24,7 +24,13 @@ def hss_sample_df():
         'hss_compartments': [json.dumps([{"COMPSubject": "Math", "COMPFailMark": 12, "COMPPassMark": 35}]), "null"],
         'barcode': ['ABC123', 'XYZ456'],
         'academic_year': ['2023-24', '2023-24'],
-        'compartmental_status': ['Yes', 'No']
+        'compartmental_status': ['Yes', 'No'],
+        'aadhar_no': ['1111', '2222'],
+        'module': ['HSS','HSS'],
+        'board_exam_name_for_highest_qualification': ['Board of Secondary Education, Orissa, Cuttack', 'Central Board of Secondary Education, Sikhya Kendra, Delhi'],
+        'highest_qualification': ['10th','12th'],
+        'examination_board_of_the_highest_qualification': ['BSE, Odisha', 'CBSE, New Delhi'],
+        'examination_type': ['Annual', 'Supplementary'],
     })
 
 
@@ -101,8 +107,8 @@ def test_extract_hss_compartments(hss_sample_df):
 # Test: preprocess_students_compartment_marks
 def test_preprocess_students_compartment_marks(hss_sample_df):
     result = hss.preprocess_students_compartment_marks(hss_sample_df)
-    assert "subject" in result.columns
-    assert result.iloc[0]["subject"] == "Math"
+    assert "comp_subject" in result.columns
+    assert result.iloc[0]["comp_subject"] == "Math"
 
 
 # Test: preprocess_hss_students_enrollment_data
@@ -123,7 +129,9 @@ def test_get_priority_admission_status(hss_sample_df):
 def test_filter_admitted_on_first_choice():
     df = pd.DataFrame({
         'OptionNo': ['1', '2'],
-        'AdmissionStatus': ['ADMITTED', 'SELECTED BUT NOT ADMITTED']
+        'AdmissionStatus': ['ADMITTED', 'SELECTED BUT NOT ADMITTED'],
+        'barcode': ['ABC123', 'XYZ456'],
+        'academic_year': ['2023-24', '2023-24']
     })
     result = hss.filter_admitted_on_first_choice(df)
     assert result.shape[0] == 1

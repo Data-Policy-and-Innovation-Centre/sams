@@ -58,7 +58,7 @@ def sams_db(build: bool = True) -> Any:
 
     raise FileNotFoundError(f"Database not found at {SAMS_DB}")
 
-# Load Raw DEG Student Data
+# ===== Load Raw HSS Student Data =====
 @parameterize(
     hss_raw=dict(sams_db=source("sams_db"), module=value("HSS")),
 )
