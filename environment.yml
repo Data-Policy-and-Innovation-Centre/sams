@@ -23,6 +23,9 @@ dependencies:
   - scikit-learn
   - rapidfuzz
   - great-expectations
+  - ibis-framework
+  - duckdb
+  - psutil
   - pip:
     - python-dotenv
     - mkdocs
