@@ -11,6 +11,8 @@ from geopy import Location
 import geopandas as gpd
 import pickle
 from rapidfuzz import process, fuzz
+from base64 import b64decode
+from Crypto.Cipher import AES
 
 
 def save_data(df: pd.DataFrame, metadata: dict):
@@ -472,7 +474,53 @@ def fuzzy_merge(df1: pd.DataFrame, df2: pd.DataFrame, how: str, fuzzy_on: str, e
     right_on = exact_on + [fuzzy_on]
     return pd.merge(df1, df2, how=how, left_on=left_on, right_on=right_on)
 
-    
+
+def decrypt_roll(enc_text: str, key: bytes = b"y6idXfCVRG5t2dkeBnmHy9jLu6TEn5Du") -> str | None:
+    """
+    Decrypts an encrypted roll number.
+
+    This function takes a Base64-encoded string that was encrypted using AES
+    (ECB mode) and returns the original roll number as a readable string. 
+    If decryption fails or the input is invalid, it returns None.
+
+    Args:
+        enc_text (str): Encrypted roll number (Base64-encoded).
+        key (bytes, optional): AES encryption key. Defaults to a fixed key.
+
+    Returns:
+        str | None: Decrypted roll number, or None if invalid or decryption fails.
+    """
+    try:
+        # Return None if input is empty or not a string
+        if not enc_text or not isinstance(enc_text, str):
+            return None
+
+        # Decode Base64 to get the encrypted bytes
+        raw = b64decode(enc_text)
+
+        # Initialize AES cipher in ECB mode
+        cipher = AES.new(key, AES.MODE_ECB)
+
+        # Decrypt the bytes
+        decrypted = cipher.decrypt(raw)
+
+        # Get padding length from the last byte and validate
+        pad_len = decrypted[-1]
+        if pad_len < 1 or pad_len > 16:
+            return None
+
+        # Remove padding
+        decrypted = decrypted[:-pad_len]
+
+        # Convert bytes to string and strip whitespace
+        roll_no = decrypted.decode("utf-8").strip()
+        return roll_no
+
+    except Exception:
+        # Return None if any error occurs (decoding, decryption, etc.)
+        return None
+
+
 if __name__ == "__main__":
     from sams.config import datasets
     df = load_data(datasets["iti_enrollments"])

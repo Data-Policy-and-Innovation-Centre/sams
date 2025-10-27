@@ -12,7 +12,8 @@ from sams.utils import (
     hours_since_creation,
     fuzzy_merge,
     best_fuzzy_match,
-    _group_dict
+    _group_dict,
+    decrypt_roll 
 )
 
 
@@ -207,8 +208,38 @@ def test_fuzzy_merge_with_duplicates():
     assert result["value"].isin([10, 20]).all()  # Both matches valid
 
 
+def test_decrypt_success():
+    """Check that a valid encrypted roll number is decrypted correctly."""
+    encrypted_roll = "BjmySEYFgo9nafRPCvdRxQ=="
+    expected_roll = "001AA0001"
+    
+    assert decrypt_roll(encrypted_roll) == expected_roll
 
 
+@pytest.mark.parametrize(
+    "invalid_input, desc",
+    [
+        (None, "None input"),
+        ("", "Empty string"),
+        (12345, "Integer input"),
+        (["list"], "List input"),
+        ("invalid-base64-string", "Invalid Base64"),
+        ("a short", "Incorrect Base64 length"),
+        ("YWJjZA==", "Valid Base64 but invalid AES block size"),
+        ("gASVBGAAAAAAAACMCGVycm9ycy5Db3JydXB0RGF0YUVycm9yqXEu", "Corrupted data"),
+    ],
+)
+def test_decrypt_invalid(invalid_input, desc):
+    """Check that invalid inputs return None."""
+    assert decrypt_roll(invalid_input) is None
+
+
+def test_decrypt_wrong_key():
+    """Check that decryption fails with a wrong AES key."""
+    encrypted_roll = "1E5n/3s3f2a8qN4/n3gVlA=="
+    wrong_key = b'this is the wrong 32 byte key!!'
+    
+    assert decrypt_roll(encrypted_roll, key=wrong_key) is None
 
 if __name__ == "__main__":
     pytest.main()
