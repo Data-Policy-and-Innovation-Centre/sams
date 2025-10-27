@@ -11,5 +11,4 @@ class Endpoints:
         return f"{self.BASE_URL}GetHSSStudentData"
     
     def get_deg_student_data(self):
-        return f"{self.BASE_URL}GETDEGStudentData"
-
+        return f"{self.BASE_URL}GetDEGStudentData"
