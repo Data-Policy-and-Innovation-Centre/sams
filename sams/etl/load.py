@@ -42,7 +42,7 @@ class Student(Base):
     student_name = Column(String, nullable=False)
     gender = Column(String, nullable=True)
     religion_name = Column(String, nullable=True)
-    dob = Column(String, nullable=True)  # Date of Birth
+    dob = Column(String, nullable=True) 
     nationality = Column(String, nullable=True)
     annual_income = Column(String, nullable=True)
     address = Column(String, nullable=True)
@@ -93,8 +93,8 @@ class Student(Base):
     application_status = Column(String, nullable=True)
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
-    mark_data = Column(JSON, nullable=True)  # Could be JSON or a specific format
-    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS", "DEG"), nullable=False)
+    mark_data = Column(JSON, nullable=True)  
+    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS", "DEG", "CHSE", "BSE"), nullable=False)
     academic_year = Column(Integer, nullable=False)
     contact_no = Column(String, nullable=True)
     option_data = Column(JSON, nullable=True)
@@ -115,6 +115,54 @@ class Student(Base):
     
     deg_option_details = Column(JSON, nullable=True)
     deg_compartments = Column(JSON, nullable=True)
+    
+    # CHSE result fields
+    father_name = Column(String, nullable=True)
+    mother_name = Column(String, nullable=True)
+    division = Column(String, nullable=True)
+    stream = Column(String, nullable=True)
+    mil = Column(String, nullable=True)
+    mil_marks = Column(String, nullable=True)
+    english = Column(String, nullable=True)
+    english_marks = Column(String, nullable=True)
+    ele1 = Column(String, nullable=True)
+    ele1_marks = Column(String, nullable=True)
+    ele1_pr_marks = Column(String, nullable=True)
+    ele2 = Column(String, nullable=True)
+    ele2_marks = Column(String, nullable=True)
+    ele2_pr_marks = Column(String, nullable=True)
+    ele3 = Column(String, nullable=True)
+    ele3t1_marks = Column(String, nullable=True)
+    ele3t2_marks = Column(String, nullable = True)
+    ele3_pr1_marks = Column(String, nullable=True)
+    ele3_pr2_marks = Column(String, nullable=True)
+    ele3_pr2_sub_marks = Column(String, nullable=True)
+    vchele4_sub = Column(String, nullable=True)
+    ele4t1_sub_marks = Column(String, nullable=True)
+    ele4t2_sub_marks = Column(String, nullable=True)
+    ele4_pr1_sub_marks = Column(String, nullable=True)
+    ele4_pr2_sub_marks = Column(String, nullable=True)
+    institute = Column(String, nullable=True)
+    exam_type = Column(String, nullable=True)
+    
+    # BSE columns
+    uin_no = Column(String, nullable=True)
+    result_grade = Column(String, nullable=True)
+    result_sts = Column(Integer, nullable=True)
+    candi_name = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    sch_code = Column(String, nullable=True)
+    sch_name = Column(String, nullable=True)
+    dist_code = Column(String, nullable=True)
+    dist_name = Column(String, nullable=True)
+    fl_tmark = Column(String, nullable=True)
+    sl_tmark = Column(String, nullable=True)
+    tl_tmark = Column(String, nullable=True)
+    mth_tmark = Column(String, nullable=True)
+    gsc_tmark = Column(String, nullable=True)
+    ssc_tmark = Column(String, nullable=True)
+    agr_total = Column(String, nullable=True)
+    full_mark = Column(String, nullable=True)
 
 
     # Example of a unique constraint if needed
@@ -219,22 +267,45 @@ class SamsDataLoader:
         session = self.Session()
 
         data = [dict_camel_to_snake_case(unit) for unit in data]
-        # If module is HSS and DEG, rename fields
+
+        # Rename maps
         HSS_RENAME_FIELDS = {
             'yearof_passing': 'year_of_passing',
             'examination_boardofthe_highest_qualification': 'examination_board_of_the_highest_qualification',
-            'board_exam_namefor_highest_qualification':'board_exam_name_for_highest_qualification'
+            'board_exam_namefor_highest_qualification': 'board_exam_name_for_highest_qualification',
         }
-        # Rename DEG and HSS-specific fields to match database schema
+
+        BSE_CHSE_RENAME_FIELDS = {
+            'marksecured': 'secured_marks',
+            'total_mark': 'total_marks',
+            'registration_no': 'registration_number',
+            'rollno': 'roll_no',
+        }
+
+
+        # Rename fields for each record based on module
         for unit in data:
             module_name = unit.get('module')
-            if module_name in {'HSS','DEG'}:
+
+            if module_name in {'HSS', 'DEG'}:
                 for old_key, new_key in HSS_RENAME_FIELDS.items():
                     if old_key in unit:
                         unit[new_key] = unit.pop(old_key)
-                # Add DEG/HSS-specific defaults if needed
+
                 if unit.get('year') is None:
                     unit['year'] = 0
+
+            elif module_name in {'CHSE', 'BSE'}:
+                for old_key, new_key in BSE_CHSE_RENAME_FIELDS.items():
+                    if old_key in unit:
+                        unit[new_key] = unit.pop(old_key)
+
+                if unit.get('year') is None:
+                    unit['year'] = 0
+                    # Fix for BSE only
+                    if module_name == 'BSE' and unit.get('candi_name') and not unit.get('student_name'):
+                        unit['student_name'] = unit['candi_name']
+
 
         if table_name == "students":
             Unit = Student
@@ -243,9 +314,9 @@ class SamsDataLoader:
         else:
             raise ValueError(f"Invalid table name: {table_name}")
         
-        # Optimization: skip bulk for HSS and DEG students (bulk_save_objects has problems with JSON + Enum)
-        if table_name == "students" and any(unit.get("module") in {"HSS", "DEG"} for unit in data):
-            print("HSS, DEG data detected — using individual inserts.")
+        # Optimization: skip bulk (bulk_save_objects has problems with JSON + Enum)
+        if table_name == "students" and any(unit.get("module") in {"HSS", "DEG", "CHSE"} for unit in data):
+            print("HSS, DEG, CHSE, BSE  data detected — using individual inserts.")
             self.load(data, table_name)
             return
     
@@ -584,8 +655,8 @@ def main():
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
 
-    target_module = "PDIS"  # change as needed
-    target_years = [2024]   # list of years to process
+    target_module = "BSE"  # change as needed
+    target_years = [2025]   # list of years to process
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()
