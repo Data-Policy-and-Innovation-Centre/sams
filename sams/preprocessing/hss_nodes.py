@@ -204,7 +204,6 @@ def extract_hss_options(students_table: ibis.Table, option_col: str = "hss_optio
         "ReportedInstitute": "reported_institute",
         "SAMSCode": "sams_code",
         "Stream": "stream",
-        "Subject": "subject",
         "InstituteDistrict": "institute_district",
         "InstituteBlock": "institute_block",
         "TypeofInstitute": "type_of_institute",
@@ -214,12 +213,12 @@ def extract_hss_options(students_table: ibis.Table, option_col: str = "hss_optio
     }
 
     string_mutations = {
-        final_name: L.option_object[json_key].cast('string').replace('"', '')
+        final_name: L.option_object[json_key].cast("string").nullif("null").replace('"', "")
         for json_key, final_name in json_to_column_map.items()
     }
     
     other_mutations = {
-        "option_no": L.option_object["OptionNo"].cast('string').re_extract(r'(\d+)$', 1).nullif('').cast('int32')
+        "option_no": L.option_object["OptionNo"].cast('string').re_extract(r"(\d+)", 1).nullif('').cast('int32')
     }
 
     all_mutations = {**other_mutations, **string_mutations}
@@ -228,7 +227,7 @@ def extract_hss_options(students_table: ibis.Table, option_col: str = "hss_optio
     # Select final cleaned columns
     final_columns = [
         aadhar_col, id_col, year_col, "reported_institute", "sams_code",
-        "stream", "subject", "institute_district", "institute_block", "type_of_institute",
+        "stream", "institute_district", "institute_block", "type_of_institute",
         "phase", "year", "admission_status", "option_no", "num_applications"
     ]
     df_options = df_options.select(final_columns)
