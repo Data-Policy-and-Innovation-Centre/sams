@@ -27,6 +27,7 @@ from sams.utils import (
 import os
 from numpy import nan
 import warnings
+from sqlalchemy.pool import NullPool
 
 warnings.filterwarnings("ignore")
 
@@ -94,7 +95,7 @@ class Student(Base):
     aadhar_no = Column(String, nullable=True)
     registration_number = Column(String, nullable=True)
     mark_data = Column(JSON, nullable=True)  
-    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS", "DEG", "CHSE", "BSE"), nullable=False)
+    module = Column(Enum("ITI", "Diploma", "PDIS", "HSS", "DEG"), nullable=False)
     academic_year = Column(Integer, nullable=False)
     contact_no = Column(String, nullable=True)
     option_data = Column(JSON, nullable=True)
@@ -116,54 +117,6 @@ class Student(Base):
     deg_option_details = Column(JSON, nullable=True)
     deg_compartments = Column(JSON, nullable=True)
     
-    # CHSE result fields
-    father_name = Column(String, nullable=True)
-    mother_name = Column(String, nullable=True)
-    division = Column(String, nullable=True)
-    stream = Column(String, nullable=True)
-    mil = Column(String, nullable=True)
-    mil_marks = Column(String, nullable=True)
-    english = Column(String, nullable=True)
-    english_marks = Column(String, nullable=True)
-    ele1 = Column(String, nullable=True)
-    ele1_marks = Column(String, nullable=True)
-    ele1_pr_marks = Column(String, nullable=True)
-    ele2 = Column(String, nullable=True)
-    ele2_marks = Column(String, nullable=True)
-    ele2_pr_marks = Column(String, nullable=True)
-    ele3 = Column(String, nullable=True)
-    ele3t1_marks = Column(String, nullable=True)
-    ele3t2_marks = Column(String, nullable = True)
-    ele3_pr1_marks = Column(String, nullable=True)
-    ele3_pr2_marks = Column(String, nullable=True)
-    ele3_pr2_sub_marks = Column(String, nullable=True)
-    vchele4_sub = Column(String, nullable=True)
-    ele4t1_sub_marks = Column(String, nullable=True)
-    ele4t2_sub_marks = Column(String, nullable=True)
-    ele4_pr1_sub_marks = Column(String, nullable=True)
-    ele4_pr2_sub_marks = Column(String, nullable=True)
-    institute = Column(String, nullable=True)
-    exam_type = Column(String, nullable=True)
-    
-    # BSE columns
-    uin_no = Column(String, nullable=True)
-    result_grade = Column(String, nullable=True)
-    result_sts = Column(Integer, nullable=True)
-    candi_name = Column(String, nullable=True)
-    category = Column(String, nullable=True)
-    sch_code = Column(String, nullable=True)
-    sch_name = Column(String, nullable=True)
-    dist_code = Column(String, nullable=True)
-    dist_name = Column(String, nullable=True)
-    fl_tmark = Column(String, nullable=True)
-    sl_tmark = Column(String, nullable=True)
-    tl_tmark = Column(String, nullable=True)
-    mth_tmark = Column(String, nullable=True)
-    gsc_tmark = Column(String, nullable=True)
-    ssc_tmark = Column(String, nullable=True)
-    agr_total = Column(String, nullable=True)
-    full_mark = Column(String, nullable=True)
-
 
     # Example of a unique constraint if needed
     __table_args__ = (
@@ -214,6 +167,79 @@ class Institute(Base):
     )
 
 
+class Result(Base):
+    __tablename__ = "results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    academic_year = Column(Integer, nullable=False)
+    module = Column(Enum("CHSE", "BSE"), nullable=False)
+    
+    # Common Columns
+    roll_no = Column(String, nullable=True)
+    student_name = Column(String, nullable=True) 
+    father_name = Column(String, nullable=True)
+    mother_name = Column(String, nullable=True)
+    secured_marks = Column(String, nullable=True)
+    total_marks = Column(String, nullable=True)
+
+    # BSE Specific
+    uin_no = Column(String, nullable=True)
+    result_grade = Column(String, nullable=True)
+    result_sts = Column(String, nullable=True)
+    dob = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    sch_code = Column(String, nullable=True)
+    sch_name = Column(String, nullable=True)
+    dist_code = Column(String, nullable=True)
+    dist_name = Column(String, nullable=True)
+    fl_tmark = Column(String, nullable=True)
+    sl_tmark = Column(String, nullable=True)
+    tl_tmark = Column(String, nullable=True)
+    mth_tmark = Column(String, nullable=True)
+    gsc_tmark = Column(String, nullable=True)
+    ssc_tmark = Column(String, nullable=True)
+
+    # CHSE Specific
+    registration_number = Column(String, nullable=True)
+    division = Column(String, nullable=True)
+    stream = Column(String, nullable=True)
+    mil = Column(String, nullable=True)
+    mil_marks = Column(String, nullable=True)
+    english = Column(String, nullable=True)
+    english_marks = Column(String, nullable=True)
+    ele1 = Column(String, nullable=True)
+    ele1_marks = Column(String, nullable=True)
+    ele1_pr_marks = Column(String, nullable=True)
+    ele2 = Column(String, nullable=True)
+    ele2_marks = Column(String, nullable=True)
+    ele2_pr_marks = Column(String, nullable=True)
+    ele3 = Column(String, nullable=True)
+    ele3t1_marks = Column(String, nullable=True)
+    ele3t2_marks = Column(String, nullable = True)
+    ele3_pr1_marks = Column(String, nullable=True)
+    ele3_pr2_marks = Column(String, nullable=True)
+    ele3_pr2_sub_marks = Column(String, nullable=True)
+    vchele4_sub = Column(String, nullable=True)
+    ele4t1_sub_marks = Column(String, nullable=True)
+    ele4t2_sub_marks = Column(String, nullable=True)
+    ele4_pr1_sub_marks = Column(String, nullable=True)
+    ele4_pr2_sub_marks = Column(String, nullable=True)
+    institute = Column(String, nullable=True)
+    exam_type = Column(String, nullable=True)
+    barcode = Column(String, nullable=True)
+
+
+    __table_args__ = (
+        UniqueConstraint(
+            "roll_no",
+            "module",
+            "academic_year",
+            name="uq_roll_module_year",
+        ),
+    )
+    
+
 class SamsDataLoader:
     def __init__(self, db_url):
         """
@@ -226,7 +252,7 @@ class SamsDataLoader:
             None
         """
         if db_url.startswith("sqlite"):
-            self.engine = create_engine(db_url, echo = False)
+            self.engine = create_engine(db_url, echo = False, poolclass=NullPool) # <--- ADD poolclass=NullPool
         else:
             self.engine = create_engine(db_url, echo=False, pool_size=20, max_overflow=10)
         Base.metadata.create_all(self.engine)
@@ -243,7 +269,7 @@ class SamsDataLoader:
         Returns:
             None
         """
-        if table_name not in ["institutes", "students"]:
+        if table_name not in ["institutes", "students", "results"]:
             raise ValueError(f"Invalid table name: {table_name}")
 
         with tqdm(total=len(data), desc=f"Loading {table_name} data") as pbar:
@@ -277,11 +303,12 @@ class SamsDataLoader:
 
         BSE_CHSE_RENAME_FIELDS = {
             'marksecured': 'secured_marks',
+            'agr_total': 'secured_marks',
+            'full_mark': 'total_marks',
             'total_mark': 'total_marks',
             'registration_no': 'registration_number',
             'rollno': 'roll_no',
         }
-
 
         # Rename fields for each record based on module
         for unit in data:
@@ -300,22 +327,21 @@ class SamsDataLoader:
                     if old_key in unit:
                         unit[new_key] = unit.pop(old_key)
 
-                if unit.get('year') is None:
-                    unit['year'] = 0
-                    # Fix for BSE only
-                    if module_name == 'BSE' and unit.get('candi_name') and not unit.get('student_name'):
-                        unit['student_name'] = unit['candi_name']
+                if module_name == 'BSE' and 'candi_name' in unit:
+                    unit['student_name'] = unit.pop('candi_name')
 
 
         if table_name == "students":
             Unit = Student
         elif table_name == "institutes":
             Unit = Institute
+        elif table_name == "results":
+            Unit = Result
         else:
             raise ValueError(f"Invalid table name: {table_name}")
         
         # Optimization: skip bulk (bulk_save_objects has problems with JSON + Enum)
-        if table_name == "students" and any(unit.get("module") in {"HSS", "DEG", "CHSE"} for unit in data):
+        if table_name == "students"and any(unit.get("module") in {"HSS", "DEG", "CHSE"} for unit in data):
             print("HSS, DEG, CHSE, BSE  data detected — using individual inserts.")
             self.load(data, table_name)
             return
@@ -349,11 +375,13 @@ class SamsDataLoader:
 
         Returns:
             bool: True if data was successfully added, False otherwise.
-        """
+                """
         if table_name == "students":
             return self._add_student(data)
-        else:
+        elif table_name == "institutes":
             return self._add_institute(data)
+        else: 
+            return self._add_result(data)
 
     def _add_student(self, data: dict) -> bool:
         """
@@ -439,15 +467,57 @@ class SamsDataLoader:
         finally:
             session.close()
             return success
+        
+        
+    def _add_result(self, data: dict) -> bool:
+        """
+        Adds the given result data to the database.
 
+        Args:
+            data (dict): Dictionary containing result data.
+
+        Returns:
+            bool: True if result data was successfully added, False otherwise.
+        """
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary")
+        
+        data = dict_camel_to_snake_case(data)
+        
+        session = self.Session()
+        success = False
+        try:
+            result = Result(**data)
+            session.add(result)
+            session.commit()
+            success = True
+        except IntegrityError as e:
+            session.rollback()
+            if "UNIQUE constraint failed" in str(e):
+                logger.warning(
+                    f"Skipping duplicate result: {data.get('roll_no')} - {data.get('module')} - {data.get('academic_year')}"
+                )
+            else:
+                logger.error(f"Error adding result: {e}")
+            success = False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error adding result: {e}")
+            success = False
+        finally:
+            session.close()
+            return success
+        
     def get_existing_modules(self, table_name: str) -> list:
-        if table_name not in ["students", "institutes"]:
+        if table_name not in ["students", "institutes","results"]:
             raise ValueError(f"Table name not supported: {table_name}")
 
         if table_name == "students":
             return self._get_student_modules()
-        else:
+        elif table_name == "institutes":
             return self._get_institute_modules()
+        else:
+            return self._get_result_modules()
 
     def _get_student_modules(self):
         session = self.Session()
@@ -562,6 +632,55 @@ class SamsDataLoader:
 
         return existing_modules
 
+
+    def _get_result_modules(self):
+        """
+        Retrieves result module records grouped by module and academic year,
+        compares their counts with expected counts, and identifies modules with excess records.
+
+        Returns:
+            list of tuple: A list of tuples (module, academic_year) for which
+            the actual count is greater than or equal to the expected count.
+        """
+        session = self.Session()
+        expected_counts = self._get_counts("results")
+
+        result_modules = (
+            session.query(Result.module, Result.academic_year, func.count(Result.id))
+            .group_by(Result.module, Result.academic_year)
+            .all()
+        )
+
+        existing_modules = [
+            (module, year)
+            for module, year, count in result_modules
+            if count
+            >= expected_counts.loc[
+                (expected_counts["module"] == module)
+                & (expected_counts["academic_year"] == year),
+                "count",
+            ].iloc[0]
+        ]
+
+        excess_modules = [
+            (module, year, count)
+            for module, year, count in result_modules
+            if count
+            > expected_counts.loc[
+                (expected_counts["module"] == module)
+                & (expected_counts["academic_year"] == year),
+                "count",
+            ].iloc[0]
+        ]
+
+        if excess_modules:
+            logger.warning(
+                f"Modules with excess result records than expected found: {excess_modules}"
+            )
+
+        session.close()
+        return existing_modules
+        
     def _get_counts(self, table_name: str) -> pd.DataFrame:
         counts_path = os.path.join(LOGS, f"{table_name}_count.csv")
 
@@ -655,8 +774,8 @@ def main():
     loader = SamsDataLoader(db_url)
     downloader = SamsDataDownloader()
 
-    target_module = "BSE"  # change as needed
-    target_years = [2025]   # list of years to process
+    target_module = "PDIS"  # change as needed
+    target_years = list(range(2020, 2026))  # list of yearcleas to process
     checkpoint_every = 10
 
     checkpoint = load_checkpoint()
@@ -687,13 +806,14 @@ def main():
 
             while True:
                 try:
+                    # change fetch_students to fetch_results or fetch_institutes if needed
                     data = downloader.fetch_students(target_module, year, page_number=current_page, pandify=False)
 
                     if not data:
                         print(f"Page {current_page}: No more data. Stopping.")
                         break
 
-                    loader.bulk_load(data, "students")
+                    loader.bulk_load(data, "students") # change to "institutes" or "students" if needed
                     total_records_saved += len(data)
 
                     msg = f"{year} Page {current_page}: {len(data)} records saved (Total so far: {total_records_saved})"
