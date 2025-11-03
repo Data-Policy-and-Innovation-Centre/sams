@@ -104,8 +104,6 @@ STUDENT = {
     "Diploma": {"yearmin": 2018, "yearmax": 2024},
     "HSS": {"yearmin": 2018, "yearmax": 2024}, 
     "DEG": {"yearmin": 2018, "yearmax": 2024},
-    "CHSE": {"yearmin": 2020, "yearmax": 2025},
-    "BSE": {"yearmin": 2023, "yearmax": 2025},
 }
 
 
@@ -115,6 +113,10 @@ INSTITUTE = {
     "Diploma": {"yearmin": 2018, "yearmax": 2024},
 }
 
+RESULTS = {
+    "BSE": {"yearmin": 2023, "yearmax": 2025},
+    "CHSE": {"yearmin": 2020, "yearmax": 2025},
+}
 
 try:
     from tqdm import tqdm
