@@ -68,7 +68,7 @@ class SAMSClient:
             list: List of dictionaries contained in the 'Data' field of the JSON response from the SAMS API.
             int: Total number of records if count is True.
         """
-        if module not in ["ITI", "Diploma", "PDIS", "HSS", "DEG", "CHSE", "BSE"]:
+        if module not in ["ITI", "Diploma", "PDIS", "HSS", "DEG"]:
             raise ValueError(f"Module {module} not supported.")
 
         if count:
@@ -84,8 +84,6 @@ class SAMSClient:
         module_to_endpoint = {
             "HSS": "get_plus2_student_data",
             "DEG": "get_deg_student_data",
-            "CHSE": "get_chse_result_data",
-            "BSE": "get_bse_result_data",
         }
 
         endpoint_method = module_to_endpoint.get(module, "get_student_data")
@@ -103,13 +101,13 @@ class SAMSClient:
         }
 
 
-        if module in ['ITI','Diploma','HSS','DEG', 'CHSE', 'BSE']:
+        if module in ['ITI','Diploma','HSS','DEG']:
             params["PageNumber"] = page_number        
     
         # Make HTTP request
         response: requests.Response
         try:
-            if module in ['HSS', 'DEG', 'CHSE', 'BSE']:
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
@@ -117,7 +115,7 @@ class SAMSClient:
             logger.error(f"Connection timeout: {e}")
             logger.info("Resetting connection...")
             self.refresh()
-            if module in ['HSS', 'DEG', 'CHSE', 'BSE']:
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
@@ -125,7 +123,7 @@ class SAMSClient:
             logger.error(f"Chunked encoding error: {chk}")
             logger.info("Resetting connection...")
             self.refresh()
-            if module in ['HSS', 'DEG', 'CHSE', 'BSE']:
+            if module in ['HSS', 'DEG']:
                 response = requests.post(url,headers=headers,json=params)
             else:
                 response = requests.get(url, headers=headers, json=params)
@@ -204,6 +202,82 @@ class SAMSClient:
             response = requests.get(url, headers=headers, json=params)
 
         return self._handle_response(response, count)
+    
+    
+    def get_result_data(
+        self,
+        module: str,
+        academic_year: int,
+        page_number: int = None,
+        count: bool = False,
+    ) -> list | int:
+        """
+        Fetches result data (CHSE or BSE) from the SAMS API for the given academic year.
+
+        Args:
+            module (str): The result module to fetch, should be 'CHSE' or 'BSE'.
+            academic_year (int): The academic year for which to fetch the result data.
+            page_number (int, optional): The page number to fetch (for paginated responses).
+            count (bool, default False): If True, returns only the total number of records.
+
+        Returns:
+            list: List of Pydantic model instances if count=False.
+            int: Total number of records if count=True.
+        """
+
+        if module not in ["CHSE", "BSE"]:
+            raise ValueError(f"Module {module} not supported for results. Must be CHSE or BSE.")
+
+        if count:
+            logger.info(f"Counting SAMS result records for module: {module}, Year: {academic_year}")
+        else:
+            logger.info(
+                f"Getting SAMS result data for module: {module}, Year: {academic_year}, Page number: {page_number}"
+            )
+
+        # Map module to endpoint method
+        module_to_endpoint = {
+            "CHSE": "get_chse_result_data",
+            "BSE": "get_bse_result_data",
+        }
+
+        endpoint_method = module_to_endpoint.get(module)
+        if not hasattr(self.endpoints, endpoint_method):
+            raise AttributeError(f"Endpoint `{endpoint_method}` not found in endpoints")
+
+        url = getattr(self.endpoints, endpoint_method)()
+        headers = self.auth.get_auth_header()
+
+        params = {
+            "Module": module,
+            "AcademicYear": academic_year,
+            "PageNumber": page_number,
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=params)
+        except requests.ConnectTimeout as e:
+            logger.error(f"Connection timeout: {e}")
+            logger.info("Resetting connection...")
+            self.refresh()
+            response = requests.post(url, headers=headers, json=params)
+        except requests.exceptions.ChunkedEncodingError as chk:
+            logger.error(f"Chunked encoding error: {chk}")
+            logger.info("Resetting connection...")
+            self.refresh()
+            response = requests.post(url, headers=headers, json=params)
+
+        data = self._handle_response(response, count)
+
+        if module in self.module_model_map and not count:
+            model = self.module_model_map[module]
+            for rec in data:
+                rec.setdefault("Module", module)
+                rec.setdefault("AcademicYear", academic_year)
+            return [model(**record) for record in data]
+
+        return data
+
 
     def _handle_response(
         self, response: requests.Response, count: bool = False
@@ -260,7 +334,7 @@ def main():
     client = SAMSClient()
 
     # Fetch student data
-    data = client.get_student_data(module="CHSE", academic_year=2023, page_number=1)
+    data = client.get_result_data(module="CHSE", academic_year=2023, page_number=1)
     logger.info(f"Fetched {len(data)} BSE student records")
     print(json.dumps([s.model_dump() for s in data[:1]], indent=2))
     
