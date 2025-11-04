@@ -58,7 +58,7 @@ def preprocess_deg_students_enrollment_data(df: ibis.Table) -> ibis.Table:
     df2 = _preprocess_students(df)
 
     # Drop irrelevant columns, keep 'phase' if it exists
-    drop_cols = {"nationality", "contact_no", "national_cadet_corps", "year"}
+    drop_cols = {"nationality", "contact_no", "national_cadet_corps", "year", 'mark_data', 'option_data', 'hss_option_details', 'hss_compartments'}
     keep_cols = [c for c in df2.columns if c not in drop_cols or c == "phase"]
     df2 = df2.select(*[df2[c] for c in keep_cols])
 
@@ -131,17 +131,16 @@ def preprocess_deg_options_details(students_table: ibis.Table):
 
     # Define the rules for the non-string columns separately.
     other_mutations = {
-        "option_no": L.option_object["OptionNo"].cast("int32"),
-        "year": L.option_object["Year"],
+        "option_no": L.option_object["OptionNo"].cast("string").re_replace(r'^"|"$', ''),
+        "year": L.option_object["Year"].cast("string").re_replace(r'^"|"$', ''),
     }
-    
+
     # Combine all the mutation rules into a single dictionary.
     all_mutations = {**other_mutations, **string_mutations}
 
     # Apply all mutations in a single, clean step using dictionary unpacking (**).
     final_options = options.mutate(**all_mutations)
     
-
     # Select only the final columns we need
     final_options = final_options.select(
         "academic_year", "aadhar_no", "barcode", "option_no", "phase", 
