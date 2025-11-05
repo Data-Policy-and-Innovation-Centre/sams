@@ -2,7 +2,6 @@ from loguru import logger
 import pandas as pd
 from sams.config import MISSING_VALUES
 from pathlib import Path
-import great_expectations as ge
 
 
 def count_null_values(data: list, table_name: str = "students") -> None:
