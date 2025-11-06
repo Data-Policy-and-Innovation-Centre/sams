@@ -22,22 +22,6 @@ export PYTHONPATH := $(PROJECT_ROOT):$(PYTHONPATH)
 clean_data:
 	$(PYTHON_INTERPRETER) $(SCRIPTS_PATH)/preprocess_data.py
 
-# Command to create the environment
-env:
-	conda env create -f $(ENV_FILE)
-
-	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
-
-# Command to update the environment
-update_env:
-	conda env update -f $(ENV_FILE) --prune
-
-	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
-
-# Command to remove the environment
-remove_env:
-	conda env remove -n $(PROJECT_NAME)
-
 # Delete all compiled Python files and interim datasets
 reset:
 	find . -type f -name "*.py[co]" -delete
@@ -55,17 +39,16 @@ sams_db:
 # Tests
 tests:
 	@echo "Running tests..."
-	pytest tests/
+	uv run python -m pytest tests/
 
 test_extract:
 	
 	@echo "Running test on extraction routine..."
-	pytest tests/test_extract.py
+	uv run python -m pytest tests/test_extract.py
 
 test_client:
 	
 	@echo "Running tests on API client..."
-	pytest tests/test_client.py
 
 # Build reports
 reports:
@@ -75,5 +58,5 @@ reports:
 
 	
 
-.PHONY: create_env update_env remove_env clean dataset tests test_extract test_client preprocess
+.PHONY: clean_data sams_db tests test_extract test_client preprocess
 
