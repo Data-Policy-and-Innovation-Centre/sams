@@ -10,9 +10,11 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "dotenv>=0.9.9",
+    "duckdb>=1.4.1",
     "geopandas>=1.1.1",
     "geopy>=2.4.1",
     "graphviz>=0.21",
+    "ipykernel>=7.1.0",
     "ipython>=8.37.0",
     "jupyterlab>=4.4.10",
     "loguru>=0.7.3",
